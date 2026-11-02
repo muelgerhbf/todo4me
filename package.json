@@ -1,0 +1,69 @@
+{
+  "name": "todo4me",
+  "productName": "Todo4Me",
+  "version": "1.0.0",
+  "description": "Personal productivity dashboard: tasks, priorities, weekly planner and weekly notes.",
+  "author": "Todo4Me",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js --dev",
+    "pack": "node scripts/build.js dir",
+    "build": "node scripts/build.js nsis portable",
+    "build:installer": "node scripts/build.js nsis",
+    "build:portable": "node scripts/build.js portable"
+  },
+  "build": {
+    "appId": "com.todo4me.app",
+    "productName": "Todo4Me",
+    "copyright": "Copyright © 2026",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "index.html",
+      "css/**",
+      "js/**",
+      "assets/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Todo4Me",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Todo4Me-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Todo4Me-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  }
+}
