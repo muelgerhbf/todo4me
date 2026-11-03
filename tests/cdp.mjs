@@ -55,11 +55,34 @@ const api = {
     const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full });
     fs.writeFileSync(path.join(outDir, name + '.png'), Buffer.from(r.result.data, 'base64'));
   },
-  async key(key, code, text) {
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, text });
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
+  async key(key, code, text, modifiers = 0) {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, text, modifiers, windowsVirtualKeyCode: VK[key] || (key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0) });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers, windowsVirtualKeyCode: VK[key] || (key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0) });
+  },
+  /** Type text like a user (fires beforeinput/input events). */
+  async type(text) {
+    for (const ch of text) {
+      if (ch === '\n') { await api.key('Enter', 'Enter', '\r'); continue; }
+      await send('Input.insertText', { text: ch });
+    }
+  },
+  async mouse(type, x, y, buttons = 1) {
+    await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : buttons, clickCount: 1 });
+  },
+  async drag(x1, y1, x2, y2, steps = 6) {
+    await api.mouse('mouseMoved', x1, y1, 0);
+    await api.mouse('mousePressed', x1, y1);
+    for (let i = 1; i <= steps; i++) await api.mouse('mouseMoved', x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps);
+    await api.mouse('mouseReleased', x2, y2);
+  },
+  async printPDF(file) {
+    const r = await send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true, generateTaggedPDF: true, generateDocumentOutline: true });
+    if (!r.result || !r.result.data) throw new Error('printToPDF failed: ' + JSON.stringify(r.error || r));
+    fs.writeFileSync(file, Buffer.from(r.result.data, 'base64'));
+    return file;
   },
 };
+const VK = { Enter: 13, Tab: 9, Backspace: 8, Delete: 46, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 };
 
 try {
   await plan.default(api, APP);

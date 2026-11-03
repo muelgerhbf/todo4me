@@ -1,13 +1,18 @@
 /* Builds the Windows app with electron-builder.
  *
  * Usage (via npm scripts):
- *   node scripts/build.js nsis portable   → installer + portable .exe in ./dist
- *   node scripts/build.js dir             → unpacked app in ./dist/win-unpacked
+ *   node scripts/build.js nsis portable             → installer + portable .exe in ./dist
+ *   node scripts/build.js dir                       → unpacked app in ./dist/win-unpacked
+ *   node scripts/build.js nsis portable --publish   → same, and upload a draft GitHub release
+ *                                                     (needs the GH_TOKEN environment variable)
  *
  * Why not run electron-builder directly into ./dist? Electron-based editors such as
  * VS Code open .asar files they come across in the workspace and keep them locked,
  * which makes electron-builder fail with EBUSY/EPERM. So the build runs in a temp
- * folder outside the project and only the finished results are copied to ./dist. */
+ * folder outside the project and only the finished results are copied to ./dist.
+ *
+ * Besides the .exe files, latest.yml and *.blockmap are copied: they are the update
+ * feed that installed apps read (see electron/updater.js). */
 'use strict';
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -17,14 +22,22 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 const TMP_OUT = path.join(os.tmpdir(), 'todo4me-build');
-const targets = process.argv.slice(2).length ? process.argv.slice(2) : ['nsis', 'portable'];
+const args = process.argv.slice(2);
+const publish = args.includes('--publish');
+const targets = args.filter((a) => !a.startsWith('--'));
+if (!targets.length) targets.push('nsis', 'portable');
+
+if (publish && !process.env.GH_TOKEN) {
+  console.error('Publishing needs a GitHub token in the GH_TOKEN environment variable (see README → Releasing an update).');
+  process.exit(1);
+}
 
 const env = Object.assign({}, process.env);
 delete env.ELECTRON_RUN_AS_NODE;
 
 fs.rmSync(TMP_OUT, { recursive: true, force: true });
 const cli = require.resolve('electron-builder/cli.js', { paths: [ROOT] });
-const res = spawnSync(process.execPath, [cli, '--win', ...targets, '--config.directories.output=' + TMP_OUT], {
+const res = spawnSync(process.execPath, [cli, '--win', ...targets, '--config.directories.output=' + TMP_OUT, '--publish', publish ? 'always' : 'never'], {
   cwd: ROOT, env, stdio: 'inherit',
 });
 if (res.status !== 0) {
@@ -40,7 +53,7 @@ if (targets.includes('dir')) {
   fs.cpSync(path.join(TMP_OUT, 'win-unpacked'), dest, { recursive: true });
   copied.push(dest);
 }
-fs.readdirSync(TMP_OUT).filter((f) => f.toLowerCase().endsWith('.exe')).forEach((f) => {
+fs.readdirSync(TMP_OUT).filter((f) => /\.(exe|blockmap)$/i.test(f) || f === 'latest.yml').forEach((f) => {
   fs.copyFileSync(path.join(TMP_OUT, f), path.join(DIST, f));
   copied.push(path.join(DIST, f));
 });
@@ -48,3 +61,4 @@ fs.rmSync(TMP_OUT, { recursive: true, force: true });
 
 console.log('\nDone. Output:');
 copied.forEach((f) => console.log('  ' + f));
+if (publish) console.log('\nA DRAFT release was uploaded to GitHub. Open it on github.com and click "Publish release" to roll the update out.');

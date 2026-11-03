@@ -11,9 +11,11 @@ Written at the end of day 1 (2026-11-02) as the starting point for day 2: **buil
 |---|---|
 | Project folder | `C:\dev\todo4me` |
 | Web app | Done. Runs in any browser by opening `index.html` |
-| Windows desktop app | Done. `dist\Todo4Me-Setup-1.0.0.exe` (installer) and `dist\Todo4Me-1.0.0-portable.exe` |
-| Tests | 141 functional + 32 desktop checks, all passing in Chrome, Electron dev, the portable exe and the installed app |
-| Mac / iPad | Not started; planned for day 2 (see the last section) |
+| Windows desktop app | Done. Version **2.0.0** (day 2): `dist\Todo4Me-Setup-2.0.0.exe` (installer, auto-updates) and `dist\Todo4Me-2.0.0-portable.exe` |
+| Document editor | Done on day 2 (see Part 4) |
+| Automatic updates | Built in on day 2 (see Part 4). Needs the public repo `todo4me-releases` + a token once before the first `npm run release` |
+| Tests | 141 functional + 155 editor + 52 desktop checks + an end-to-end update test, all passing |
+| Mac / iPad | Not started (see Part 3) |
 
 **Tool versions used:** Node.js 24.20.0, npm 11.19.0, Electron 45.2.1, electron-builder 26.18.0, Windows 11, Google Chrome (for headless testing).
 
@@ -258,3 +260,84 @@ Options to discuss tomorrow:
 2. **PWA:** add `manifest.json`, a service worker and the iOS meta tags. Make task actions always visible and add a touch fallback for drag and drop. Test with the existing suite using an iPad-sized viewport, then on a real iPad.
 3. **Mac:** make the Electron changes above and build on a Mac (or set up GitHub Actions). Install it and test.
 4. Update the README and this log.
+
+**Editor notes for Mac/iPad (added with Part 4):** Calibri is not installed there; the bundled *Carlito* (same metrics) is used automatically.
+Documents live in IndexedDB (Safari supports it; for a PWA ask for persistent storage with `navigator.storage.persist()`).
+The PDF export uses Electron's `printToPDF` on Mac; in a PWA it falls back to the print dialog ("Save as PDF"), using the same CSS.
+Drawing shapes use pointer events, so dragging/resizing works with touch; the context toolbars scroll horizontally on narrow screens.
+For Mac auto-updates, electron-updater needs a **signed** app (Apple Developer account); without it, Mac users update by installing the new `.dmg`.
+
+---
+
+## Part 4: Day 2 (2026-11-03): document editor + automatic updates (version 2.0.0)
+
+All work on the branch `feature/editor`; `main` stayed untouched until everything was tested.
+
+### Step 16: Analysis
+
+- Read every file again: router (`app.js`), storage (`storage.js`, LocalStorage `todo4me.data.v1`), design tokens (`styles.css`), Electron main/preload, `desktop.js`, tests.
+- **Finding:** the brief said Todo4Me "already has an update function". It did not: there was no `electron-updater` and no update code, only the plan from day 1.
+  So the update system was built once, as the only one (not a second, parallel system).
+- Constraints that shaped the design: no build step and `file://` (classic scripts, `T4` namespace), strict CSP (no inline scripts, no `eval`), the app
+  re-renders the whole view on every store change, LocalStorage has only a few MB, everything must work offline.
+
+### Step 17: Decisions
+
+| Question | Decision | Why |
+|---|---|---|
+| Editing engine | Own engine on `contenteditable` (`editor-core.js`), no editor framework | ProseMirror/Tiptap need a bundler; Quill can't do tables/shapes well. An own engine fits the no-build setup and stays small |
+| Undo/redo | Own history of sanitized document snapshots + selection as character offsets | The browser's native undo breaks as soon as widgets/tables are changed via DOM; snapshots make *every* change undoable |
+| Storage | IndexedDB database `todo4me-docs` (docs, bodies, assets), separate from `todo4me.data.v1` | Images and long documents would fill LocalStorage and could block saving tasks |
+| Format | Sanitized HTML + JSON metadata; widgets store only source data in `data-p` | Lossless (colors, fonts, alignment, shapes, charts); Markdown is import/export (lossy for those) |
+| Formulas | KaTeX 0.16.25 (MIT), loaded on demand | Fast, no `eval` (CSP-safe), works offline, excellent print quality |
+| Code highlighting | Prism 1.30.0 (MIT), 10 languages, loaded on demand | Small (~50 KB), manual mode |
+| Charts, shapes | Own SVG rendering | No dependency; vector output in the PDF |
+| Fonts | Fira Code + Carlito bundled (SIL OFL); Calibri/Arial/Georgia/Times/Verdana from the system | Calibri is proprietary and can't be shipped; Carlito has identical metrics |
+| PDF | The same page printed with print CSS: Electron `webContents.printToPDF`, browser `window.print()`; header/footer/page numbers via CSS `@page` margin boxes | Chromium's print engine embeds fonts, keeps vector graphics, makes bookmarks; one code path for both |
+| Re-renders | The editor's DOM is created once and re-attached on every render | Typing, selection, undo history survive when e.g. a task is added elsewhere |
+| Updates | `electron-updater` + public GitHub repo `todo4me-releases`, background download, "Restart now" | Free, standard, works with the existing NSIS installer; portable/dev builds report "unsupported" |
+
+### Step 18: Files
+
+New: `js/editor-sanitize.js`, `js/docstore.js`, `js/editor-widgets.js`, `js/editor-markdown.js`, `js/editor-core.js`, `js/editor.js`,
+`css/editor.css`, `electron/updater.js`, `scripts/vendor.js`, `vendor/` (KaTeX, Prism, fonts + licenses), `tests/test-editor.mjs`.
+
+Changed (additions only, nothing removed):
+- `index.html`: editor stylesheet, ~55 icons, 6 script tags; CSP `img-src` also allows `blob:` (images from IndexedDB).
+- `js/app.js`: one navigation entry ("Write → Editor") and `G E`.
+- `js/desktop.js`: Go → Editor, new menu commands, save-before-close, daily documents backup, update notifications + Settings section, Ctrl+I/E/N belong to the editor while typing.
+- `electron/main.js`: close handshake (page saves, then the window closes), PDF export IPC, `backup:write-docs`, `.md` save dialog, menu items, updater, optional `todo4meDataFolder` for test/beta builds.
+- `electron/preload.js`: new bridge functions (PDF, open exported file, documents backup, before-close, updates).
+- `package.json`: version 2.0.0, `electron-updater` dependency, `vendor/**` in the build, `publish` (GitHub `muelgerhbf/todo4me-releases`, draft), scripts `release` and `vendor`.
+- `scripts/build.js`: `--publish` mode; also copies `latest.yml` + `.blockmap` to `dist/`.
+- Tests: nav link count 11 → 12, bridge API list, settings card count, version from `package.json`.
+
+### Step 19: Bugs found by the tests and fixed
+
+1. **Undo restored slightly different markup** (e.g. `<strike>` vs `<s>`): `serialize()` now always returns the sanitized, canonical HTML, so storage, undo and redo are identical.
+2. **`- ` after a heading turned the heading into a list:** deleting the typed `- ` left an empty text node; Chrome then moved the caret into the previous block. Fixed by cleaning the node and placing the caret explicitly.
+3. **Toggling a table's header row lost the cursor** (the cells are replaced): the selection is restored by character offset.
+4. **New documents from templates were not searchable** until first edited: search text is now computed when a document is created/imported.
+5. **CSP warnings when pasting HTML with `onclick=`:** Chrome reports them while parsing; attributes are now renamed before parsing (quote-aware, values untouched). Nothing ever executed.
+6. **Slash menu opened far above the caret** when there was little space below: placement + max height fixed.
+7. Update E2E risk spotted before running it: after an update the installer restarts the app via Explorer (environment variables are lost), so a test build could have opened the real data folder. Fixed with `todo4meDataFolder` (test builds use `%APPDATA%\Todo4MeUpdateTest`). The real `%APPDATA%\Todo4Me` was backed up and verified unchanged by hash.
+
+### Step 20: Tests
+
+| Suite | Result |
+|---|---|
+| Original functional suite (Chrome) | 141/141 |
+| Original functional suite (Electron) | 141/141 |
+| Editor suite (Chrome, real typing/mouse via CDP, PDF text checked with pdf.js) | 155/155 |
+| Desktop suite (Electron): security, menus, restart, backups, PDF export via IPC, close-save, documents backup, updates state | 52/52 |
+| End-to-end update (build 2.0.0 + 2.0.1 → install → detect → download → install → verify data) | see Step 21 |
+
+### Step 21: End-to-end update test
+
+E2E_RESULT_PLACEHOLDER
+
+### Step 22: Releasing 2.0.0 to colleagues
+
+1. One-time: create the public repo `todo4me-releases`, create the token, set `GH_TOKEN` (README → *Ein Update veröffentlichen*).
+2. Colleagues on 1.0.0 install `Todo4Me-Setup-2.0.0.exe` once (over the old version; data is kept).
+3. From then on: raise the version, `npm run release`, publish the draft on GitHub.

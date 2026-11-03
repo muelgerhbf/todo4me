@@ -25,7 +25,7 @@ export default async function (b) {
   await run('boot', `
     ok(!!$('.hero'), 'dashboard renders on first load');
     ok(location.hash === '#/dashboard', 'default route is dashboard');
-    ok($$('#nav .nav__link').length === 11, 'sidebar has 11 nav links');
+    ok($$('#nav .nav__link').length === 12, 'sidebar has 12 nav links (11 original + Editor)');
     ok(!!$('.toast'), 'welcome toast shown on first run');
   `);
 

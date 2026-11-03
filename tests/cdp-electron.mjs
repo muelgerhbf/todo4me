@@ -86,9 +86,16 @@ const api = {
     const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full });
     fs.writeFileSync(path.join(outDir, name + '.png'), Buffer.from(r.result.data, 'base64'));
   },
-  async key(key, code, text) {
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, text });
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
+  async key(key, code, text, modifiers = 0) {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, text, modifiers });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers });
+  },
+  /** Type text like a user (fires beforeinput/input events). */
+  async type(text) {
+    for (const ch of text) {
+      if (ch === '\n') { await api.key('Enter', 'Enter', '\r'); continue; }
+      await send('Input.insertText', { text: ch });
+    }
   },
 };
 

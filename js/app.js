@@ -14,6 +14,8 @@ T4.app = (function () {
     { id: 'planner', label: 'Weekly Planner', icon: 'week' },
     { id: 'plan', label: 'Daily Plan', icon: 'book' },
     { id: 'notes', label: 'Weekly Notes', icon: 'note', count: 'notes' },
+    { sep: 'Write' },
+    { id: 'editor', label: 'Editor', icon: 'doc' },
     { sep: 'Do' },
     { id: 'focus', label: 'Focus Mode', icon: 'target' },
     { id: 'stats', label: 'Statistics', icon: 'chart' },
@@ -165,7 +167,7 @@ T4.app = (function () {
       const k = e.key.toLowerCase();
       if (gPending && Date.now() - gPending < 1200) {
         gPending = 0;
-        const map = { d: 'dashboard', i: 'inbox', t: 'today', u: 'upcoming', m: 'tasks', w: 'planner', p: 'plan', o: 'notes', f: 'focus', s: 'stats' };
+        const map = { d: 'dashboard', i: 'inbox', t: 'today', u: 'upcoming', m: 'tasks', w: 'planner', p: 'plan', o: 'notes', e: 'editor', f: 'focus', s: 'stats' };
         if (map[k]) { e.preventDefault(); location.hash = '#/' + map[k]; }
         return;
       }

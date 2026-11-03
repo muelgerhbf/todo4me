@@ -13,18 +13,27 @@
   document.documentElement.classList.add('is-desktop');
 
   /* ---------- Application menu → existing actions ---------- */
-  const ROUTES = ['dashboard', 'inbox', 'tasks', 'today', 'upcoming', 'planner', 'plan', 'notes', 'focus', 'stats', 'settings'];
-  desktop.onMenuAction((action) => {
+  const ROUTES = ['dashboard', 'inbox', 'tasks', 'today', 'upcoming', 'planner', 'plan', 'notes', 'editor', 'focus', 'stats', 'settings'];
+  // While typing in a document, Ctrl+I / Ctrl+E / Ctrl+N belong to the editor (italic, …), not to the menu.
+  const EDITOR_KEYS = ['new-task', 'quick-capture', 'new-note', 'export-data', 'import-data'];
+  desktop.onMenuAction((action, meta) => {
+    if (meta && meta.accel && T4.editor && T4.editor.hasFocus && EDITOR_KEYS.includes(action)) {
+      if (action === 'new-task') ui.run('new-document', null); // Ctrl+N in a document → new document (like Word)
+      return;
+    }
     if (action.indexOf('go:') === 0) {
       const route = action.slice(3);
       if (ROUTES.includes(route)) location.hash = '#/' + route;
       return;
     }
-    if (['new-task', 'quick-capture', 'new-note', 'export-data', 'import-data'].includes(action)) {
+    if (['new-task', 'quick-capture', 'new-note', 'export-data', 'import-data', 'new-document', 'export-pdf'].includes(action)) {
       if (document.getElementById('confirm').open) return; // don't stack on a pending confirmation
       ui.run(action, null);
     }
   });
+
+  /* ---------- Save open documents before the window closes ---------- */
+  if (desktop.onBeforeClose) desktop.onBeforeClose(() => (T4.editor ? T4.editor.flush() : null));
 
   /* ---------- Daily safety snapshot (file on disk, kept 14 days) ---------- */
   function hasData() {
@@ -37,6 +46,76 @@
       if (res && !res.ok) console.warn('[Todo4Me] backup file not written:', res.error);
     });
   }
+
+  /* Editor documents: one JSON file per day as well (with images), only when documents exist. */
+  const DOC_BACKUP_KEY = 'todo4me.docs.backupDay';
+  async function documentsSnapshot() {
+    if (!T4.docstore || !desktop.writeDocBackup) return;
+    let day = null;
+    try { day = localStorage.getItem(DOC_BACKUP_KEY); } catch (e) { /* ignore */ }
+    if (day === U.today()) return;
+    try {
+      await T4.docstore.open();
+      const bundle = await T4.docstore.exportBundle();
+      if (!bundle.documents.length) return;
+      const res = await desktop.writeDocBackup(JSON.stringify(bundle));
+      if (res && res.ok) { try { localStorage.setItem(DOC_BACKUP_KEY, U.today()); } catch (e) { /* ignore */ } }
+      else if (res) console.warn('[Todo4Me] documents backup not written:', res.error);
+    } catch (e) { console.warn('[Todo4Me] documents backup failed:', e.message); }
+  }
+
+  /* ---------- Updates ---------- */
+  let upd = { status: 'idle' };
+  const notified = {};
+  function updateText(s) {
+    switch (s.status) {
+      case 'checking': return 'Checking for updates…';
+      case 'downloading': return 'Downloading Todo4Me ' + esc(s.version || '') + '… ' + (s.percent ? s.percent + '%' : '');
+      case 'ready': return '<strong>Todo4Me ' + esc(s.version) + ' is ready to install.</strong> Restart to finish — your data stays where it is.';
+      case 'latest': return 'You are using the latest version.' + (s.checkedAt ? ' Last checked ' + esc(U.fmtDateTime(s.checkedAt)) + '.' : '');
+      case 'error': return '<span class="text-danger">' + esc(s.error || 'Update check failed.') + '</span>';
+      case 'unsupported': return esc(s.reason || 'Automatic updates are not available.');
+      default: return 'Todo4Me checks for updates automatically when you are online.';
+    }
+  }
+  function updateButtons(s) {
+    if (s.status === 'ready') return '<button type="button" class="btn btn--primary" data-action="desktop-install-update">' + icon('reset') + 'Restart & install</button>';
+    if (s.status === 'unsupported') return '';
+    return '<button type="button" class="btn" data-action="desktop-check-update"' + (s.status === 'checking' || s.status === 'downloading' ? ' disabled' : '') + '>' + icon('download') + 'Check for updates</button>';
+  }
+  function paintUpdate() {
+    const t = document.getElementById('upd-text'), b = document.getElementById('upd-buttons');
+    if (t) t.innerHTML = updateText(upd);
+    if (b) b.innerHTML = updateButtons(upd);
+  }
+  function onUpdate(s) {
+    upd = s;
+    paintUpdate();
+    if (s.status === 'downloading' && s.version && !notified['dl' + s.version]) {
+      notified['dl' + s.version] = true;
+      ui.toast('Todo4Me ' + s.version + ' is available and is being downloaded in the background.', 'info', 6000);
+    }
+    if (s.status === 'ready' && !notified['ready' + s.version]) {
+      notified['ready' + s.version] = true;
+      ui.toast('Todo4Me ' + s.version + ' is ready. Restart to update — your data is kept.', 'info', 30000, { label: 'Restart now', fn: installUpdate });
+    }
+    if (s.manual) {
+      if (s.status === 'latest') ui.toast('You are using the latest version (' + s.current + ').', 'success', 4000);
+      if (s.status === 'error') ui.toast(s.error, 'error', 9000);
+      if (s.status === 'unsupported') ui.toast(s.reason, 'info', 9000);
+    }
+  }
+  async function installUpdate() {
+    ui.toast('Saving and restarting…', 'info', 4000);
+    if (T4.editor) await T4.editor.flush();
+    const res = await desktop.installUpdate();
+    if (res && !res.ok) ui.toast(res.error || 'The update could not be installed.', 'error', 9000);
+  }
+  ui.on('desktop-check-update', () => {
+    desktop.checkForUpdates().then((s) => { if (s && s.status === 'unsupported') ui.toast(s.reason, 'info', 9000); });
+  });
+  ui.on('desktop-install-update', installUpdate);
+  if (desktop.onUpdateState) desktop.onUpdateState(onUpdate);
 
   /* ---------- Settings: desktop card ---------- */
   ui.on('desktop-open-folder', (el) => desktop.openFolder(el.dataset.folder));
@@ -54,6 +133,9 @@
         '<button type="button" class="btn btn--ghost" data-action="desktop-open-folder" data-folder="data">Open data folder</button>' +
       '</div>' +
       '<p class="muted small"><strong>Moving from the browser version?</strong> Open Todo4Me in your browser, use Settings → Export JSON, then choose Import JSON here and pick <em>Merge</em>. Nothing is overwritten.</p>' +
+      '<h3 class="settings__subhead">Updates</h3>' +
+      '<p class="muted small">Version ' + esc(info ? info.version : '') + ' · <span id="upd-text">' + updateText(upd) + '</span></p>' +
+      '<div class="btn-row" id="upd-buttons">' + updateButtons(upd) + '</div>' +
       '</section>';
     // Insert as the last card inside the settings column.
     const i = html.lastIndexOf('</div>');
@@ -65,8 +147,14 @@
     desktop.getInfo().then((i) => {
       info = i;
       if (T4.app.route.name === 'settings') T4.app.render();
+      // First start after an update: confirm the new version once.
+      let last = null;
+      try { last = localStorage.getItem('todo4me.app.version'); localStorage.setItem('todo4me.app.version', i.version); } catch (e) { /* ignore */ }
+      if (last && last !== i.version) ui.toast('Todo4Me was updated to version ' + i.version + '. All your data is still here.', 'success', 9000);
     });
+    if (desktop.getUpdateState) desktop.getUpdateState().then((s) => { upd = s; paintUpdate(); });
     snapshot();
+    setTimeout(documentsSnapshot, 20000);
     // Migration hint for people who used the browser version before.
     if (!hasData()) {
       setTimeout(() => {

@@ -1,8 +1,8 @@
 {
   "name": "todo4me",
   "productName": "Todo4Me",
-  "version": "1.0.0",
-  "description": "Personal productivity dashboard: tasks, priorities, weekly planner and weekly notes.",
+  "version": "2.0.0",
+  "description": "Personal productivity dashboard: tasks, priorities, weekly planner, weekly notes and a document editor.",
   "author": "Todo4Me",
   "license": "UNLICENSED",
   "private": true,
@@ -13,7 +13,9 @@
     "pack": "node scripts/build.js dir",
     "build": "node scripts/build.js nsis portable",
     "build:installer": "node scripts/build.js nsis",
-    "build:portable": "node scripts/build.js portable"
+    "build:portable": "node scripts/build.js portable",
+    "release": "node scripts/build.js nsis portable --publish",
+    "vendor": "node scripts/vendor.js"
   },
   "build": {
     "appId": "com.todo4me.app",
@@ -29,7 +31,16 @@
       "css/**",
       "js/**",
       "assets/**",
+      "vendor/**",
       "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "muelgerhbf",
+        "repo": "todo4me-releases",
+        "releaseType": "draft"
+      }
     ],
     "win": {
       "icon": "build/icon.png",
@@ -63,7 +74,14 @@
     }
   },
   "devDependencies": {
+    "@fontsource/carlito": "^5.2.7",
+    "@fontsource/fira-code": "^5.2.7",
     "electron": "^45.2.1",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "katex": "^0.16.25",
+    "prismjs": "^1.30.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }
