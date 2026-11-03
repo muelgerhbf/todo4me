@@ -334,7 +334,13 @@ Changed (additions only, nothing removed):
 
 ### Step 21: End-to-end update test
 
-E2E_RESULT_PLACEHOLDER
+Isolated test identity (`Todo4MeUpdateTest`, own appId, own data folder via `todo4meDataFolder`, no shortcuts, installed to a temp folder,
+uninstalled afterwards). Result **18/19**: 2.0.0 installs; the app finds 2.0.1 on a local feed after ~7 s, downloads it in the background,
+shows "ready" + *Restart & install*; the installer replaces the app with 2.0.1; tasks, weekly notes and documents are all kept;
+"Check for updates" then reports *latest*; with the feed offline the user gets "No connection to the update server…".
+**Open point:** after the silent install the app was not restarted automatically in this (agent) environment, neither by the
+installer (`ExecShellAsUser`) nor by the added PowerShell relaunch watcher. Data and version are correct; the user may have to start
+Todo4Me once by hand after an update. To verify on a normal desktop session with the first real update (2.0.0 → 2.0.1).
 
 ### Step 22: Releasing 2.0.0 to colleagues
 
