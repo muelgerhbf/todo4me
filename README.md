@@ -219,7 +219,7 @@ Neue Seite **Editor** in der Navigation (Abschnitt *Write*, Kürzel `G` dann `E`
 
 **Aufbau:** links die Dokumentenliste (Suche in Titel und Inhalt, *All / Pinned / Trash*, „…“-Menü je Dokument),
 oben Titel, Speicherstatus, Menüs **File** und **Insert** und der Knopf **Export PDF**, darunter die Formatierungsleiste,
-in der Mitte die Seite (Papieransicht im gewählten Format), unten Wörter/Zeichen/Seiten und Zoom.
+in der Mitte die Seite (Papieransicht im gewählten Format), unten Wörter/Zeichen/Seiten und Zoom (25–300 %, auch mit **Strg + Mausrad**; die Stelle unter dem Mauszeiger bleibt dabei stehen).
 Ohne geöffnetes Dokument zeigt die Seite Vorlagen (*Blank, Meeting notes, Report, Feature tour*) und die zuletzt bearbeiteten Dokumente.
 
 | Bereich | Funktionen |
@@ -233,12 +233,12 @@ Ohne geöffnetes Dokument zeigt die Seite Vorlagen (*Blank, Meeting notes, Repor
 | Links | `Strg+K` einfügen/bearbeiten, Klick zeigt Adresse mit *Öffnen / Bearbeiten / Entfernen*, `Strg+Klick` öffnet im Browser |
 | Tabellen | Raster-Auswahl oder freie Größe, Kopfzeile, Zeilen/Spalten einfügen und löschen, Zellfarbe, `Tab` springt zur nächsten Zelle (am Ende neue Zeile) |
 | Bilder | Einfügen per Knopf, Einfügen aus der Zwischenablage oder Drag & Drop · Größe per Ziehen oder 25/50/75/100 % · links/zentriert/rechts oder Textumfluss · Bildunterschrift, Alternativtext, ersetzen. Große Bilder werden automatisch verkleinert |
-| Formen | Kreis, Rechteck, abgerundetes Rechteck, Dreieck, Linie, Pfeil, Raute in einer Zeichenfläche · verschieben (Maus oder Pfeiltasten), Größe über Anfasser (`Umschalt` = proportional), Füll-, Rahmenfarbe, Rahmenstärke, Text in der Form, duplizieren (`Strg+D`), löschen (`Entf`), nach vorne/hinten · Höhe der Zeichenfläche per Anfasser |
+| Formen | Kreis, Rechteck, abgerundetes Rechteck, Dreieck, Linie, Pfeil, Raute in einer Zeichenfläche · verschieben (Maus oder Pfeiltasten), Größe über Anfasser (`Umschalt` = proportional), Füll-, Rahmenfarbe, Rahmenstärke (0–20 px, Regler mit gedrückter Maustaste ziehen oder −/+), Text in der Form, duplizieren (`Strg+D`), löschen (`Entf`), nach vorne/hinten · Höhe der Zeichenfläche per Anfasser |
 | Diagramme | Balken, Linie, Kreis · Daten in einer Tabelle bearbeiten (Doppelklick), mehrere Datenreihen, Farben, Titel, Legende · als Vektorgrafik im PDF |
 | Formeln | LaTeX-Formeleditor (`Strg+M`) mit Live-Vorschau und Symbolpalette (Brüche, Wurzeln, Potenzen, Indizes, Summen, Integrale, Grenzwerte, Matrizen, griechische Buchstaben, Symbole) · in der Zeile oder als eigener Block · Darstellung mit KaTeX |
 | Code | Codeblöcke mit Syntax-Highlighting für JavaScript, Python, HTML, CSS, JSON, Java, C++, C, C#, SQL, Bash · Fira Code · Sprache wählbar · Kopieren-Knopf · `Tab` rückt ein, `Esc` verlässt den Block |
 | Markdown-Kürzel | `# ` bis `###### ` Überschriften, `- ` Liste, `1. ` Nummerierung, `> ` Zitat, `**fett**`, `*kursiv*`, `` `code` ``, `~~durch~~`, `==markiert==`, ```` ``` ```` + Enter Codeblock, `---` + Enter Linie, `$$` + Enter Formel. `/` in einer leeren Zeile öffnet das Einfügen-Menü. Eingefügter Markdown-Text wird umgewandelt |
-| PDF | **Export PDF** (`Strg+P`): professionelles Layout mit sauberen Seitenumbrüchen (Überschriften bleiben beim Text, Tabellenzeilen, Bilder, Formeln und Codeblöcke werden nicht zerrissen, Tabellenköpfe wiederholen sich), eingebetteten Schriften, Vektorgrafiken, Lesezeichen aus den Überschriften. **File → Page setup**: A4/Letter/A5/Legal, Hoch-/Querformat, Ränder, Kopf- und Fußzeile (Platzhalter `{title}`, `{date}`), Seitenzahlen („Page 1 of 3“, „1 / 3“, „1“), erste Seite ohne Kopfzeile. Die gestrichelten Linien auf der Seite zeigen ungefähr, wo eine neue PDF-Seite beginnt. In der Desktop-App öffnet sich ein Speichern-Dialog, im Browser der Druckdialog („Als PDF speichern“). Das Dokument selbst wird dabei nicht verändert |
+| PDF | **Export PDF** (`Strg+P`): professionelles Layout mit sauberen Seitenumbrüchen (Überschriften bleiben beim Text, Tabellenzeilen, Bilder, Formeln und Codeblöcke werden nicht zerrissen, Tabellenköpfe wiederholen sich), eingebetteten Schriften, Vektorgrafiken, Lesezeichen aus den Überschriften. **File → Page setup**: A4/Letter/A5/Legal, Hoch-/Querformat, Ränder, Kopf- und Fußzeile (Platzhalter `{title}`, `{date}`), Seitenzahlen („Page 1 of 3“, „1 / 3“, „1“), erste Seite ohne Kopfzeile. Das PDF entspricht der Seite im Editor: weißes Papier, dieselben Ränder, Kopf- und Fußzeile mittig im Rand. Die gestrichelten Linien auf der Seite zeigen ungefähr, wo eine neue PDF-Seite beginnt. In der Desktop-App öffnet sich ein Speichern-Dialog, im Browser der Druckdialog („Als PDF speichern“). Das Dokument selbst wird dabei nicht verändert |
 | Export | Markdown (`.md`, Obsidian-kompatibel, Bilder/Diagramme eingebettet) und Todo4Me-Dokument (`.json`, verlustfrei) · *Settings → Documents* exportiert/importiert alle Dokumente |
 
 **Dateiformat:** Dokumente werden intern als bereinigtes HTML (nur erlaubte Elemente, Attribute und Stilangaben) plus JSON-Metadaten gespeichert,
@@ -485,9 +485,9 @@ Imports never overwrite existing documents (id clashes get a new id).
 
 ```bash
 node tests/cdp.mjs tests/test-functional.mjs           # 141 checks: all original features (Chrome)
-node tests/cdp.mjs tests/test-editor.mjs               # 155 checks: editor, PDF, persistence, Markdown, security (Chrome)
+node tests/cdp.mjs tests/test-editor.mjs               # 166 checks: editor, PDF, persistence, Markdown, security (Chrome)
 node tests/cdp-electron.mjs tests/test-functional.mjs  # the original checks inside the desktop app
-node tests/cdp-electron.mjs tests/test-electron.mjs    # 52 checks: security, menu, restart, backups, PDF export, close-save, updates
+node tests/cdp-electron.mjs tests/test-electron.mjs    # 53 checks: security, menu, restart, backups, PDF export, close-save, updates
 ```
 
 Optional environment: `PDFTEXT=<script>` checks PDF text (page numbers, header/footer) with pdf.js, `TODO4ME_PDF_DIR=<folder>` lets the desktop test export PDFs without a dialog.

@@ -288,6 +288,32 @@ export default async function (b) {
   await run('shape-del', `ok(W().getProps($('#ed-doc .t4-w[data-w="draw"]')).shapes.length === 6, 'Del key deletes the selected shape');`);
   await b.key('z', 'KeyZ', undefined, 2); await b.sleep(80);
   await run('shape-undo', `ok($('#ed-doc .t4-w[data-w="draw"]') && W().getProps($('#ed-doc .t4-w[data-w="draw"]')).shapes.length === 7, 'Ctrl+Z restores the deleted shape');`);
+  // Outline width: drag the slider with the left mouse button, then the − / + buttons.
+  await run('sw-setup', `
+    const dw = $('#ed-doc .t4-w[data-w="draw"]'); const s = W().getProps(dw).shapes[0];
+    W().drawing.select(dw, s.id); C().selectWidget(dw); W().drawing.action(dw, 'sw', 2); await wait(120);
+    ok(!!$('#ed-ctx input[data-ctx-input="draw-sw"]') && $('#ed-ctx [data-ctx="draw-sw:1"]') && $('#ed-ctx [data-ctx="draw-sw:-1"]'), 'outline width: slider plus − / + buttons');
+  `);
+  const swOf = () => b.evaluate(`T4.edw.getProps(document.querySelector('#ed-doc .t4-w[data-w="draw"]')).shapes[0].sw`);
+  const rectOf = (sel) => b.evaluate(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return { x: r.left, y: r.top + r.height / 2, w: r.width, cx: r.left + r.width / 2 }; })()`);
+  const slider = await rectOf('#ed-ctx input[data-ctx-input="draw-sw"]');
+  await b.mouse('mouseMoved', slider.x + 6, slider.y, 0);
+  await b.mouse('mousePressed', slider.x + 6, slider.y);
+  const seen = [];
+  for (let i = 1; i <= 8; i++) { await b.mouse('mouseMoved', slider.x + 6 + ((slider.w - 12) * 0.75 * i) / 8, slider.y); await b.sleep(30); seen.push(await swOf()); }
+  await b.mouse('mouseReleased', slider.x + 6 + (slider.w - 12) * 0.75, slider.y);
+  await b.sleep(120);
+  const swDrag = await swOf();
+  out.push((swDrag >= 12 && new Set(seen).size >= 5 ? 'PASS ' : 'FAIL ') + 'outline width follows the slider while dragging with the mouse (' + seen.join(',') + ')');
+  await b.click((await rectOf('#ed-ctx [data-ctx="draw-sw:1"]')).cx, slider.y); await b.sleep(80);
+  await b.click((await rectOf('#ed-ctx [data-ctx="draw-sw:1"]')).cx, slider.y); await b.sleep(80);
+  const swPlus = await swOf();
+  await b.click((await rectOf('#ed-ctx [data-ctx="draw-sw:-1"]')).cx, slider.y); await b.sleep(80);
+  await run('sw-check', `
+    const sw = T4.edw.getProps($('#ed-doc .t4-w[data-w="draw"]')).shapes[0].sw;
+    ok(${swPlus} === ${swDrag} + 2 && sw === ${swDrag} + 1, '+ / − buttons change the width by 1 (' + ${swDrag} + ' → ' + ${swPlus} + ' → ' + sw + ')');
+    ok($('#ed-ctx input[data-ctx-input="draw-sw"]').value === String(sw) && $('#ed-ctx .ctx-range__val').textContent === sw + ' px', 'slider and label show the current width');
+  `);
 
   /* ---------- Charts ---------- */
   await run('charts', `
@@ -361,6 +387,26 @@ export default async function (b) {
   `);
   await b.key('Escape', 'Escape');
   await b.sleep(50);
+
+  /* ---------- Zoom with Ctrl + mouse wheel ---------- */
+  await run('zoom-setup', `$('[data-cmd="zoom-reset"]').click(); $('#ed-scroll').scrollTop = 0; await wait(50);`);
+  const zp = await b.evaluate(`(() => { const r = document.querySelector('#ed-doc p').getBoundingClientRect(); return { x: r.left + 30, y: r.top + 6 }; })()`);
+  const under = () => b.evaluate(`(() => { const e = document.elementFromPoint(${zp.x}, ${zp.y}); return e ? e.closest('#ed-doc > *') && e.closest('#ed-doc > *').textContent.slice(0, 30) : ''; })()`);
+  const under0 = await under();
+  await b.mouse('mouseMoved', zp.x, zp.y, 0);
+  await b.wheel(zp.x, zp.y, -100, 2); await b.sleep(80);
+  const z1 = await b.evaluate(`document.getElementById('ed-zoom').textContent`);
+  const under1 = await under();
+  await b.sleep(350); await b.wheel(zp.x, zp.y, 100, 2); await b.sleep(350); await b.wheel(zp.x, zp.y, 100, 2); await b.sleep(80);
+  const z2 = await b.evaluate(`document.getElementById('ed-zoom').textContent`);
+  await b.wheel(zp.x, zp.y, 100); await b.sleep(150);
+  await run('zoom-check', `
+    ok('${z1}' === '110%' && '${z2}' === '90%', 'Ctrl + mouse wheel zooms in and out (${z1}, ${z2})');
+    ok(${JSON.stringify(under0)} === ${JSON.stringify(under1)}, 'the text under the mouse stays in place while zooming');
+    ok($('#ed-zoom').textContent === '90%' && $('#ed-scroll').scrollTop > 0, 'the wheel without Ctrl scrolls instead of zooming');
+    ok(JSON.parse(localStorage.getItem('todo4me.editor.ui')).zoom === 90, 'zoom level is remembered');
+    $('[data-cmd="zoom-reset"]').click();
+  `);
 
   /* ---------- Page break, page setup ---------- */
   await run('pagesetup', `
@@ -498,6 +544,7 @@ export default async function (b) {
     const st = document.createElement('style'); st.id = 'ed-print-css'; st.textContent = T4.editor._printCSS(T4.editor.current.meta);
     document.head.appendChild(st); document.body.classList.add('print-doc'); document.title = 'Test report';
     ok(/@page \\{ size: 210mm 297mm; margin: 25.4mm/.test(st.textContent) && /@bottom-center \\{ content: "Page " counter\\(page\\) " of " counter\\(pages\\)/.test(st.textContent), 'print CSS: A4, margins, page numbers');
+    ok(/html, body\\.print-doc \\{ background: #fff !important; \\}/.test(st.textContent) && /@page \\{[^@]*background: #fff/.test(st.textContent), 'print CSS: white paper, also in the page margins');
     await document.fonts.ready;
   `);
   const pdfFile = path.join(shots, 'editor-test.pdf');

@@ -275,10 +275,11 @@ body.is-editor .main { max-width: none; padding: 0; flex: 1; min-height: 0; }
 .ctx-btn--chip { font-variant-numeric: tabular-nums; }
 .ctx-swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, .15); }
 .ctx-swatch--ring { background: transparent; border-width: 3px; }
-.ctx-range { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; color: var(--text-2); }
-.ctx-range input { width: 70px; accent-color: var(--accent); }
-.ctx-range span { min-width: 14px; font-variant-numeric: tabular-nums; }
+.ctx-range { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px; color: var(--text-2); }
+.ctx-range input { width: 90px; margin: 0 4px; accent-color: var(--accent); cursor: pointer; }
+.ctx-range__val { min-width: 34px; font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 .ctx-range .icon { width: 14px; height: 14px; }
+.ctx-btn:disabled { opacity: .4; cursor: default; }
 .ctx-url { max-width: 280px; overflow: hidden; text-overflow: ellipsis; color: var(--accent-text); padding: 0 6px; }
 .ed-ctx > .icon { width: 15px; height: 15px; margin-left: 6px; color: var(--muted); }
 

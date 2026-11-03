@@ -144,6 +144,8 @@ export default async function (b) {
     ok($$('.toast').some((t) => /PDF saved/.test(t.textContent)), 'PDF export reports success');
     ok(!document.body.classList.contains('print-doc') && !$('#ed-print-css'), 'print mode is removed after export (document unchanged)');
   `);
+  const winBg = await b.mainEval(`process.mainModule.require('electron').BrowserWindow.getAllWindows()[0].getBackgroundColor()`);
+  ok(/^#f6f6f8$/i.test(winBg), 'window background is white only while printing, restored afterwards (' + winBg + ')');
   const pdfDir = b.env.TODO4ME_PDF_DIR;
   const pdfs = pdfDir && fs.existsSync(pdfDir) ? fs.readdirSync(pdfDir).filter((f) => f.endsWith('.pdf')) : [];
   ok(pdfs.length === 1 && pdfs[0] === 'Feature tour.pdf', 'PDF file written: ' + pdfs.join(','));

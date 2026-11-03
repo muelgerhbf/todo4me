@@ -14,7 +14,7 @@ Written at the end of day 1 (2026-11-02) as the starting point for day 2: **buil
 | Windows desktop app | Done. Version **2.0.0** (day 2): `dist\Todo4Me-Setup-2.0.0.exe` (installer, auto-updates) and `dist\Todo4Me-2.0.0-portable.exe` |
 | Document editor | Done on day 2 (see Part 4) |
 | Automatic updates | Built in on day 2 (see Part 4). Needs the public repo `todo4me-releases` + a token once before the first `npm run release` |
-| Tests | 141 functional + 155 editor + 52 desktop checks + an end-to-end update test, all passing |
+| Tests | 141 functional + 166 editor + 53 desktop checks + an end-to-end update test, all passing |
 | Mac / iPad | Not started (see Part 3) |
 
 **Tool versions used:** Node.js 24.20.0, npm 11.19.0, Electron 45.2.1, electron-builder 26.18.0, Windows 11, Google Chrome (for headless testing).
@@ -347,3 +347,15 @@ Todo4Me once by hand after an update. To verify on a normal desktop session with
 1. One-time: create the public repo `todo4me-releases`, create the token, set `GH_TOKEN` (README → *Ein Update veröffentlichen*).
 2. Colleagues on 1.0.0 install `Todo4Me-Setup-2.0.0.exe` once (over the old version; data is kept).
 3. From then on: raise the version, `npm run release`, publish the draft on GitHub.
+
+### Step 23: Editor fixes from the user's feedback (2026-11-03, after pushing 2.0.0 to `main`)
+
+Each problem was reproduced first in an isolated app instance (`TODO4ME_USER_DATA`, PDFs measured and rendered with pdf.js), then fixed and re-tested.
+
+| Problem | Cause | Fix |
+|---|---|---|
+| PDF: text looks "right at the edge", unlike the editor | Not the margin itself (measured 25.4 mm, correct): `printToPDF` paints the page margins in the window's `backgroundColor` (#f6f6f8), so only the text area was white and the white box ended at the text. The text cursor was printed too, and header/footer sat 4 mm from the text instead of halfway into the margin as in the editor | `main.js` switches the window background to white while printing; print CSS paints `html` and `@page` white; header/footer/page numbers `vertical-align: middle` (like the editor page); focus and selection are removed during the export and restored afterwards |
+| Ctrl + mouse wheel should zoom | Not implemented | `wheel` listener on the page area (non-passive, only with Ctrl; touchpad pinch included), zoom range 25–300 %, the point under the mouse stays put (also for the −/+ buttons, around the middle of the view) |
+| Outline width slider could not be dragged | Every `input` event redrew the drawing and the context bar was rebuilt via `innerHTML`, which replaced the slider in the middle of the drag (the value jumped to 1 and stayed there) | No rebuild while a slider in the bar has focus; added −/+ buttons and a "N px" label; range 0–20 px (lines 1–20), matching the widget's sanitizer |
+
+Tests: 141 functional + **166** editor (+ zoom, slider drag, −/+ and white paper) + 141 functional in Electron + **53** desktop, all passing.

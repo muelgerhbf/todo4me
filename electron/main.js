@@ -23,6 +23,7 @@ const ROOT = path.join(__dirname, '..');
 const INDEX = path.join(ROOT, 'index.html');
 const INDEX_URL = pathToFileURL(INDEX).href;
 const isDev = process.argv.includes('--dev');
+const WINDOW_BG = '#f6f6f8';
 
 /* ---------- Stable data location ----------
  * All LocalStorage data lives in <userData>/Local Storage. Pin userData to
@@ -101,7 +102,7 @@ function createWindow() {
     minHeight: 560,
     title: APP_NAME,
     icon: path.join(ROOT, 'assets', 'icons', 'icon.png'),
-    backgroundColor: '#f6f6f8',
+    backgroundColor: WINDOW_BG,
     show: false,
     autoHideMenuBar: false,
     webPreferences: {
@@ -217,6 +218,8 @@ function registerIpc() {
       if (res.canceled || !res.filePath) return { ok: false, canceled: true };
       filePath = res.filePath;
     }
+    // The window's background color shows through the page margins of the PDF: print on white paper.
+    win.setBackgroundColor('#ffffff');
     try {
       const data = await event.sender.printToPDF({ printBackground: true, preferCSSPageSize: true, generateTaggedPDF: true, generateDocumentOutline: true });
       const tmp = filePath + '.tmp';
@@ -228,6 +231,8 @@ function registerIpc() {
     } catch (e) {
       try { fs.unlinkSync(filePath + '.tmp'); } catch (x) { /* ignore */ }
       return { ok: false, error: /EBUSY|EPERM|EACCES/.test(e.code || e.message) ? 'The file is open in another program or not writable. Close it and try again.' : e.message };
+    } finally {
+      if (!win.isDestroyed()) win.setBackgroundColor(WINDOW_BG);
     }
   });
   // Only files this session exported may be opened from the page.

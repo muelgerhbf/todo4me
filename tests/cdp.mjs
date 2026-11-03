@@ -75,6 +75,15 @@ const api = {
     for (let i = 1; i <= steps; i++) await api.mouse('mouseMoved', x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps);
     await api.mouse('mouseReleased', x2, y2);
   },
+  /** Mouse wheel at (x, y); modifiers: 2 = Ctrl. */
+  async wheel(x, y, deltaY, modifiers = 0) {
+    await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY, modifiers });
+  },
+  async click(x, y) {
+    await api.mouse('mouseMoved', x, y, 0);
+    await api.mouse('mousePressed', x, y);
+    await api.mouse('mouseReleased', x, y);
+  },
   async printPDF(file) {
     const r = await send('Page.printToPDF', { printBackground: true, preferCSSPageSize: true, generateTaggedPDF: true, generateDocumentOutline: true });
     if (!r.result || !r.result.data) throw new Error('printToPDF failed: ' + JSON.stringify(r.error || r));

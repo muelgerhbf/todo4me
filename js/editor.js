@@ -13,7 +13,8 @@ T4.editor = (function () {
 
   const UI_KEY = 'todo4me.editor.ui';
   const FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
-  const ZOOMS = [50, 67, 75, 90, 100, 110, 125, 150, 175, 200];
+  const ZOOMS = [25, 33, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300];
+  const SW_MAX = 20; // shape outline / line width, as allowed by the drawing widget
   const STYLES = [['p', 'Normal text'], ['h1', 'Heading 1'], ['h2', 'Heading 2'], ['h3', 'Heading 3'], ['h4', 'Heading 4'], ['h5', 'Heading 5'], ['h6', 'Heading 6'], ['blockquote', 'Quote']];
   const TEXT_COLORS = ['#1f2330', '#4a4f5c', '#7a7f8c', '#b0b4bd', '#ffffff', '#c62828', '#e5603c', '#c98a12', '#2f9e55', '#0e7c86', '#2f6fed', '#4f46e5', '#8e4ec6', '#d6409f', '#795548'];
   const MARKERS = [['#fff176', 'Yellow'], ['#b9f6ca', 'Green'], ['#80deea', 'Cyan'], ['#ffcdd2', 'Pink'], ['#ffd8a8', 'Orange'], ['#e1bee7', 'Purple'], ['#e0e0e0', 'Gray']];
@@ -158,6 +159,7 @@ T4.editor = (function () {
       importFiles(files);
     });
     el.scroll.addEventListener('scroll', () => { positionCtx(); st.scrollTop = el.scroll.scrollTop; }, { passive: true });
+    el.scroll.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('resize', U.debounce(positionCtx, 100));
     // Remember whether the editor had focus when the app re-renders (detaches the shell).
     shell.addEventListener('focusin', () => { shell._hadFocus = true; });
@@ -514,10 +516,34 @@ T4.editor = (function () {
     savePrefs();
     positionCtx();
   }
-  function setZoom(dir) {
-    const i = ZOOMS.indexOf(st.prefs.zoom);
-    st.prefs.zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? 4 : i) + dir))];
+  /** One zoom step in or out. The point at (x, y) — the mouse, or the middle of the view — stays where it is. */
+  function setZoom(dir, x, y) {
+    let i = ZOOMS.indexOf(st.prefs.zoom);
+    if (i < 0) i = ZOOMS.indexOf(100);
+    const next = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + dir))];
+    if (next === st.prefs.zoom) return;
+    const sc = el.scroll, sr = sc.getBoundingClientRect();
+    if (x == null) { x = sr.left + sc.clientWidth / 2; y = sr.top + sc.clientHeight / 2; }
+    const a = el.page.getBoundingClientRect();
+    const fx = a.width ? (x - a.left) / a.width : 0.5, fy = a.height ? (y - a.top) / a.height : 0;
+    st.prefs.zoom = next;
     applyZoom();
+    const b = el.page.getBoundingClientRect();
+    sc.scrollLeft += b.left + fx * b.width - x;
+    sc.scrollTop += b.top + fy * b.height - y;
+  }
+  // Ctrl + mouse wheel (and touchpad pinch, which arrives as Ctrl + wheel) zooms the page.
+  let wheelAcc = 0, wheelAt = 0;
+  function onWheel(e) {
+    if (!e.ctrlKey || !st.cur || el.page.hidden) return;
+    e.preventDefault();
+    if (e.timeStamp - wheelAt > 300) wheelAcc = 0;
+    wheelAt = e.timeStamp;
+    wheelAcc += e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+    if (Math.abs(wheelAcc) < 40) return;
+    const dir = wheelAcc < 0 ? 1 : -1;
+    wheelAcc = 0;
+    setZoom(dir, e.clientX, e.clientY);
   }
   function applyZoom() {
     if (!el.page) return;
@@ -1053,7 +1079,11 @@ T4.editor = (function () {
             const line = s.t === 'line' || s.t === 'arrow';
             html += sep + (line ? '' : '<button type="button" class="ctx-btn ctx-btn--color" data-ctx="draw-fill" title="Fill color"><span class="ctx-swatch" style="background:' + (s.fill === 'none' ? 'transparent' : s.fill) + '"></span><span>Fill</span></button>') +
               '<button type="button" class="ctx-btn ctx-btn--color" data-ctx="draw-stroke" title="' + (line ? 'Line color' : 'Outline color') + '"><span class="ctx-swatch ctx-swatch--ring" style="border-color:' + s.stroke + '"></span><span>' + (line ? 'Color' : 'Outline') + '</span></button>' +
-              '<label class="ctx-range" title="' + (line ? 'Line width' : 'Outline width') + '">' + icon('minus') + '<input type="range" min="0" max="12" step="1" value="' + s.sw + '" data-ctx-input="draw-sw" aria-label="Width"><span>' + s.sw + '</span></label>' +
+              '<span class="ctx-range" title="' + (line ? 'Line width' : 'Outline width') + '">' +
+                '<button type="button" class="ctx-btn ctx-btn--icon" data-ctx="draw-sw:-1" aria-label="Thinner"' + (s.sw <= (line ? 1 : 0) ? ' disabled' : '') + '>' + icon('minus') + '</button>' +
+                '<input type="range" min="' + (line ? 1 : 0) + '" max="' + SW_MAX + '" step="1" value="' + s.sw + '" data-ctx-input="draw-sw" aria-label="' + (line ? 'Line width' : 'Outline width') + '">' +
+                '<span class="ctx-range__val">' + s.sw + ' px</span>' +
+                '<button type="button" class="ctx-btn ctx-btn--icon" data-ctx="draw-sw:1" aria-label="Thicker"' + (s.sw >= SW_MAX ? ' disabled' : '') + '>' + icon('plus') + '</button></span>' +
               (line ? '' : cb('draw-text', 'type', 'Text') + '<button type="button" class="ctx-btn ctx-btn--color" data-ctx="draw-tc" title="Text color"><span class="ctx-swatch" style="background:' + s.tc + '"></span></button>') + sep +
               cbi('draw-front', 'bring-front', 'Bring to front') + cbi('draw-back', 'send-back', 'Send to back') + cbi('draw-dup', 'copy', 'Duplicate (Ctrl+D)') + cbi('draw-del', 'trash', 'Delete shape (Del)');
           } else {
@@ -1091,7 +1121,9 @@ T4.editor = (function () {
       }
     }
     if (!target) { hideCtx(); return; }
-    if (ctxTarget !== target || el.ctx.innerHTML !== html) {
+    // Rebuilding the bar while a slider is dragged or focused would cut the drag short.
+    const sliding = ctxTarget === target && el.ctx.contains(document.activeElement) && document.activeElement.type === 'range';
+    if (!sliding && (ctxTarget !== target || el.ctx.innerHTML !== html)) {
       el.ctx.innerHTML = html;
       ctxTarget = target;
       bindCtx();
@@ -1121,7 +1153,7 @@ T4.editor = (function () {
       const i = e.target.closest('[data-ctx-input]');
       if (!i) return;
       if (i.dataset.ctxInput === 'draw-sw') {
-        i.nextElementSibling.textContent = i.value;
+        i.nextElementSibling.textContent = i.value + ' px';
         const w = core.selectedWidget;
         if (w) { W.drawing.action(w, 'sw', i.value); }
       }
@@ -1150,6 +1182,11 @@ T4.editor = (function () {
         const key = name.slice(5) === 'fill' ? 'fill' : name.slice(5) === 'stroke' ? 'stroke' : 'tc';
         const colors = key === 'fill' ? W.PALETTE.concat(['#dbe4ff', '#ffe3d6', '#d9f2e1', '#fbefd2', '#ffffff', '#1f2330']) : TEXT_COLORS;
         openMenu(btn, colorPicker(key === 'fill' ? 'Fill' : key === 'stroke' ? 'Outline' : 'Text color', colors, (c) => W.drawing.action(w, key, c || (key === 'fill' ? 'none' : '#1f2330')), key === 'fill' ? 'No fill' : 'Default'));
+        break;
+      }
+      case 'draw-sw': {
+        const s = W.drawing.selected(w);
+        if (s) W.drawing.action(w, 'sw', Math.max(0, Math.min(SW_MAX, s.sw + Number(val))));
         break;
       }
       case 'draw-text': W.drawing.action(w, 'text'); break;
@@ -1303,14 +1340,16 @@ T4.editor = (function () {
     const p = meta.page;
     const [w, h] = pageDims(p);
     const m = pageMargins(p);
-    const box = 'font-family: Calibri, Carlito, "Segoe UI", sans-serif; font-size: 9pt; color: #6b7080;';
+    // Header, footer and page numbers sit halfway into the margin, where the editor page shows them.
+    const box = 'font-family: Calibri, Carlito, "Segoe UI", sans-serif; font-size: 9pt; color: #6b7080; vertical-align: middle;';
     const num = p.numberFormat === 'plain' ? 'counter(page)' : p.numberFormat === 'slash' ? 'counter(page) " / " counter(pages)' : '"Page " counter(page) " of " counter(pages)';
-    let css = '@page { size: ' + w + 'mm ' + h + 'mm; margin: ' + m[0] + 'mm ' + m[1] + 'mm ' + m[2] + 'mm ' + m[3] + 'mm;';
-    if (p.header) css += ' @top-center { content: ' + cssString(fillTokens(p.header, meta)) + '; ' + box + ' vertical-align: bottom; padding-bottom: 4mm; }';
-    if (p.footer) css += ' @bottom-left { content: ' + cssString(fillTokens(p.footer, meta)) + '; ' + box + ' vertical-align: top; padding-top: 4mm; }';
+    // White paper: the margins must not show the app's (or the window's) background color.
+    let css = 'html, body.print-doc { background: #fff !important; } @page { size: ' + w + 'mm ' + h + 'mm; margin: ' + m[0] + 'mm ' + m[1] + 'mm ' + m[2] + 'mm ' + m[3] + 'mm; background: #fff;';
+    if (p.header) css += ' @top-center { content: ' + cssString(fillTokens(p.header, meta)) + '; ' + box + ' }';
+    if (p.footer) css += ' @bottom-left { content: ' + cssString(fillTokens(p.footer, meta)) + '; ' + box + ' }';
     if (p.pageNumbers !== 'none') {
       const pos = { 'bottom-center': '@bottom-center', 'bottom-right': '@bottom-right', 'top-right': '@top-right' }[p.pageNumbers];
-      css += ' ' + pos + ' { content: ' + num + '; ' + box + (pos.indexOf('top') > 0 ? ' vertical-align: bottom; padding-bottom: 4mm;' : ' vertical-align: top; padding-top: 4mm;') + ' }';
+      css += ' ' + pos + ' { content: ' + num + '; ' + box + ' }';
     }
     css += ' }';
     if (!p.firstPageHeader) css += ' @page :first { @top-center { content: none; } @top-right { content: none; } @bottom-center { content: none; } @bottom-right { content: none; } }';
@@ -1327,6 +1366,11 @@ T4.editor = (function () {
     closeMenu();
     closeSlash();
     hideCtx();
+    // No text cursor or selection highlight in the PDF; put them back afterwards.
+    const hadFocus = el.doc.contains(document.activeElement);
+    core.rememberSelection();
+    window.getSelection().removeAllRanges();
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     const style = document.createElement('style');
     style.id = 'ed-print-css';
     style.textContent = printCSS(st.cur.meta);
@@ -1355,6 +1399,7 @@ T4.editor = (function () {
       document.title = prevTitle;
       setStatus(st.dirty ? 'dirty' : 'saved');
       exporting = false;
+      if (hadFocus) core.restore();
     }
   }
   async function exportPDFOf(id) {
