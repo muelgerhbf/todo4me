@@ -347,7 +347,14 @@ export default async function (b) {
     ok(cw.querySelector('.cw-hl .token.keyword') && cw.querySelector('.cw-hl .token.comment'), 'syntax highlighting (JavaScript)');
     const sel = cw.querySelector('.cw-lang'); sel.value = 'python'; sel.dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
     ok(W().getProps($('#ed-doc .t4-w[data-w="code"]')).lang === 'python', 'change language');
-    ok($$('.cw-lang option').map((o) => o.value).join() === ',javascript,python,markup,css,json,java,cpp,c,sql,bash', 'languages: JS, Python, HTML, CSS, JSON, Java, C++, C, SQL, Bash');
+    ok($$('.cw-lang option').map((o) => o.value).join() === ',javascript,python,markup,css,json,java,cpp,c,csharp,sql,bash', 'languages: JS, Python, HTML, CSS, JSON, Java, C++, C, C#, SQL, Bash');
+    const csel = $('#ed-doc .t4-w[data-w="code"] .cw-lang'); csel.value = 'csharp'; csel.dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
+    const cta = $('#ed-doc .t4-w[data-w="code"] textarea'); cta.value = 'public class Hello { static void Main() { string s = "hi"; Console.WriteLine(s); } }'; cta.dispatchEvent(new Event('input', { bubbles: true })); await wait(40);
+    ok(W().getProps($('#ed-doc .t4-w[data-w="code"]')).lang === 'csharp' && $('#ed-doc .cw-hl .token.keyword') && $('#ed-doc .cw-hl .token.string') && $('#ed-doc .cw-hl .token.class-name'), 'C# syntax highlighting');
+    const md = T4.edmd.fromMarkdown('\`\`\`cs\\nvar x = 1;\\n\`\`\`'); const bx = document.createElement('div'); bx.appendChild(T4.edSanitize.sanitize(md));
+    ok(JSON.parse(bx.querySelector('[data-w="code"]').dataset.p).lang === 'csharp', 'Markdown \`\`\`cs / \`\`\`c# fences import as C#');
+    const psel = $('#ed-doc .t4-w[data-w="code"] .cw-lang'); psel.value = 'python'; psel.dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
+    $('#ed-doc .t4-w[data-w="code"] textarea').value = 'function add(a, b) {\\n  return a + b; // sum\\n}'; $('#ed-doc .t4-w[data-w="code"] textarea').dispatchEvent(new Event('input', { bubbles: true })); await wait(40);
     const copy = $('#ed-doc .t4-w[data-w="code"] .cw-copy'); copy.click(); await wait(20);
     ok(/Copied/.test(copy.textContent), 'copy button');
     ok(C().serialize().includes('return a + b;'), 'code content is part of the saved document');

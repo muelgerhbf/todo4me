@@ -30,7 +30,7 @@ fs.readdirSync(path.join(katex, 'dist', 'fonts')).filter((f) => f.endsWith('.wof
 });
 
 /* Prism — syntax highlighting. One file with the core and the supported languages (order matters). */
-const LANGS = ['core', 'markup', 'css', 'clike', 'javascript', 'python', 'json', 'java', 'c', 'cpp', 'sql', 'bash'];
+const LANGS = ['core', 'markup', 'css', 'clike', 'javascript', 'python', 'json', 'java', 'c', 'cpp', 'csharp', 'sql', 'bash'];
 const prism = path.join(NM, 'prismjs');
 const bundle = ['/* Prism ' + require(path.join(prism, 'package.json')).version + ' (MIT) — ' + LANGS.join(', ') + ' */',
   // Never auto-highlight the whole page; the editor highlights its own code blocks.

@@ -59,8 +59,8 @@ T4.edw = (function () {
   const oneOf = (v, list, d) => (list.includes(v) ? v : d);
 
   const CODE_LANGS = [['', 'Plain text'], ['javascript', 'JavaScript'], ['python', 'Python'], ['markup', 'HTML'], ['css', 'CSS'], ['json', 'JSON'],
-    ['java', 'Java'], ['cpp', 'C++'], ['c', 'C'], ['sql', 'SQL'], ['bash', 'Bash']];
-  const LANG_ALIASES = { js: 'javascript', html: 'markup', xml: 'markup', svg: 'markup', py: 'python', sh: 'bash', shell: 'bash', zsh: 'bash', 'c++': 'cpp', cc: 'cpp', h: 'c', ts: 'javascript', typescript: 'javascript', jsx: 'javascript' };
+    ['java', 'Java'], ['cpp', 'C++'], ['c', 'C'], ['csharp', 'C#'], ['sql', 'SQL'], ['bash', 'Bash']];
+  const LANG_ALIASES = { cs: 'csharp', 'c#': 'csharp', dotnet: 'csharp', js: 'javascript', html: 'markup', xml: 'markup', svg: 'markup', py: 'python', sh: 'bash', shell: 'bash', zsh: 'bash', 'c++': 'cpp', cc: 'cpp', h: 'c', ts: 'javascript', typescript: 'javascript', jsx: 'javascript' };
   const SHAPES = [['rect', 'Rectangle'], ['round', 'Rounded rectangle'], ['ellipse', 'Circle'], ['tri', 'Triangle'], ['diamond', 'Diamond'], ['line', 'Line'], ['arrow', 'Arrow']];
   const CHART_TYPES = [['bar', 'Bar chart'], ['line', 'Line chart'], ['pie', 'Pie chart']];
   const PALETTE = ['#4f6bed', '#e5603c', '#2f9e55', '#d6409f', '#c98a12', '#0e7c86', '#8e4ec6', '#5f6b7a'];
