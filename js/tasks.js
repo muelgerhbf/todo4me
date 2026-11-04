@@ -56,6 +56,7 @@ T4.tasks = (function () {
     if (t.subtasks.length) meta.push('<span class="chip">' + icon('list') + subDone + '/' + t.subtasks.length + '</span>');
     if (t.estimate && !opts.compact) meta.push('<span class="chip">' + icon('clock') + U.fmtMinutes(t.estimate) + '</span>');
     if (t.recurrence) meta.push('<span class="chip" title="Repeats ' + RECUR[t.recurrence].toLowerCase() + '">' + icon('repeat') + (opts.compact ? '' : RECUR[t.recurrence]) + '</span>');
+    if (t.reminder != null && t.dueDate && !done && T4.reminders) meta.push('<span class="chip chip--reminder" title="Reminder: ' + esc(T4.reminders.label(t.reminder).toLowerCase()) + '">' + icon('bell') + '<span class="sr-only">Reminder</span></span>');
     if (!opts.compact) t.tags.forEach((g) => meta.push('<span class="chip chip--tag">#' + esc(g) + '</span>'));
     const metaHtml = meta.filter(Boolean).join('');
 
@@ -138,8 +139,11 @@ T4.tasks = (function () {
   function openEditor(existing, defaults) {
     const t = existing || Object.assign({
       title: '', description: '', notes: '', status: 'todo', priority: 'medium', categoryId: null,
-      tags: [], dueDate: null, dueTime: null, estimate: null, subtasks: [], recurrence: null, inbox: false,
+      tags: [], dueDate: null, dueTime: null, estimate: null, subtasks: [], recurrence: null, reminder: null, inbox: false,
     }, defaults || {});
+    const R = T4.reminders;
+    const remindOpts = R ? R.OPTIONS.slice() : [];
+    if (R && t.reminder != null && !remindOpts.some((o) => o[0] === t.reminder)) remindOpts.push([t.reminder, R.label(t.reminder)]);
     let subtasks = t.subtasks.map((s) => Object.assign({}, s));
     const cats = store.data.categories;
     const isNew = !existing;
@@ -172,6 +176,9 @@ T4.tasks = (function () {
           '<div class="field"><label for="tf-recur">Repeat</label><select id="tf-recur" name="recurrence"><option value="">Does not repeat</option>' +
             Object.keys(RECUR).map((r) => '<option value="' + r + '"' + (t.recurrence === r ? ' selected' : '') + '>' + RECUR[r] + '</option>').join('') + '</select></div>' +
         '</div>' +
+        (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">Reminder</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">No reminder</option>' +
+            remindOpts.map((o) => '<option value="' + o[0] + '"' + (t.reminder === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' +
+            '<p class="field__hint" id="tf-remind-hint" aria-live="polite"></p></div></div>' : '') +
         '<div class="field"><label for="tf-tags">Tags <span class="muted">(comma separated)</span></label><input id="tf-tags" name="tags" type="text" value="' + esc(t.tags.join(', ')) + '" placeholder="e.g. urgent, client-a" list="tf-tag-list">' +
           '<datalist id="tf-tag-list">' + store.allTags().map((g) => '<option value="' + esc(g) + '">').join('') + '</datalist></div>' +
         '<div class="field"><span class="label">Subtasks</span><ul class="subtasks" id="tf-subtasks"></ul>' +
@@ -244,6 +251,20 @@ T4.tasks = (function () {
         m.querySelector('#tf-newcat-add').addEventListener('click', addCat);
         ncName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } });
 
+        // Reminder: show when it will fire.
+        const remSel = m.querySelector('#tf-remind'), remHint = m.querySelector('#tf-remind-hint');
+        const paintReminder = () => {
+          if (!remSel) return;
+          const rem = remSel.value === '' ? null : Number(remSel.value);
+          const date = m.querySelector('#tf-date').value, time = m.querySelector('#tf-time').value;
+          if (rem == null) { remHint.textContent = ''; return; }
+          const at = R.fireAt({ dueDate: date || U.today(), dueTime: date ? time || null : null, reminder: rem }, store.settings);
+          remHint.textContent = (date ? '' : 'Due today (no date set) · ') + 'Reminds you ' + U.fmtDateTime(at.toISOString()) +
+            (date && !time ? ' (default reminder time, see Settings)' : '') + (at < new Date() ? ' — already passed, so right away' : '');
+        };
+        ['#tf-remind', '#tf-date', '#tf-time'].forEach((sel) => { const el = m.querySelector(sel); if (el) el.addEventListener('input', paintReminder); if (el) el.addEventListener('change', paintReminder); });
+        paintReminder();
+
         form.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
           // Plain Enter in single-line inputs shouldn't submit unexpectedly except in title.
@@ -278,7 +299,12 @@ T4.tasks = (function () {
             recurrence: fd.get('recurrence') || null,
             subtasks,
           };
+          if (remSel) fields.reminder = remSel.value === '' ? null : Number(remSel.value);
           if (fields.recurrence && !fields.dueDate) fields.dueDate = U.today();
+          if (fields.reminder != null && !fields.dueDate) fields.dueDate = U.today();
+          // A changed due date/time or reminder is a new occurrence: drop a pending snooze.
+          if (existing && (fields.dueDate !== t.dueDate || fields.dueTime !== t.dueTime || (remSel && fields.reminder !== t.reminder))) fields.reminderSnooze = null;
+          if (fields.reminder != null && R) R.requestPermission();
           if (t.inbox) {
             fields.inbox = !(fields.dueDate || fields.priority || fields.categoryId);
           }

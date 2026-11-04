@@ -29,7 +29,9 @@ Sie läuft vollständig offline. Die Web-App selbst ist unverändert: Electron z
   Jede dieser Dateien lässt sich über **Import JSON** wiederherstellen. Den Ordner öffnest du über *Datei → Open backups folder* oder unter *Settings → Desktop app*.
 - Die **Dokumente des Editors** liegen in einer eigenen Datenbank (IndexedDB) im selben Ordner, getrennt von Aufgaben und Notizen.
   Sie bekommen ebenfalls ein tägliches Backup: `backups\documents-JJJJ-MM-TT.json` (inklusive Bilder, 14 Tage). Wiederherstellen über *Settings → Documents → Import documents*.
-- Beim Schließen des Fensters speichert der Editor noch offene Änderungen, bevor die App beendet wird.
+- Beim Schließen des Fensters läuft Todo4Me standardmäßig im Infobereich (Tray) weiter (siehe [Im Hintergrund](#im-hintergrund-tray-erinnerungen-schnellerfassung)).
+  Beim echten Beenden (Tray → *Quit Todo4Me*, *Datei → Exit*, Update-Neustart, Herunterfahren/Abmelden von Windows) speichert der Editor noch offene Änderungen, bevor die App beendet wird.
+- Die Einstellungen der Desktop-App (Tray, Autostart, Tastenkürzel) liegen in `%APPDATA%\Todo4Me\desktop-settings.json`. Sie gelten nur für diesen Computer und sind nicht Teil von Export/Import.
 - Es läuft immer nur **eine** Instanz. Ein zweiter Start bringt das vorhandene Fenster nach vorne, damit nie zwei Fenster gleichzeitig dieselben Daten schreiben.
 
 ### Daten aus der Browser-Version übernehmen
@@ -59,6 +61,39 @@ Alle bisherigen Tastenkürzel (`N`, `Q`, `/`, `G` + Buchstabe …) funktionieren
 | Go → Editor | `Strg+Umschalt+D` |
 | View → Zoom, Vollbild, Neu laden | `Strg+Plus/Minus/0`, `F11`, `Strg+R` |
 | Help → Check for updates | |
+| **Systemweit** (auch wenn ein anderes Programm aktiv ist): Quick capture | `Strg+Alt+Leertaste` (einstellbar, siehe unten) |
+
+### Im Hintergrund: Tray, Erinnerungen, Schnellerfassung
+
+**Tray und Schließen.** Todo4Me zeigt ein Symbol im Infobereich der Taskleiste (Tray). Ein Klick öffnet das Fenster, ein Rechtsklick das Menü:
+*Open Todo4Me*, *Quick capture*, *New task*, *Quit Todo4Me*. Das Schließen des Fensters (X, `Alt+F4`) **blendet es nur aus**, Todo4Me läuft weiter,
+damit Erinnerungen auch bei geschlossenem Fenster erscheinen. Beim ersten Mal weist eine Windows-Benachrichtigung einmalig darauf hin.
+**Wirklich beenden:** Tray → *Quit Todo4Me* oder *Datei → Exit*. Dabei laufen wie bisher „erst speichern, dann schließen“ und das Schreiben aller Daten auf die Festplatte.
+Auch Herunterfahren oder Abmelden von Windows beendet Todo4Me ordnungsgemäß, ebenso *Restart & install* bei einem Update.
+Ein bereitgestelltes Update wird installiert, sobald Todo4Me wirklich beendet wird (oder sofort mit *Restart now*).
+
+**Erinnerungen.** Im Aufgaben-Editor gibt es das Feld **Reminder**: *At due time*, 5/15/30 Minuten, 1 Stunde oder 1 Tag vorher.
+Die Erinnerung bezieht sich auf Fälligkeitsdatum und -uhrzeit. Hat die Aufgabe nur ein Datum, gilt die **Reminder time** aus *Settings → Tasks & planning* (Standard 09:00).
+Ohne Datum wird die Aufgabe beim Speichern auf heute gelegt. Zur fälligen Zeit erscheint eine **Windows-Benachrichtigung** (auch wenn das Fenster im Tray ist):
+Klick darauf öffnet die Aufgabe, der Knopf **Snooze 10 min** erinnert zehn Minuten später erneut. In der App erscheint zusätzlich eine Meldung mit *Open* und *Snooze 10 min*.
+- Jede Erinnerung erscheint **nur einmal** (auch nach einem Neustart), nie für erledigte Aufgaben. Verschiebt man die Aufgabe, gibt es für den neuen Termin eine neue Erinnerung.
+- Wiederkehrende Aufgaben: Die nächste Wiederholung bekommt automatisch ihre eigene Erinnerung.
+- War Todo4Me geschlossen, als Erinnerungen fällig wurden, kommt beim nächsten Start **eine** Sammelmeldung („2 reminders missed“) statt vieler einzelner.
+- Genauigkeit: etwa auf die Minute. Läuft das Fenster lange verborgen, bremst Chromium Zeitgeber auf einmal pro Minute.
+- Ob Benachrichtigungen ankommen, lässt sich mit *Settings → Tasks & planning → Reminder notifications → Test* prüfen. Unterdrückt Windows sie (z. B. „Nicht stören“), bleibt die Meldung in der App.
+
+**Schnellerfassung von überall.** `Strg+Alt+Leertaste` holt Todo4Me nach vorne und öffnet *Quick capture*, auch aus einem anderen Programm heraus.
+Alternativ wählbar: `Strg+Umschalt+Alt+Leertaste`, `Strg+Alt+T`, `Strg+Umschalt+Alt+T`. Kombinationen, die auf deutschen Tastaturen Zeichen erzeugen
+(`AltGr` = `Strg+Alt`, z. B. `AltGr+Q` = `@`), stehen bewusst nicht zur Wahl. Ist ein Dialog geöffnet, wird er nicht ersetzt (nichts Getipptes geht verloren).
+Ist das Kürzel schon von einem anderen Programm belegt, sagt das die Einstellungsseite; dann ein anderes wählen.
+
+**Einstellungen** unter *Settings → Desktop app*:
+
+| Einstellung | Standard |
+|---|---|
+| Keep running in the tray when the window is closed | an |
+| Start Todo4Me when Windows starts (startet unsichtbar im Tray) | aus. Nur in der installierten Version; vor einer Deinstallation ausschalten, sonst bleibt ein verwaister Autostart-Eintrag |
+| System-wide shortcut / Shortcut | an / `Strg+Alt+Leertaste` |
 
 ### Automatische Updates
 
@@ -138,9 +173,12 @@ electron/main.js     Hauptprozess: Fenster, fester Datenordner, Einzelinstanz, M
                      Speichern-Dialog für Exporte, tägliche Sicherungsdateien, PDF-Export,
                      "erst speichern, dann schließen", Sicherheitsregeln
 electron/updater.js  Automatische Updates (electron-updater, GitHub Releases)
+electron/background.js  Tray, Schließen in den Tray, Autostart, systemweites Tastenkürzel,
+                     Windows-Benachrichtigungen (desktop-settings.json)
 electron/preload.js  Minimale, fest definierte Schnittstelle window.todo4meDesktop (contextBridge)
-js/desktop.js        Verbindet Menü, Sicherungsdateien, Updates und Migrationshinweis mit der Web-App.
-                     Ohne Electron (im Browser) tut die Datei nichts.
+js/desktop.js        Verbindet Menü, Tray, Tastenkürzel, Sicherungsdateien, Updates und Migrationshinweis
+                     mit der Web-App. Ohne Electron (im Browser) tut die Datei nichts.
+js/reminders.js      Erinnerungen: Zeitplanung, einmaliges Auslösen, Snooze (Browser und Desktop)
 scripts/start.js     Startet Electron für npm start/dev
 scripts/build.js     Build-Skript (siehe oben), mit --publish für Releases
 scripts/vendor.js    Kopiert KaTeX, Prism und die Schriften aus node_modules nach vendor/
@@ -149,9 +187,10 @@ build/icon.png       App-Icon (aus assets/icons/favicon.svg erzeugt), electron-b
 
 **Sicherheit:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
 - Die Seite hat keinen Zugriff auf Node.js, sondern nur auf die fest definierten Funktionen aus `preload.js`
-  (Info, Sicherungsdateien, Ordner öffnen, PDF-Export, exportierte Datei öffnen, Updates, Menü-Befehle).
+  (Info, Sicherungsdateien, Ordner öffnen, PDF-Export, exportierte Datei öffnen, Updates, Menü-Befehle,
+  Desktop-Einstellungen, Benachrichtigung anzeigen). Der Hauptprozess prüft jeden Wert (z. B. nur die vier Kürzel-Vorgaben, Textlängen).
 - Navigation weg von der App und neue Fenster werden blockiert. `http(s)`-Links öffnen im Standardbrowser.
-- Alle Berechtigungsanfragen (Kamera, Mikrofon, Standort …) werden abgelehnt.
+- Alle Berechtigungsanfragen (Kamera, Mikrofon, Standort, auch Web-Benachrichtigungen …) werden abgelehnt. Erinnerungen zeigt der Hauptprozess an, nicht die Seite.
 - Eine Content-Security-Policy in `index.html` erlaubt nur lokale Dateien.
   Das kleine Inline-Skript im `<head>` ist per SHA-256-Hash freigegeben. Wer es ändert, muss den Hash in der CSP anpassen.
 
@@ -180,13 +219,14 @@ npx serve .                        # or this, if you have Node.js
 | **My Tasks** | Search (title, description, notes, tags, subtasks, category) · filter by status, priority, category, due date and tag · sort by priority, due date, creation date, title or status |
 | **Today / Upcoming** | Today's tasks plus overdue ones (with "move all to today") · the next 14 days grouped by day, then "Later" |
 | **Tasks** | Title, description, notes, priority (Critical / High / Medium / Low / none), status (To do / In progress / Completed), category, tags, due date, optional time, estimate, subtasks, recurrence (daily / weekly / monthly), created and completed timestamps · undo for completing and deleting |
+| **Reminders** | Per task: at due time, 5 / 15 / 30 min, 1 hour or 1 day before (date-only tasks use a configurable reminder time, default 09:00) · Windows notification in the desktop app (also from the tray), browser notification if allowed, always an in-app toast · click opens the task · **Snooze 10 min** · fires once per occurrence, never for completed tasks, recurring tasks get a new reminder per occurrence · reminders missed while the app was closed → one summary on start |
 | **Weekly Planner** | Monday–Sunday (or Sunday–Saturday) columns · previous/next week navigation · inline add per day · **drag and drop** to reschedule · click a day for details · the week's notes |
 | **Daily Plan** | For any date: main goal, Top 3, that day's tasks, daily notes and reflection. Saves automatically as you type |
 | **Weekly Notes** | Notes with a title, text, tags and pin, assigned to a week · grouped by week · search and filter by tag, week or pinned · kept separate from tasks |
 | **Editor** | Word-processor documents: formatting, headings, lists, tables, links, images, shapes, charts, LaTeX formulas, code blocks with syntax highlighting · document list with search, pin, duplicate, rename, trash · autosave, undo/redo · PDF (with header, footer, page numbers) and Markdown export · see [Dokumenten-Editor](#dokumenten-editor) |
 | **Focus Mode** | Distraction-free view of a single task with its description and checklist · Pomodoro timer (25/5 by default, configurable) with start, pause and reset. The timer keeps running across page refreshes |
 | **Statistics** | Completed today / this week / this month · completion rate · day streak · per-day chart for this week · 8-week trend · open tasks by priority · progress by category |
-| **Settings** | Your name, light / dark / system theme, accent color, default sorting, start of week, Pomodoro lengths, categories (add / rename / recolor / delete), export, import, restore auto-backup, sample data, reset |
+| **Settings** | Your name, light / dark / system theme, accent color, default sorting, start of week, Pomodoro lengths, reminder time and notification test, categories (add / rename / recolor / delete), export, import, restore auto-backup, sample data, reset |
 
 ### Quick-add syntax
 
@@ -282,6 +322,7 @@ todo4me/
 ├── electron/
 │   ├── main.js           Electron main process (window, data folder, menu, backups, PDF, security)
 │   ├── updater.js        Automatic updates (electron-updater)
+│   ├── background.js     Tray, close to tray, start with Windows, global hotkey, native notifications
 │   └── preload.js        Minimal bridge exposed as window.todo4meDesktop
 ├── scripts/
 │   ├── start.js          npm start / npm run dev
@@ -318,6 +359,7 @@ todo4me/
     ├── editor-core.js    Editor: editing engine (selection, undo/redo, formatting, tables, links, paste)
     ├── editor.js         Editor: page, document list, toolbar, menus, autosave, PDF export
     ├── app.js            Router (hash-based), navigation, event delegation, shortcuts, boot
+    ├── reminders.js      Reminder scheduler (fire once, snooze, missed summary) + notifications
     └── desktop.js        Desktop-only additions (inactive in the browser)
 ```
 
@@ -364,6 +406,9 @@ Dates are local calendar dates (`"YYYY-MM-DD"`), times are `"HH:MM"` (24h), and 
   "estimate": 90,                // minutes (1–1440) or null
   "subtasks": [{ "id": "sub_…", "title": "Collect numbers", "done": true }],
   "recurrence": null,            // "daily" | "weekly" | "monthly" | null
+  "reminder": 15,                // minutes before the due date/time (0 = at due time, max 40320) or null; needs dueDate
+  "reminderFired": "2026-11-02 15:00|15", // occurrence whose reminder was shown ("date time|minutes"), or null
+  "reminderSnooze": null,        // ISO time a snoozed reminder comes back, or null
   "inbox": false,                // true = captured but not organized yet
   "nextOccurrenceId": null,      // set once a recurring task spawned its successor
   "createdAt": "2026-11-02T08:12:00.000Z",
@@ -373,6 +418,12 @@ Dates are local calendar dates (`"YYYY-MM-DD"`), times are `"HH:MM"` (24h), and 
 ```
 
 **Recurring tasks:** completing one creates the next occurrence (subtasks reset), dated at the first interval after today. Reopening and re-completing never creates duplicates.
+
+**Reminders** are stored as an offset (`reminder`, minutes before due), not as an absolute time: the reminder moves with the task when it is
+rescheduled (editor, planner drag & drop, "move all to today"), and the next occurrence of a recurring task inherits the offset and gets its own reminder.
+The fire time is `dueDate` + (`dueTime` or `settings.reminderTime`) − `reminder`. `reminderFired` records which occurrence was already shown,
+so a reminder appears once even across restarts, imports and other tabs; changing the due date/time or the offset creates a new occurrence key.
+Data without these fields (older versions and exports) loads unchanged with `reminder: null`.
 
 ### Category
 
@@ -423,7 +474,8 @@ Notes are grouped by the week that contains `weekOf`, using the current *start o
   "weekStart": 1,             // 1 = Monday, 0 = Sunday
   "showCompleted": true,
   "pomodoroFocus": 25,        // minutes
-  "pomodoroBreak": 5          // minutes
+  "pomodoroBreak": 5,         // minutes
+  "reminderTime": "09:00"     // "HH:MM": reminder time for tasks with a due date but no time
 }
 ```
 
@@ -448,6 +500,9 @@ Completions are counted per day as you complete tasks (and decremented if you re
 | `todo4me.editor.ui` | Editor view preferences: `{ "zoom": 100, "side": true }` (document list shown) |
 | `todo4me.app.version` | Desktop app: last started version (to confirm an update once) |
 | `todo4me.docs.backupDay` | Desktop app: day of the last documents backup file |
+
+The desktop app keeps its machine settings outside LocalStorage in `<userData>/desktop-settings.json`:
+`{ "closeToTray": true, "openAtLogin": false, "hotkeyEnabled": true, "hotkey": "Control+Alt+Space", "trayHintShown": false }`.
 
 ### Documents (editor) — IndexedDB `todo4me-docs`
 
@@ -484,13 +539,17 @@ Imports never overwrite existing documents (id clashes get a new id).
 ## Tests
 
 ```bash
-node tests/cdp.mjs tests/test-functional.mjs           # 141 checks: all original features (Chrome)
+node tests/cdp.mjs tests/test-functional.mjs           # 183 checks: all original features + reminders (data model, scheduler, UI) (Chrome)
 node tests/cdp.mjs tests/test-editor.mjs               # 166 checks: editor, PDF, persistence, Markdown, security (Chrome)
-node tests/cdp-electron.mjs tests/test-functional.mjs  # the original checks inside the desktop app
-node tests/cdp-electron.mjs tests/test-electron.mjs    # 53 checks: security, menu, restart, backups, PDF export, close-save, updates
+node tests/cdp-electron.mjs tests/test-functional.mjs  # the same 183 checks inside the desktop app
+node tests/cdp-electron.mjs tests/test-electron.mjs    # 84 checks: security, menu, restart, backups, PDF export, close-save, updates,
+                                                       #   tray, close to tray vs. quit, hotkey, start with Windows, notifications, missed summary
 ```
 
 Optional environment: `PDFTEXT=<script>` checks PDF text (page numbers, header/footer) with pdf.js, `TODO4ME_PDF_DIR=<folder>` lets the desktop test export PDFs without a dialog.
+The counts above include the `PDFTEXT` checks (editor 9, desktop 4). The desktop suite shows a few real Windows notifications and registers the
+global hotkey while it runs; "start with Windows" is never written to the registry in test runs (the call is stubbed).
+The reminder scheduler is tested with an explicit clock: `T4.reminders.check({ now })`, `setClock(fn)`, `setNotifier(fn)`.
 
 ## Browser support
 

@@ -21,6 +21,17 @@
       if (action === 'new-task') ui.run('new-document', null); // Ctrl+N in a document → new document (like Word)
       return;
     }
+    // From the tray menu or the system-wide hotkey (the window was just brought to the front).
+    if (action === 'quick-capture-global' || action === 'new-task-global') {
+      const qc = document.getElementById('qc-title');
+      if (action === 'quick-capture-global' && qc) { qc.focus(); return; }
+      if (ui.modalOpen || document.getElementById('confirm').open) {
+        ui.toast('Finish or close the open dialog first, then try again.', 'info', 5000); // never discard what is being typed
+        return;
+      }
+      ui.run(action === 'quick-capture-global' ? 'quick-capture' : 'new-task', null);
+      return;
+    }
     if (action.indexOf('go:') === 0) {
       const route = action.slice(3);
       if (ROUTES.includes(route)) location.hash = '#/' + route;
@@ -117,6 +128,43 @@
   ui.on('desktop-install-update', installUpdate);
   if (desktop.onUpdateState) desktop.onUpdateState(onUpdate);
 
+  /* ---------- Reminder notifications: click opens the task, the toast's button snoozes ---------- */
+  if (desktop.onNotificationClick) {
+    desktop.onNotificationClick((id, action) => { if (T4.reminders) T4.reminders.handleClick(id, action); });
+  }
+
+  /* ---------- Tray, start with Windows, global hotkey ---------- */
+  let dset = null; // state from the main process (desktop-settings.json)
+  function backgroundSettingsHtml() {
+    if (!dset) return '';
+    const chk = (on) => (on ? ' checked' : '');
+    const hkStatus = !dset.hotkeyEnabled ? 'The system-wide shortcut is off.'
+      : dset.hotkeyError ? '<span class="text-danger">' + icon('alert') + esc(dset.hotkeyError) + '</span>'
+      : 'Press <kbd>' + esc(dset.hotkeyLabel) + '</kbd> in any program to capture a task.';
+    return '<h3 class="settings__subhead">Tray &amp; startup</h3>' +
+      '<div class="setting"><label for="set-tray">Keep running in the tray when the window is closed' +
+        '<span class="setting__help">Reminders keep working while the window is closed. To quit, use the tray icon → Quit Todo4Me or File → Exit.</span></label>' +
+        '<input id="set-tray" type="checkbox" data-change="desktop-setting" data-key="closeToTray"' + chk(dset.closeToTray) + '></div>' +
+      '<div class="setting"><label for="set-login">Start Todo4Me when Windows starts' +
+        '<span class="setting__help">' + (dset.loginSupported ? 'Starts quietly in the tray' + (dset.closeToTray ? '' : ' (needs the tray option above; otherwise the window opens)') + '.' : esc(dset.loginReason || 'Not available.')) + '</span></label>' +
+        '<input id="set-login" type="checkbox" data-change="desktop-setting" data-key="openAtLogin"' + chk(dset.openAtLogin) + (dset.loginSupported ? '' : ' disabled') + '></div>' +
+      '<h3 class="settings__subhead">Quick capture hotkey</h3>' +
+      '<div class="setting"><label for="set-hk-on">System-wide shortcut<span class="setting__help">Brings Todo4Me to the front and opens Quick capture, even while you work in another program.</span></label>' +
+        '<input id="set-hk-on" type="checkbox" data-change="desktop-setting" data-key="hotkeyEnabled"' + chk(dset.hotkeyEnabled) + '></div>' +
+      '<div class="setting"><label for="set-hk">Shortcut</label><select id="set-hk" data-change="desktop-setting" data-key="hotkey"' + (dset.hotkeyEnabled ? '' : ' disabled') + '>' +
+        dset.hotkeys.map((h) => '<option value="' + esc(h.id) + '"' + (h.id === dset.hotkey ? ' selected' : '') + '>' + esc(h.label) + '</option>').join('') + '</select></div>' +
+      '<p class="desktop-status" id="hk-status">' + hkStatus + '</p>';
+  }
+  ui.on('change:desktop-setting', (el) => {
+    const key = el.dataset.key;
+    desktop.setDesktopSettings({ [key]: el.type === 'checkbox' ? el.checked : el.value }).then((s) => {
+      dset = s;
+      if (T4.app.route.name === 'settings') T4.app.render();
+      if ((key === 'hotkey' || key === 'hotkeyEnabled') && s.hotkeyEnabled && s.hotkeyError) ui.toast(s.hotkeyError, 'error', 9000);
+      else ui.toast('Settings saved', 'success', 1800);
+    });
+  });
+
   /* ---------- Settings: desktop card ---------- */
   ui.on('desktop-open-folder', (el) => desktop.openFolder(el.dataset.folder));
 
@@ -133,6 +181,7 @@
         '<button type="button" class="btn btn--ghost" data-action="desktop-open-folder" data-folder="data">Open data folder</button>' +
       '</div>' +
       '<p class="muted small"><strong>Moving from the browser version?</strong> Open Todo4Me in your browser, use Settings → Export JSON, then choose Import JSON here and pick <em>Merge</em>. Nothing is overwritten.</p>' +
+      backgroundSettingsHtml() +
       '<h3 class="settings__subhead">Updates</h3>' +
       '<p class="muted small">Version ' + esc(info ? info.version : '') + ' · <span id="upd-text">' + updateText(upd) + '</span></p>' +
       '<div class="btn-row" id="upd-buttons">' + updateButtons(upd) + '</div>' +
@@ -153,6 +202,13 @@
       if (last && last !== i.version) ui.toast('Todo4Me was updated to version ' + i.version + '. All your data is still here.', 'success', 9000);
     });
     if (desktop.getUpdateState) desktop.getUpdateState().then((s) => { upd = s; paintUpdate(); });
+    if (desktop.getDesktopSettings) {
+      desktop.getDesktopSettings().then((s) => {
+        dset = s;
+        if (T4.app.route.name === 'settings') T4.app.render();
+        if (s.hotkeyEnabled && s.hotkeyError) console.info('[Todo4Me] ' + s.hotkeyError);
+      });
+    }
     snapshot();
     setTimeout(documentsSnapshot, 20000);
     // Migration hint for people who used the browser version before.

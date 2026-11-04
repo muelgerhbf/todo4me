@@ -34,40 +34,66 @@ const WINDOW_BG = '#f6f6f8';
  * extraMetadata) so a test or beta build can never share data with the real app;
  * regular builds don't have it and always use %APPDATA%\Todo4Me. */
 let dataFolder = APP_NAME;
+let appId = 'com.todo4me.app'; // = build.appId (the installer gives its shortcuts this AppUserModelID)
 try {
   const pkg = require('../package.json');
   if (typeof pkg.todo4meDataFolder === 'string' && /^[\w .-]{1,60}$/.test(pkg.todo4meDataFolder)) dataFolder = pkg.todo4meDataFolder;
+  if (pkg.build && typeof pkg.build.appId === 'string' && /^[\w.-]{1,100}$/.test(pkg.build.appId)) appId = pkg.build.appId;
 } catch (e) { /* default */ }
 app.setName(APP_NAME);
 app.setPath('userData', process.env.TODO4ME_USER_DATA || path.join(app.getPath('appData'), dataFolder));
 const BACKUP_DIR = path.join(app.getPath('userData'), 'backups');
 const MAX_BACKUPS = 14;
 const updater = require('./updater');
+const background = require('./background');
 
 /* ---------- Single instance ---------- */
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.show();
-      win.focus();
-    }
+  app.on('second-instance', (_e, argv) => {
+    // A second start brings the window to the front (also out of the tray) — except an
+    // autostart at login, which must not pop up a window that is already running hidden.
+    if (Array.isArray(argv) && argv.includes(background.HIDDEN_ARG)) return;
+    showWindow();
   });
   app.whenReady().then(onReady);
 }
 
 let mainWindow = null;
 let allowClose = false; // set right before an update restart (data is already saved then)
+// Closing the window hides it to the tray; only a real quit closes it. `quitting` is set by every
+// way of really quitting: app.quit() (tray → Quit, File → Exit, the updater's quitAndInstall)
+// via 'before-quit', and Windows shutdown/logoff via the window's session-end events.
+let quitting = false;
 
 function onReady() {
   hardenSession();
   registerIpc();
   updater.init({ beforeInstall: saveEverything });
   Menu.setApplicationMenu(buildMenu());
+  background.init({
+    appId,
+    file: path.join(app.getPath('userData'), 'desktop-settings.json'),
+    iconPath: path.join(ROOT, 'assets', 'icons', 'icon.png'),
+    showWindow,
+    send,
+    notificationClick: (id, action) => {
+      const win = mainWindow || BrowserWindow.getAllWindows()[0];
+      if (win && !win.isDestroyed()) win.webContents.send('notification:click', id, action || null);
+    },
+    quit: () => app.quit(),
+  });
   createWindow();
+}
+
+/** Bring the window back (from the tray, minimized or behind other windows). */
+function showWindow() {
+  const win = mainWindow || BrowserWindow.getAllWindows()[0];
+  if (!win || win.isDestroyed()) { if (app.isReady() && !quitting) createWindow(true); return; }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
 }
 
 /** Ask the page to save open documents; resolves on its answer or after a timeout. */
@@ -94,7 +120,7 @@ async function saveEverything() {
   allowClose = true;
 }
 
-function createWindow() {
+function createWindow(forceShow) {
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 880,
@@ -117,7 +143,9 @@ function createWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Started at Windows login (--hidden): stay in the tray. The page still loads, so reminders run.
+  const hidden = !forceShow && background.startHidden(process.argv);
+  mainWindow.once('ready-to-show', () => { if (!hidden && mainWindow) mainWindow.show(); });
 
   // Only the app itself may be shown in the window; everything else opens externally.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -134,11 +162,20 @@ function createWindow() {
   // Write LocalStorage to disk before the window goes away.
   // The editor saves documents asynchronously, so the window first lets the page finish
   // saving (at most 3 seconds), then closes for real.
+  // Closing the window while the app is not quitting only hides it to the tray (if enabled).
   let closeReady = false, closing = false;
   const win = mainWindow;
   mainWindow.on('close', (event) => {
     try { session.defaultSession.flushStorageData(); } catch (e) { /* ignore */ }
     if (closeReady || allowClose) return;
+    if (!quitting && !closing && background.shouldHideOnClose()) {
+      event.preventDefault();
+      // Save open documents anyway (the app keeps running, but Windows could end it later).
+      requestRendererSave(win).then(() => { try { session.defaultSession.flushStorageData(); } catch (e) { /* ignore */ } });
+      win.hide();
+      background.onHidden();
+      return;
+    }
     event.preventDefault();
     if (closing) return;
     closing = true;
@@ -148,7 +185,15 @@ function createWindow() {
       if (!win.isDestroyed()) win.close();
     });
   });
-  mainWindow.on('closed', () => { mainWindow = null; });
+  // Windows shutdown / restart / logoff: this is a real quit, never "hide to tray".
+  // ('before-quit' is not emitted in that case.) Save as much as possible right away.
+  const sessionEnding = () => {
+    quitting = true;
+    try { session.defaultSession.flushStorageData(); } catch (e) { /* ignore */ }
+  };
+  mainWindow.on('query-session-end', () => { sessionEnding(); requestRendererSave(win, 2000).then(sessionEnding); });
+  mainWindow.on('session-end', sessionEnding);
+  mainWindow.on('closed', () => { if (mainWindow === win) mainWindow = null; });
 
   mainWindow.loadFile(INDEX);
   if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -355,6 +400,7 @@ function buildMenu() {
 
 /* ---------- Lifecycle ---------- */
 app.on('before-quit', () => {
+  quitting = true; // from now on closing the window really closes it (with the save handshake)
   try { session.defaultSession.flushStorageData(); } catch (e) { /* ignore */ }
 });
 app.on('window-all-closed', () => {

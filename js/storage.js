@@ -43,6 +43,7 @@ T4.storage = (function () {
       showCompleted: true,
       pomodoroFocus: 25,
       pomodoroBreak: 5,
+      reminderTime: '09:00', // when to remind for tasks that have a due date but no time
     };
   }
 
@@ -69,6 +70,11 @@ T4.storage = (function () {
     return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : dflt;
   };
   const hex = (v, dflt) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : dflt);
+  // Reminder = minutes before the due date/time (0 = at due time, max. 4 weeks). Needs a due date.
+  const REMINDER_MAX = 40320;
+  const reminderOrNull = (v, hasDate) => (!hasDate || v == null || v === '' || typeof v === 'boolean' ? null : intIn(v, 0, REMINDER_MAX, null));
+  // Bookkeeping key of the occurrence whose reminder already fired ("YYYY-MM-DD HH:MM|minutes").
+  const firedKey = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2})?\|\d{1,5}$/.test(v) ? v : null);
 
   function sanitizeTask(t, categoryIds) {
     if (!t || typeof t !== 'object') return null;
@@ -96,6 +102,9 @@ T4.storage = (function () {
       estimate: est,
       subtasks,
       recurrence: t.recurrence == null ? null : oneOf(t.recurrence, RECURRENCES, null),
+      reminder: reminderOrNull(t.reminder, U.isDateStr(t.dueDate)),
+      reminderFired: firedKey(t.reminderFired),
+      reminderSnooze: isoOrNull(t.reminderSnooze),
       inbox: !!t.inbox,
       nextOccurrenceId: typeof t.nextOccurrenceId === 'string' ? t.nextOccurrenceId : null,
       createdAt: isoOrNull(t.createdAt) || now,
@@ -160,6 +169,7 @@ T4.storage = (function () {
       showCompleted: s.showCompleted == null ? d.showCompleted : !!s.showCompleted,
       pomodoroFocus: intIn(s.pomodoroFocus, 1, 120, d.pomodoroFocus),
       pomodoroBreak: intIn(s.pomodoroBreak, 1, 60, d.pomodoroBreak),
+      reminderTime: U.isTimeStr(s.reminderTime) ? s.reminderTime : d.reminderTime,
     };
   }
 
@@ -386,7 +396,7 @@ T4.storage = (function () {
   }
 
   return {
-    KEY, SCHEMA_VERSION, PRIORITIES, STATUSES, RECURRENCES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
+    KEY, SCHEMA_VERSION, REMINDER_MAX, PRIORITIES, STATUSES, RECURRENCES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
     defaultData, defaultSettings, sanitize, sanitizeTask, sanitizeNote, sanitizeSettings, load, save, loadBackup,
     backupInfo, usageBytes, clearAll, exportJSON, parseImport, merge,
     get isAvailable() { return available; },

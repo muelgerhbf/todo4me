@@ -107,14 +107,16 @@ T4.ui = (function () {
 
   /* ---------------- Toasts ---------------- */
   const toastsEl = document.getElementById('toasts');
-  /** toast(message, type = 'success'|'info'|'error', ms, action = { label, fn }) */
+  /** toast(message, type = 'success'|'info'|'error'|'reminder', ms, action = { label, fn } or [{ label, fn }, …])
+   *  Returns the toast element. */
   function toast(message, type, ms, action) {
     type = type || 'success';
+    const actionsList = Array.isArray(action) ? action.filter(Boolean) : action ? [action] : [];
     const el = document.createElement('div');
     el.className = 'toast toast--' + type;
-    const ic = type === 'error' ? 'alert' : type === 'info' ? 'sparkle' : 'check';
+    const ic = type === 'error' ? 'alert' : type === 'reminder' ? 'bell' : type === 'info' ? 'sparkle' : 'check';
     el.innerHTML = icon(ic) + '<span class="toast__msg">' + esc(message) + '</span>' +
-      (action ? '<button type="button" class="toast__action">' + esc(action.label) + '</button>' : '') +
+      actionsList.map((a, i) => '<button type="button" class="toast__action" data-i="' + i + '">' + esc(a.label) + '</button>').join('') +
       '<button type="button" class="toast__close" aria-label="Dismiss">' + icon('x') + '</button>';
     const remove = () => {
       if (!el.isConnected) return;
@@ -122,10 +124,11 @@ T4.ui = (function () {
       setTimeout(() => el.remove(), 200);
     };
     el.querySelector('.toast__close').addEventListener('click', remove);
-    if (action) el.querySelector('.toast__action').addEventListener('click', () => { action.fn(); remove(); });
+    Array.from(el.querySelectorAll('.toast__action')).forEach((b) => b.addEventListener('click', () => { actionsList[Number(b.dataset.i)].fn(); remove(); }));
     toastsEl.appendChild(el);
     while (toastsEl.children.length > 4) toastsEl.firstChild.remove();
-    setTimeout(remove, ms || (action ? 6000 : 3200));
+    setTimeout(remove, ms || (actionsList.length ? 6000 : 3200));
+    return el;
   }
 
   /* ---------------- Small render helpers ---------------- */

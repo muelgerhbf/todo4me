@@ -45,6 +45,31 @@ contextBridge.exposeInMainWorld('todo4meDesktop', {
     });
   },
 
+  /* ---------- Tray, start with Windows, global hotkey (machine settings, validated in main) ---------- */
+  getDesktopSettings: () => ipcRenderer.invoke('desktop:get-settings'),
+  setDesktopSettings: (patch) => {
+    const p = {};
+    ['closeToTray', 'openAtLogin', 'hotkeyEnabled'].forEach((k) => { if (patch && typeof patch[k] === 'boolean') p[k] = patch[k]; });
+    if (patch && typeof patch.hotkey === 'string') p.hotkey = patch.hotkey.slice(0, 40);
+    return ipcRenderer.invoke('desktop:set-settings', p);
+  },
+
+  /* ---------- Native notifications (reminders) ---------- */
+  /** Show a Windows notification: { id: 'task:<id>' | 'summary' | …, title, body, snooze }. Resolves { ok }. */
+  notify: (n) => ipcRenderer.invoke('notify:show', {
+    id: String((n && n.id) || '').slice(0, 80),
+    title: String((n && n.title) || '').slice(0, 200),
+    body: String((n && n.body) || '').slice(0, 400),
+    snooze: !!(n && n.snooze),
+  }),
+  /** callback(id, action) when a notification is clicked (action null) or its Snooze button is used ('snooze'). */
+  onNotificationClick: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, id, action) => { if (typeof id === 'string') callback(id, action === 'snooze' ? 'snooze' : null); };
+    ipcRenderer.on('notification:click', listener);
+    return () => ipcRenderer.removeListener('notification:click', listener);
+  },
+
   /* ---------- Updates ---------- */
   getUpdateState: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),

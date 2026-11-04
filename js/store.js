@@ -95,6 +95,9 @@ T4.store = (function () {
         dueDate: next,
         subtasks: task.subtasks.map((s) => ({ id: U.uid('sub'), title: s.title, done: false })),
         nextOccurrenceId: null,
+        // The next occurrence keeps the reminder offset and gets its own, not yet fired reminder.
+        reminderFired: null,
+        reminderSnooze: null,
         completedAt: null,
         createdAt: nowIso(),
         updatedAt: nowIso(),

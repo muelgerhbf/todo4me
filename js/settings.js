@@ -175,7 +175,17 @@ T4.settings = (function () {
   }
 
   /* ---------- View ---------- */
-  const seg = (key, value, options) => '<div class="seg" role="radiogroup">' + options.map(([v, l]) =>
+  function reminderStatusRow() {
+    if (!T4.reminders) return '';
+    const st = T4.reminders.systemStatus();
+    return '<div class="setting" id="set-notify"><span class="label">Reminder notifications<span class="setting__help">' + esc(st.text) + '</span></span>' +
+      '<div class="btn-row">' +
+        (st.kind === 'ask' ? '<button type="button" class="btn btn--sm btn--primary" data-action="reminders-permission">Allow notifications</button>' : '') +
+        '<button type="button" class="btn btn--sm" data-action="reminders-test">' + icon('bell') + 'Test</button>' +
+      '</div></div>';
+  }
+
+  const seg =(key, value, options) => '<div class="seg" role="radiogroup">' + options.map(([v, l]) =>
     '<button type="button" class="seg__btn" role="radio" aria-checked="' + (String(value) === String(v)) + '" data-action="' + key + '" data-value="' + v + '">' + l + '</button>').join('') + '</div>';
 
   T4.views.settings = {
@@ -203,6 +213,8 @@ T4.settings = (function () {
             '<option value="1"' + (s.weekStart === 1 ? ' selected' : '') + '>Monday</option><option value="0"' + (s.weekStart === 0 ? ' selected' : '') + '>Sunday</option></select></div>' +
           '<div class="setting"><label for="set-pf">Focus session length<span class="setting__help">Minutes</span></label><input id="set-pf" type="number" min="1" max="120" value="' + s.pomodoroFocus + '" data-change="setting" data-key="pomodoroFocus"></div>' +
           '<div class="setting"><label for="set-pb">Break length<span class="setting__help">Minutes</span></label><input id="set-pb" type="number" min="1" max="60" value="' + s.pomodoroBreak + '" data-change="setting" data-key="pomodoroBreak"></div>' +
+          '<div class="setting"><label for="set-remtime">Reminder time<span class="setting__help">Used for reminders on tasks that have a due date but no time.</span></label><input id="set-remtime" type="time" value="' + esc(s.reminderTime) + '" data-change="setting" data-key="reminderTime"></div>' +
+          reminderStatusRow() +
         '</section>' +
 
         '<section class="card settings__section"><h2 class="card__title">Categories</h2>' +

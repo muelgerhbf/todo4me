@@ -64,11 +64,23 @@ async function mainEval(expr) {
 }
 const api = {
   mainEval, PORT, env, EXE, EXE_ARGS, spawn,
-  async restartGracefully() {
-    await send('Runtime.evaluate', { expression: 'setTimeout(() => window.close(), 50); true' });
-    await new Promise((r) => { chrome.once('exit', r); setTimeout(r, 15000); });
+  get exited() { return chrome.exitCode !== null; },
+  /** Quit the app like a user (File → Exit / tray → Quit), then start it again.
+   *  Closing the window is not enough any more: by default it only hides Todo4Me to the tray. */
+  /*  how: 'quit' = app.quit() (File → Exit), 'tray' = tray menu → Quit Todo4Me,
+   *       'session-end' = Windows shutdown/logoff (session-end, then the window is closed). */
+  async restartGracefully(how = 'quit') {
+    const exited = new Promise((r) => { chrome.once('exit', () => r(true)); setTimeout(() => r(false), 15000); });
+    const expr = {
+      quit: `process.mainModule.require('electron').app.quit()`,
+      tray: `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.endsWith('background.js') && m.filename.includes('todo4me')).exports._test.clickTrayItem('Quit Todo4Me')`,
+      'session-end': `(() => { const w = process.mainModule.require('electron').BrowserWindow.getAllWindows()[0]; w.emit('query-session-end', { preventDefault() {} }); w.emit('session-end', { preventDefault() {} }); w.close(); })()`,
+    }[how];
+    await mainEval(`setTimeout(() => ${expr}, 50); true`);
+    const didExit = await exited;
     console.log('app exited, exit code', chrome.exitCode);
     launch(); await connect(); await enable();
+    return didExit;
   },
   sleep,
   errors,
@@ -107,6 +119,11 @@ try {
   console.log('--- page errors (' + errors.length + ') ---');
   errors.forEach((e) => console.log(e));
   ws.close();
+  // Quit gracefully first (removes the tray icon, unregisters the global hotkey), then make sure.
+  if (chrome.exitCode === null) {
+    const gone = new Promise((r) => { chrome.once('exit', r); setTimeout(r, 6000); });
+    try { await mainEval(`setTimeout(() => process.mainModule.require('electron').app.quit(), 20); true`); await gone; } catch {}
+  }
   try { (await import('node:child_process')).execSync('taskkill /F /T /PID ' + chrome.pid, { stdio: 'ignore' }); } catch {}
   await sleep(500);
   try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}

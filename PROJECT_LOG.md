@@ -14,7 +14,8 @@ Written at the end of day 1 (2026-11-02) as the starting point for day 2: **buil
 | Windows desktop app | Done. Version **2.0.0** (day 2): `dist\Todo4Me-Setup-2.0.0.exe` (installer, auto-updates) and `dist\Todo4Me-2.0.0-portable.exe` |
 | Document editor | Done on day 2 (see Part 4) |
 | Automatic updates | Built in on day 2 (see Part 4). Needs the public repo `todo4me-releases` + a token once before the first `npm run release` |
-| Tests | 141 functional + 166 editor + 53 desktop checks + an end-to-end update test, all passing |
+| Reminders, tray, global hotkey | Built on `feature/reminders-calendar` (Step 24), not yet released or committed |
+| Tests | 183 functional + 166 editor + 84 desktop checks + an end-to-end update test, all passing |
 | Mac / iPad | Not started (see Part 3) |
 
 **Tool versions used:** Node.js 24.20.0, npm 11.19.0, Electron 45.2.1, electron-builder 26.18.0, Windows 11, Google Chrome (for headless testing).
@@ -359,3 +360,85 @@ Each problem was reproduced first in an isolated app instance (`TODO4ME_USER_DAT
 | Outline width slider could not be dragged | Every `input` event redrew the drawing and the context bar was rebuilt via `innerHTML`, which replaced the slider in the middle of the drag (the value jumped to 1 and stayed there) | No rebuild while a slider in the bar has focus; added −/+ buttons and a "N px" label; range 0–20 px (lines 1–20), matching the widget's sanitizer |
 
 Tests: 141 functional + **166** editor (+ zoom, slider drag, −/+ and white paper) + 141 functional in Electron + **53** desktop, all passing.
+
+---
+
+## Part 5: Phase 1a (2026-11-04): the app reaches out on its own
+
+Branch `feature/reminders-calendar`. Nothing committed, no version bump, no installer built: the changes are left in the working tree for review.
+
+### Step 24: Reminders, tray, close to tray, start with Windows, global quick-capture hotkey
+
+**What was built**
+
+1. **Reminders.** New task field `reminder` (minutes before due; 0 = at due time; null = none) with a *Reminder* select in the task editor
+   (at due time, 5/15/30 min, 1 hour, 1 day before) and a live hint ("Reminds you Nov 5, 1:30 PM"). Date-only tasks use the new setting
+   `reminderTime` (default 09:00, *Settings → Tasks & planning*). A bell chip marks tasks with a reminder. The scheduler (`js/reminders.js`) runs in
+   the page in both the browser and the desktop app.
+2. **Notifications.** Desktop: Windows notification from the main process (`Notification`, with a *Snooze 10 min* button), click → window to the
+   front + task editor opens. Browser: Web Notification API if the user allowed it (asked when a reminder is saved or via *Allow notifications*), otherwise
+   nothing. In both, an in-app toast with *Open* / *Snooze 10 min* is always shown, so a reminder never depends on the OS notification appearing.
+3. **Tray + close to tray.** Tray icon (click = open; menu *Open Todo4Me, Quick capture, New task, Quit Todo4Me*). Closing the window hides it;
+   a one-time Windows notification explains this. Settings → Desktop app: *Keep running in the tray…* (default on), *Start Todo4Me when Windows starts*
+   (default off, `app.setLoginItemSettings` with `--hidden`, starts hidden in the tray).
+4. **System-wide hotkey** `Ctrl+Alt+Space` (globalShortcut) → window + Quick capture. Can be switched off or changed to one of four presets.
+   If another program owns the shortcut, Settings shows "…is already used by another program". Unregistered on quit.
+
+**Files**
+
+New: `electron/background.js` (tray, close-to-tray decision, login item, hotkey, notifications, `desktop-settings.json`), `js/reminders.js`.
+Changed: `electron/main.js` (quit vs. hide, session-end, `showWindow`, AppUserModelID via `background.init`), `electron/preload.js` (4 functions),
+`js/storage.js` (task fields + `reminderTime`, sanitizing), `js/store.js` (recurring clone resets reminder bookkeeping), `js/tasks.js` (editor field, bell chip),
+`js/settings.js` (reminder time + notification status/test), `js/desktop.js` (settings UI, tray/hotkey actions, notification clicks), `js/ui.js`
+(toasts may have several buttons, `reminder` type), `index.html` (bell icon, script tag; the inline head script and its CSP hash are unchanged),
+`css/styles.css`, tests, README.
+
+**Decisions**
+
+| Question | Decision | Why |
+|---|---|---|
+| Reminder model | Relative offset `reminder` (minutes before due), not an absolute `remindAt` | The reminder follows the task when it is rescheduled (editor, planner drag & drop, "move all to today") and recurring tasks need no extra logic: the next occurrence inherits the offset. An absolute time would go stale with every date change |
+| "Never twice" | `reminderFired` = occurrence key `"dueDate dueTime|offset"` stored on the task, set *before* the notification is shown | Survives restarts, export/import, merge and syncs across tabs. A new due date or offset is a new key → a new reminder; the same occurrence can never fire again |
+| Snooze | `reminderSnooze` (ISO time) on the task; Snooze button on the Windows toast (Electron 45 supports toast actions on Windows) **and** in the in-app toast | Toast buttons in unsigned apps only work while the app runs (it does: tray), and Windows can suppress toasts (Do not disturb), so the in-app button is the reliable path |
+| Where the scheduler runs | In the page (`js/reminders.js`), exact `setTimeout` to the next reminder + a 30 s safety tick + a check when the page becomes visible | Same code for browser and desktop, has the data, testable with an injected clock (`check({ now })`, `setClock`, `setNotifier`). The window still exists when hidden in the tray, so the page keeps running. Hidden pages are throttled to ~1 timer/minute → accuracy about a minute |
+| Notification mechanism (desktop) | Main-process `Notification` via a narrow bridge (`notify({id,title,body,snooze})`, validated: id pattern, length limits, control characters removed) | The renderer's `Notification` would need the session's permission handler loosened (all permissions are denied). Main-process notifications work while the window is hidden and report `show`/`failed`; objects are kept referenced so clicks are not lost |
+| AppUserModelID | `app.setAppUserModelId(build.appId)` in the packaged app, `process.execPath` in dev | Windows attributes toasts to the Start-menu shortcut with that id; electron-builder's NSIS installer stamps `com.todo4me.app` on its shortcuts (`WinShell::SetLnkAUMI`) |
+| Missed reminders | First check after start groups everything due: 2+ → one notification "N reminders missed"; more than 3 at once while running → one summary too | No flood after a weekend or after the PC wakes up |
+| Hide vs. quit | `quitting` flag: set in `before-quit` (tray → Quit, File → Exit, `autoUpdater.quitAndInstall` all call `app.quit()`) and on the window's `query-session-end`/`session-end` (Windows shutdown/logoff, where `before-quit` is not emitted). The `close` handler hides only if `!quitting && closeToTray && tray exists`; otherwise the unchanged save-before-close handshake runs. The updater's `allowClose` path is untouched | One explicit rule; every real quit still flushes the editor and LocalStorage. If the tray icon can't be created, closing quits as before, so the app can never become unreachable |
+| Desktop settings storage | `<userData>/desktop-settings.json`, read by the main process | Needed before the page loads (start hidden, register hotkey); per machine, so not in exports/imports |
+| Start with Windows | Only in the installed app; not in the portable build (temp folder), dev runs or test runs (`TODO4ME_USER_DATA`) | Tests must never write the user's real Run registry key; the test stubs the call and checks its arguments |
+| Hotkey presets | Ctrl+Alt+Space (default), Ctrl+Shift+Alt+Space, Ctrl+Alt+T, Ctrl+Shift+Alt+T; validated in main | `AltGr` = `Ctrl+Alt` on German keyboards: e.g. Ctrl+Alt+Q (@), +E (€), +M (µ) would break typing system-wide. Ctrl+Shift+Space and Ctrl+Alt+N are already used inside the app |
+| Hotkey/tray while a dialog is open | Don't replace the dialog; focus Quick capture if it is already open, otherwise show a hint toast | Opening a modal closes the current one silently — a global hotkey must never throw away a half-typed task |
+
+**Found while testing**
+
+1. A page-side `window.close()` destroys the window without a cancellable `close` event, so the old test helper never exercised "close"
+   like a user does. The tests now close via `BrowserWindow.close()` (= the X button) and quit via `app.quit()`, the tray menu or a simulated
+   Windows session end. `restartGracefully(how)` in `tests/cdp-electron.mjs` returns whether the app really exited.
+2. A reminder set for a time that had already passed only fired on the 30 s safety tick: `schedule()` looked only at future times. It now re-checks
+   immediately when something is already due.
+3. `process.mainModule` in the main-process inspector is Electron's bootstrap, so the tests reach `background.js` through the module cache.
+
+**Tests** (exact results at the end of this step, `PDFTEXT` set)
+
+| Suite | Before | Now |
+|---|---|---|
+| Functional (Chrome) | 141 | **183** (+ old data loads unchanged, sanitizing, export/import/merge keep reminders, scheduler with injected clock: due → once, snooze, reschedule, date-only, completed never, recurring, missed summary, burst summary, click opens task, live scheduler, editor/row/settings UI, browser without permission) |
+| Editor (Chrome) | 166 | **166** |
+| Functional (Electron) | 141 | **183** |
+| Desktop (Electron) | 53 | **84** (+ bridge API, defaults, hotkey registered/re-registered/off, tray + menu, settings UI, validation, close hides + process alive, one-time hint, hotkey/tray open Quick capture/New task without replacing dialogs, login item stubbed, `--hidden`, real notification shown + click + Snooze action, missed summary after restart, settings persist, tray → Quit / File → Exit / Windows session end really quit and save the editor) |
+
+All with 0 page errors.
+
+**Not verified / open points**
+
+- Real Windows toasts were shown (`show` event) from the dev build. Clicking a toast or its *Snooze* button by hand, the toast's appearance in the
+  **installed** app (AppUserModelID `com.todo4me.app`) and the portable build (no shortcut with that id) were not tested by hand — the tests emit
+  `click`/`action` on the notification object. If Windows does not show the toast, the in-app toast still appears.
+- Start with Windows was tested with the registry call stubbed only; the real Run entry (`"…\Todo4Me.exe" --hidden`) needs one check on the installed app.
+  Uninstalling does not remove the entry (turn the option off before uninstalling).
+- A real Windows shutdown/logoff was simulated by emitting `query-session-end`/`session-end`, not performed.
+- Pinned taskbar icons: setting the AppUserModelID explicitly makes the running window match the installer's shortcuts (`com.todo4me.app`);
+  worth a glance after the next installed update.
+- Browser: two open tabs could both show the same reminder if their checks run within the same moment (the second normally sees the first one's
+  `reminderFired` through the storage event first).

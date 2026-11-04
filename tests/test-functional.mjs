@@ -331,6 +331,150 @@ export default async function (b) {
     ok(S().tasks.length === before, 'replace restores exported snapshot');
   `);
 
+  await run('reminders-data', `
+    // Old data / old exports (no reminder fields, no reminderTime) load unchanged.
+    const old = { app: 'todo4me', version: 1, tasks: [{ id: 'task_old1', title: 'Old task', status: 'todo', priority: 'high', dueDate: '2030-03-10', dueTime: '10:00', tags: ['a'], createdAt: '2026-01-01T10:00:00.000Z', updatedAt: '2026-01-02T10:00:00.000Z' }],
+      notes: [], settings: { theme: 'dark', weekStart: 0 } };
+    const p = T4.storage.parseImport(JSON.stringify(old));
+    const ot = p.data.tasks[0];
+    ok(p.issues.length === 0 && ot.title === 'Old task' && ot.priority === 'high' && ot.dueTime === '10:00' && ot.updatedAt === old.tasks[0].updatedAt && ot.tags.join() === 'a', 'old export without reminder fields loads unchanged');
+    ok(ot.reminder === null && ot.reminderFired === null && ot.reminderSnooze === null, 'missing reminder fields default to null (no reminder)');
+    ok(p.data.settings.reminderTime === '09:00' && p.data.settings.theme === 'dark' && p.data.settings.weekStart === 0, 'missing reminderTime setting defaults to 09:00, other settings kept');
+    // Sanitizing
+    const s = T4.storage.parseImport(JSON.stringify({ tasks: [
+      { title: 'a', dueDate: '2030-03-10', reminder: 'soon' }, { title: 'b', reminder: 15 }, { title: 'c', dueDate: '2030-03-10', reminder: -5 },
+      { title: 'd', dueDate: '2030-03-10', reminder: 1e9, reminderFired: '<script>', reminderSnooze: 'tomorrow-ish' }, { title: 'e', dueDate: '2030-03-10', reminder: '30', reminderFired: '2030-03-10 10:00|30', reminderSnooze: '2030-03-10T09:40:00.000Z' }],
+      settings: { reminderTime: '25:99' } })).data;
+    const by = (t) => s.tasks.find((x) => x.title === t);
+    ok(by('a').reminder === null && by('b').reminder === null && by('c').reminder === 0 && by('d').reminder === T4.storage.REMINDER_MAX, 'invalid reminders sanitized (no date → none, clamped to 0…4 weeks)');
+    ok(by('d').reminderFired === null && by('d').reminderSnooze === null && by('e').reminder === 30 && by('e').reminderFired === '2030-03-10 10:00|30' && by('e').reminderSnooze === '2030-03-10T09:40:00.000Z', 'reminder bookkeeping validated');
+    ok(s.settings.reminderTime === '09:00', 'invalid reminderTime falls back to 09:00');
+    // Export → import → merge keeps reminders
+    const t = T4.store.addTask({ title: 'Reminder roundtrip', dueDate: '2030-03-10', dueTime: '10:00', reminder: 15 });
+    const back = T4.storage.parseImport(T4.storage.exportJSON(S())).data.tasks.find((x) => x.id === t.id);
+    ok(back && back.reminder === 15, 'export → import keeps the reminder');
+    T4.store.mergeData(T4.storage.parseImport(T4.storage.exportJSON(S())).data);
+    ok(T4.store.getTask(t.id).reminder === 15 && S().tasks.filter((x) => x.id === t.id).length === 1, 'merge keeps the reminder (no duplicate)');
+    T4.store.deleteTask(t.id);
+  `);
+
+  await run('reminders-scheduler', `
+    const R = T4.reminders;
+    ok(R && R.started, 'reminder scheduler started');
+    R.stop();
+    const sent = []; R.setNotifier((n) => sent.push(n));
+    const at = (d, hh, mm) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd, hh, mm); };
+    const D = '2030-03-10';
+    const a = T4.store.addTask({ title: 'Call the bank', dueDate: D, dueTime: '10:00', reminder: 15 });
+    ok(+R.fireAt(a, S().settings) === +at(D, 9, 45), 'fire time = due time minus offset');
+    ok(R.check({ now: at(D, 9, 44) }).fired.length === 0, 'not due yet → nothing');
+    let res = R.check({ now: at(D, 9, 45) });
+    ok(res.fired.join() === a.id && sent.length === 1 && sent[0].id === 'task:' + a.id && sent[0].title === 'Call the bank', 'due → notification for that task');
+    ok(T4.store.getTask(a.id).reminderFired === D + ' 10:00|15', 'fired occurrence persisted on the task');
+    ok(R.check({ now: at(D, 9, 50) }).fired.length === 0 && R.check({ now: at(D, 12, 0) }).fired.length === 0 && sent.length === 1, 'fires only once per occurrence');
+    ok($$('.toast--reminder').some((el) => /Call the bank/.test(el.textContent) && /Snooze 10 min/.test(el.textContent)), 'in-app reminder toast with Snooze button');
+    // Snooze via the toast button
+    R.setClock(() => at(D, 9, 46));
+    click($$('.toast--reminder').find((el) => /Call the bank/.test(el.textContent)).querySelectorAll('.toast__action')[1]);
+    ok(T4.store.getTask(a.id).reminderSnooze === at(D, 9, 56).toISOString(), 'Snooze 10 min sets the snooze time');
+    ok(R.check({ now: at(D, 9, 55) }).fired.length === 0, 'snoozed reminder waits');
+    res = R.check({ now: at(D, 9, 56) });
+    ok(res.fired.join() === a.id && /Snoozed/.test(res.notifications[0].body) && !T4.store.getTask(a.id).reminderSnooze, 'snoozed reminder comes back after 10 minutes');
+    ok(R.check({ now: at(D, 10, 30) }).fired.length === 0, 'snoozed reminder does not repeat');
+    // Rescheduling makes a new occurrence
+    T4.store.updateTask(a.id, { dueDate: '2030-03-11' });
+    ok(R.check({ now: at(D, 12, 0) }).fired.length === 0 && R.check({ now: at('2030-03-11', 9, 45) }).fired.join() === a.id, 'moving the due date gives a new reminder');
+    // Date without a time → reminder time setting
+    const b = T4.store.addTask({ title: 'Pay invoice', dueDate: D, reminder: 0 });
+    ok(R.check({ now: at(D, 8, 59) }).fired.length === 0 && R.check({ now: at(D, 9, 0) }).fired.join() === b.id, 'date-only task reminds at the reminder time (09:00)');
+    // Completed tasks never fire
+    const c = T4.store.addTask({ title: 'Done already', dueDate: D, dueTime: '11:00', reminder: 5 });
+    T4.store.toggleComplete(c.id);
+    ok(R.check({ now: at(D, 11, 30) }).fired.length === 0, 'completed task never fires');
+    // Recurring: the next occurrence gets its own reminder
+    const r = T4.store.addTask({ title: 'Standup', dueDate: D, dueTime: '08:00', reminder: 30, recurrence: 'daily' });
+    ok(R.check({ now: at(D, 7, 30) }).fired.join() === r.id, 'recurring task: first occurrence fires');
+    T4.store.toggleComplete(r.id);
+    const nx = T4.store.getTask(T4.store.getTask(r.id).nextOccurrenceId);
+    ok(nx && nx.reminder === 30 && nx.reminderFired === null && nx.reminderSnooze === null, 'next occurrence keeps the offset, not yet fired');
+    const nxAt = R.fireAt(nx, S().settings);
+    ok(R.check({ now: new Date(+nxAt - 60000) }).fired.length === 0 && R.check({ now: nxAt }).fired.join() === nx.id, 'next occurrence fires on its own date');
+    [a, b, c, r, nx].forEach((x) => T4.store.deleteTask(x.id));
+    // Missed while closed → one summary on start
+    sent.length = 0;
+    const m = ['One', 'Two', 'Three'].map((tt, i) => T4.store.addTask({ title: 'Missed ' + tt, dueDate: D, dueTime: '0' + (i + 7) + ':00', reminder: 0 }));
+    res = R.check({ now: at(D, 18, 0), startup: true });
+    ok(res.summary && sent.length === 1 && sent[0].id === 'summary' && sent[0].title === '3 reminders missed' && /Missed One/.test(sent[0].body), 'missed reminders on start → one summary notification');
+    ok(m.every((x) => T4.store.getTask(x.id).reminderFired) && R.check({ now: at(D, 18, 1) }).fired.length === 0, 'summarized reminders are marked as fired');
+    m.forEach((x) => T4.store.deleteTask(x.id));
+    const one = T4.store.addTask({ title: 'Single missed', dueDate: D, dueTime: '07:00', reminder: 0 });
+    sent.length = 0; res = R.check({ now: at(D, 18, 0), startup: true });
+    ok(!res.summary && sent.length === 1 && sent[0].id === 'task:' + one.id && /Missed while/.test(sent[0].body), 'a single missed reminder is shown on its own');
+    T4.store.deleteTask(one.id);
+    const many = [1, 2, 3, 4].map((i) => T4.store.addTask({ title: 'Burst ' + i, dueDate: D, dueTime: '10:00', reminder: 0 }));
+    sent.length = 0; res = R.check({ now: at(D, 10, 0) });
+    ok(res.summary && sent.length === 1 && sent[0].title === '4 reminders', 'many reminders at once → summary, not a flood');
+    many.forEach((x) => T4.store.deleteTask(x.id));
+    // Click on a notification opens the task
+    const o = T4.store.addTask({ title: 'Open me from a notification', dueDate: D, dueTime: '10:00', reminder: 0 });
+    R.handleClick('task:' + o.id);
+    await wait(50);
+    ok($('#modal').open && $('#tf-title') && $('#tf-title').value === 'Open me from a notification', 'notification click opens the task');
+    T4.ui.closeModal(); await wait(30);
+    T4.store.deleteTask(o.id);
+    R.setClock(null); R.setNotifier(null);
+    $$('.toast').forEach((el) => el.remove());
+    R.start();
+    ok(R.started, 'scheduler restarted');
+    // Real clock: a reminder that is already due fires right away (not only on the next 30 s tick)
+    const live = []; R.setNotifier((n) => live.push(n));
+    const nw = new Date(), hhmm = String(nw.getHours()).padStart(2, '0') + ':' + String(nw.getMinutes()).padStart(2, '0');
+    const lt = T4.store.addTask({ title: 'Due right now', dueDate: T4.util.today(), dueTime: hhmm, reminder: 0 });
+    for (let i = 0; i < 30 && !live.length; i++) await wait(100);
+    ok(live.length === 1 && live[0].id === 'task:' + lt.id, 'live scheduler fires a due reminder within a second');
+    R.setNotifier(null); T4.store.deleteTask(lt.id); $$('.toast').forEach((el) => el.remove());
+  `);
+
+  await run('reminders-ui', `
+    await go('upcoming');
+    click('main [data-action=new-task]'); await wait(40);
+    const sel = $('#tf-remind');
+    ok(sel && sel.options.length === 7 && sel.value === '', 'task editor has a Reminder field (none + 6 options), default none');
+    $('#tf-title').value = 'Dentist';
+    $('#tf-date').value = '2030-03-12'; $('#tf-time').value = '14:30';
+    sel.value = '60'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+    ok(/Reminds you/.test($('#tf-remind-hint').textContent), 'editor shows when the reminder fires: ' + $('#tf-remind-hint').textContent);
+    $('#task-form').requestSubmit(); await wait(60);
+    const t = S().tasks.find((x) => x.title === 'Dentist');
+    ok(t && t.reminder === 60 && t.dueTime === '14:30', 'editor saves the reminder');
+    await go('tasks'); await wait(30);
+    ok(!!$('.task[data-id="' + t.id + '"] .chip--reminder'), 'task row shows a reminder bell');
+    click($('.task[data-id="' + t.id + '"] .task__body')); await wait(40);
+    ok($('#tf-remind').value === '60', 'editing shows the saved reminder');
+    $('#tf-remind').value = ''; $('#task-form').requestSubmit(); await wait(60);
+    ok(T4.store.getTask(t.id).reminder === null && !$('.task[data-id="' + t.id + '"] .chip--reminder'), 'reminder can be removed');
+    // No due date + reminder → due today
+    click('main [data-action=new-task]'); await wait(40);
+    $('#tf-title').value = 'Undated reminder'; $('#tf-remind').value = '0'; $('#task-form').requestSubmit(); await wait(60);
+    const u = S().tasks.find((x) => x.title === 'Undated reminder');
+    ok(u && u.dueDate === T4.util.today() && u.reminder === 0, 'reminder without a date schedules the task for today');
+    T4.store.deleteTask(t.id); T4.store.deleteTask(u.id);
+    $$('.toast').forEach((el) => el.remove());
+    await go('settings');
+    const rt = $('#set-remtime');
+    ok(rt && rt.value === '09:00' && !!$('#set-notify'), 'settings: reminder time and notification status');
+    rt.value = '08:30'; rt.dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
+    ok(S().settings.reminderTime === '08:30', 'reminder time setting saved');
+    $('#set-remtime').value = '09:00'; $('#set-remtime').dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
+    if (!window.todo4meDesktop) {
+      let threw = false; try { click('[data-action=reminders-test]'); await wait(50); } catch (e) { threw = true; }
+      ok(!threw && $$('.toast--reminder').length >= 1, 'browser without notification permission: in-app reminder, no error');
+    } else {
+      ok(/Windows notifications/.test($('#set-notify').textContent), 'desktop: reminders use Windows notifications');
+    }
+    $$('.toast').forEach((el) => el.remove());
+  `);
+
   await run('a11y-basics', `
     for (const r of ['dashboard','inbox','tasks','today','upcoming','planner','plan','notes','focus','stats','settings']) {
       await go(r);
