@@ -13,8 +13,8 @@ Sie läuft vollständig offline. Die Web-App selbst ist unverändert: Electron z
 
 | Datei in `dist/` | Verwendung |
 |---|---|
-| `Todo4Me-Setup-2.0.0.exe` | **Installer (empfohlen).** Doppelklicken und den Schritten folgen. Erstellt eine Desktop-Verknüpfung und einen Startmenü-Eintrag. Deinstallation über *Einstellungen → Apps*. Keine Admin-Rechte nötig. **Aktualisiert sich ab Version 2.0.0 automatisch** (siehe [Automatische Updates](#automatische-updates)). Eine vorhandene ältere Version wird einfach überinstalliert, alle Daten bleiben erhalten. |
-| `Todo4Me-2.0.0-portable.exe` | **Portable Version.** Ohne Installation starten, z. B. vom USB-Stick. Der Start dauert ein paar Sekunden länger, weil die App zuerst in einen temporären Ordner entpackt wird. Aktualisiert sich **nicht** selbst: für ein Update die neue Portable-Datei verwenden. |
+| `Todo4Me-Setup-2.1.0.exe` | **Installer (empfohlen).** Doppelklicken und den Schritten folgen. Erstellt eine Desktop-Verknüpfung und einen Startmenü-Eintrag. Deinstallation über *Einstellungen → Apps*. Keine Admin-Rechte nötig. **Aktualisiert sich ab Version 2.0.0 automatisch** (siehe [Automatische Updates](#automatische-updates)). Eine vorhandene ältere Version wird einfach überinstalliert, alle Daten bleiben erhalten. |
+| `Todo4Me-2.1.0-portable.exe` | **Portable Version.** Ohne Installation starten, z. B. vom USB-Stick. Der Start dauert ein paar Sekunden länger, weil die App zuerst in einen temporären Ordner entpackt wird. Aktualisiert sich **nicht** selbst: für ein Update die neue Portable-Datei verwenden. |
 
 > **Windows SmartScreen:** Die `.exe`-Dateien sind nicht digital signiert (dafür wäre ein kostenpflichtiges Code-Signing-Zertifikat nötig).
 > Beim ersten Start kann deshalb „Der Computer wurde durch Windows geschützt“ erscheinen. Dann **Weitere Informationen → Trotzdem ausführen** wählen.
@@ -139,7 +139,7 @@ Ohne Internet passiert nichts Störendes: automatische Prüfungen schlagen still
 Die portable `.exe` und die Entwicklerversion (`npm start`) aktualisieren sich nicht selbst und sagen das in den Einstellungen.
 
 > **Einmalig für bestehende Nutzer von Version 1.0.0:** 1.0.0 hatte noch keine Update-Funktion.
-> Sie installieren `Todo4Me-Setup-2.0.0.exe` **einmal** über die alte Version (Daten bleiben erhalten). Ab dann kommen alle weiteren Versionen automatisch.
+> Sie installieren `Todo4Me-Setup-2.1.0.exe` **einmal** über die alte Version (Daten bleiben erhalten). Ab dann kommen alle weiteren Versionen automatisch.
 
 #### Ein Update veröffentlichen (für dich als Entwickler)
 

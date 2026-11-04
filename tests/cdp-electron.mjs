@@ -73,7 +73,7 @@ const api = {
     const exited = new Promise((r) => { chrome.once('exit', () => r(true)); setTimeout(() => r(false), 15000); });
     const expr = {
       quit: `process.mainModule.require('electron').app.quit()`,
-      tray: `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.endsWith('background.js') && m.filename.includes('todo4me')).exports._test.clickTrayItem('Quit Todo4Me')`,
+      tray: `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.replace(/\\\\/g, '/').endsWith('/electron/background.js')).exports._test.clickTrayItem('Quit Todo4Me')`,
       'session-end': `(() => { const w = process.mainModule.require('electron').BrowserWindow.getAllWindows()[0]; w.emit('query-session-end', { preventDefault() {} }); w.emit('session-end', { preventDefault() {} }); w.close(); })()`,
     }[how];
     await mainEval(`setTimeout(() => ${expr}, 50); true`);

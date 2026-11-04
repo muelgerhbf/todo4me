@@ -79,7 +79,7 @@ export default async function (b) {
 
   /* ---------- Running in the background: tray, close to tray, hotkey, start with Windows, notifications ---------- */
   const E = `process.mainModule.require('electron')`;
-  const BG = `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.endsWith('background.js') && m.filename.includes('todo4me')).exports`;
+  const BG = `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.replace(/\\\\/g, '/').endsWith('/electron/background.js')).exports`;
   const winState = () => b.mainEval(`(() => { const all = ${E}.BrowserWindow.getAllWindows(); const w = all[0]; return { n: all.length, visible: !!w && w.isVisible(), destroyed: !w || w.isDestroyed() }; })()`);
   const shownList = () => b.mainEval(`${BG}.shown`);
   const waitShown = async (pred, ms = 6000) => { for (let i = 0; i < ms / 200; i++) { const s = (await shownList()).find(pred); if (s) return s; await b.sleep(200); } return null; };
