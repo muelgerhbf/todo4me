@@ -123,10 +123,11 @@ T4.settings = (function () {
   });
 
   ui.on('reset-data', async () => {
-    const ok = await ui.confirm({ title: 'Reset all data?', message: 'This permanently deletes all tasks, notes, plans, categories and settings stored in this browser. This cannot be undone — export a backup first if you might need it.', confirmText: 'Delete everything', danger: true });
+    const ok = await ui.confirm({ title: 'Reset all data?', message: 'This permanently deletes all tasks, notes, plans, categories, calendar subscriptions and settings stored in this browser. This cannot be undone — export a backup first if you might need it.', confirmText: 'Delete everything', danger: true });
     if (!ok) return;
     store.resetAll();
     try { localStorage.removeItem('todo4me.focus.v1'); } catch (e) { /* ignore */ }
+    if (T4.calfeeds) T4.calfeeds.clearAll(); // calendar subscriptions (secret links) and their cache
     applyAppearance();
     ui.toast('All data has been reset');
     location.hash = '#/dashboard';
@@ -216,6 +217,8 @@ T4.settings = (function () {
           '<div class="setting"><label for="set-remtime">Reminder time<span class="setting__help">Used for reminders on tasks that have a due date but no time.</span></label><input id="set-remtime" type="time" value="' + esc(s.reminderTime) + '" data-change="setting" data-key="reminderTime"></div>' +
           reminderStatusRow() +
         '</section>' +
+
+        (T4.calfeeds ? T4.calfeeds.settingsCard() : '') +
 
         '<section class="card settings__section"><h2 class="card__title">Categories</h2>' +
           '<ul class="cat-list" role="list">' + store.data.categories.map((c) => {

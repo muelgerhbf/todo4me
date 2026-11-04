@@ -168,6 +168,7 @@ T4.dashboard = (function () {
                 '<button type="button" class="btn btn--sm" data-action="new-task" data-date="' + today + '">' + icon('plus') + 'Add task for today</button>')) +
               (doneToday.length ? '<p class="card__foot muted small">' + icon('check') + U.plural(doneToday.length, 'task') + ' completed today</p>' : '') +
             '</section>' +
+            (T4.calfeeds ? T4.calfeeds.todayCard() : '') + // only when calendars are subscribed
           '</div>' +
           '<div class="dash-col">' +
             '<section class="card" aria-labelledby="dash-imp-h">' +

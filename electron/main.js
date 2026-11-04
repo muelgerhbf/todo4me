@@ -10,6 +10,7 @@
  *  - editor: PDF export (Chromium print engine), daily documents backup, a short
  *    "save before close" handshake so no keystroke is lost when the window closes
  *  - automatic updates (see updater.js)
+ *  - downloading subscribed calendars (ICS) for the page, which itself has no network access (see calendar.js)
  */
 'use strict';
 
@@ -46,6 +47,7 @@ const BACKUP_DIR = path.join(app.getPath('userData'), 'backups');
 const MAX_BACKUPS = 14;
 const updater = require('./updater');
 const background = require('./background');
+const calendar = require('./calendar');
 
 /* ---------- Single instance ---------- */
 if (!app.requestSingleInstanceLock()) {
@@ -70,6 +72,7 @@ let quitting = false;
 function onReady() {
   hardenSession();
   registerIpc();
+  calendar.init(); // calendar subscriptions: validated https download of ICS files (see calendar.js)
   updater.init({ beforeInstall: saveEverything });
   Menu.setApplicationMenu(buildMenu());
   background.init({

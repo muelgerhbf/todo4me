@@ -1,0 +1,40 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Todo4Me tests//Folding//EN
+X-WR-CALNAME:Team \, Calendar
+BEGIN:VEVENT
+UID:fold-1
+SUMMARY:This summary is folded acr
+ oss three lin
+	es
+DESCRIPTION:Line one\nLine two\, with comma\; semicolon and a backslash \\ done
+LOCATION:Room 4\, Building B
+DTSTART;TZID="Europe/Berlin":20261104T080000
+DTEND;TZID="Europe/Berlin":20261104T083000
+ATTENDEE;CN="Doe, John: Boss";ROLE=REQ-PARTICIPANT:mailto:john@example.com
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Alarm text must not replace the event description
+TRIGGER:-PT15M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:evil-1
+SUMMARY:<img src=x onerror="alert(1)"><script>alert(2)</script>Evil
+LOCATION:<b onmouseover=alert(3)>here</b>
+DESCRIPTION:<a href="javascript:alert(4)">click</a>
+DTSTART;TZID=Europe/Berlin:20261104T090000
+DTEND;TZID=Europe/Berlin:20261104T100000
+END:VEVENT
+BEGIN:VEVENT
+UID:valarm-only
+SUMMARY:Has alarm
+DTSTART:20261104T130000Z
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Alarm only
+SUMMARY:Alarm summary
+TRIGGER:-PT5M
+END:VALARM
+END:VEVENT
+END:VCALENDAR

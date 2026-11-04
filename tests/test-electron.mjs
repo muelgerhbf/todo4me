@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import calendarFetchChecks from './electron-calendar.mjs';
 
 const PRELUDE = `
   window.__r = window.__r || [];
@@ -25,7 +26,7 @@ export default async function (b) {
   await run(`
     ok(typeof require === 'undefined' && typeof process === 'undefined' && typeof module === 'undefined', 'no Node.js APIs in the page (nodeIntegration off, contextIsolation on)');
     ok(window.todo4meDesktop && window.todo4meDesktop.isDesktop, 'preload bridge available');
-    ok(Object.keys(window.todo4meDesktop).sort().join() === 'checkForUpdates,exportPDF,getDesktopSettings,getInfo,getUpdateState,installUpdate,isDesktop,notify,onBeforeClose,onMenuAction,onNotificationClick,onUpdateState,openFolder,openPath,platform,setDesktopSettings,writeBackup,writeDocBackup', 'bridge exposes only the intended API: ' + Object.keys(window.todo4meDesktop).sort().join());
+    ok(Object.keys(window.todo4meDesktop).sort().join() === 'checkForUpdates,exportPDF,fetchCalendar,getDesktopSettings,getInfo,getUpdateState,installUpdate,isDesktop,notify,onBeforeClose,onMenuAction,onNotificationClick,onUpdateState,openFolder,openPath,platform,setDesktopSettings,writeBackup,writeDocBackup', 'bridge exposes only the intended API: ' + Object.keys(window.todo4meDesktop).sort().join());
     ok(document.documentElement.classList.contains('is-desktop'), 'desktop class set');
     const w = window.open('file:///C:/Windows/win.ini');
     ok(w === null, 'window.open is denied');
@@ -70,7 +71,7 @@ export default async function (b) {
     const card = $$('.settings__section').pop();
     ok(card && /Desktop app/.test(card.textContent) && /backups/i.test(card.textContent), 'settings shows Desktop app card with backup folder');
     ok(card.textContent.includes(${JSON.stringify(JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version)}), 'version shown');
-    ok($$('.settings__section').length === 8, 'all original settings sections still present (+ Documents + Desktop app)');
+    ok($$('.settings__section').length === 9, 'all original settings sections still present (+ Calendars + Documents + Desktop app)');
     ok(/Updates/.test(card.textContent) && /installed app|portable/i.test(card.textContent), 'update section explains why the dev build cannot self-update');
     const st = await todo4meDesktop.getUpdateState();
     ok(st.status === 'unsupported' && st.current, 'update state reported by main process: ' + st.status);
@@ -291,6 +292,9 @@ export default async function (b) {
     const d = await T4.docstore.get(${JSON.stringify(docId)});
     ok(d && d.html.includes('SHUTDOWN WORDS') && d.html.includes('LAST WORDS'), 'editor text typed before hide + shutdown is saved');
   `);
+
+  // --- Calendar subscriptions: fetchCalendar in the main process against a local HTTPS server (tests/electron-calendar.mjs)
+  await calendarFetchChecks(b, ok, run);
 
   // --- Single instance
   const second = b.spawn(b.EXE, b.EXE_ARGS, { env: b.env, stdio: 'ignore' });

@@ -33,7 +33,9 @@ T4.planner = (function () {
 
   T4.views.planner = {
     title: 'Weekly Planner',
-    render() {
+    render(params) {
+      // "Calendar" view (hour grid, js/calendar.js); "Days" below is the original planner.
+      if (T4.calendar && T4.calendar.active(params)) return T4.calendar.render(params);
       const ws = currentWeek();
       const days = U.weekDays(ws);
       const we = days[6];
@@ -45,7 +47,7 @@ T4.planner = (function () {
 
       return '<header class="page-head"><div><h1 class="page-title">Weekly Planner</h1>' +
           '<p class="page-sub">' + esc(U.weekRangeLabel(ws)) + (isCurrent ? ' · <span class="text-accent">This week</span>' : '') + '</p></div>' +
-          '<div class="page-actions">' +
+          '<div class="page-actions">' + (T4.calendar ? T4.calendar.modeToggle('days') : '') +
             '<div class="btn-group" role="group" aria-label="Week navigation">' +
               '<button type="button" class="btn" data-action="week-nav" data-dir="-1" aria-label="Previous week">' + icon('chevron-left') + '</button>' +
               '<button type="button" class="btn" data-action="week-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>This week</button>' +
@@ -66,6 +68,8 @@ T4.planner = (function () {
             : '<p class="muted small">No notes for this week yet.</p>') +
         '</section>';
     },
+    mount(root) { if (T4.calendar && T4.calendar.isActive()) T4.calendar.mount(root); },
+    leave() { if (T4.calendar) T4.calendar.leave(); },
   };
 
   ui.on('week-nav', (el) => {
@@ -220,5 +224,10 @@ T4.planner = (function () {
     leave: flushPlanSaves,
   };
 
-  return { openDay, flushPlanSaves };
+  /** The week shown by the planner (both views); setWeek(null) = current week. */
+  function setWeek(ws) {
+    weekStart = ws && ws !== store.weekStartOf(U.today()) ? ws : null;
+  }
+
+  return { openDay, flushPlanSaves, currentWeek, setWeek };
 })();

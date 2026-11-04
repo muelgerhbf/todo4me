@@ -14,8 +14,9 @@ Written at the end of day 1 (2026-11-02) as the starting point for day 2: **buil
 | Windows desktop app | Done. Version **2.0.0** (day 2): `dist\Todo4Me-Setup-2.0.0.exe` (installer, auto-updates) and `dist\Todo4Me-2.0.0-portable.exe` |
 | Document editor | Done on day 2 (see Part 4) |
 | Automatic updates | Built in on day 2 (see Part 4). Needs the public repo `todo4me-releases` + a token once before the first `npm run release` |
-| Reminders, tray, global hotkey | Built on `feature/reminders-calendar` (Step 24), not yet released or committed |
-| Tests | 183 functional + 166 editor + 84 desktop checks + an end-to-end update test, all passing |
+| Reminders, tray, global hotkey | Built on `feature/reminders-calendar` (Step 24), committed there, not yet released |
+| Calendar view, Outlook/Google calendars (ICS) | Built on `feature/reminders-calendar` (Step 25), in the working tree, not committed or released |
+| Tests | 247 functional + 166 editor + 112 desktop checks + 62 ICS unit tests + an end-to-end update test, all passing |
 | Mac / iPad | Not started (see Part 3) |
 
 **Tool versions used:** Node.js 24.20.0, npm 11.19.0, Electron 45.2.1, electron-builder 26.18.0, Windows 11, Google Chrome (for headless testing).
@@ -442,3 +443,86 @@ All with 0 page errors.
   worth a glance after the next installed update.
 - Browser: two open tabs could both show the same reminder if their checks run within the same moment (the second normally sees the first one's
   `reminderFired` through the storage event first).
+
+---
+
+## Part 6: Phase 1b (2026-11-04): plan the day in a real calendar
+
+Branch `feature/reminders-calendar`. Nothing committed, no version bump, no installer built: the changes are left in the working tree for review.
+The installed Todo4Me 2.0.1 and its data in `%APPDATA%\Todo4Me` were not touched; Electron only ran through the test harnesses (isolated `TODO4ME_USER_DATA`).
+
+### Step 25: Calendar view (time blocking) and read-only Outlook / Google calendars via ICS
+
+**What was built**
+
+1. **Calendar view in the Weekly Planner.** A **Days | Calendar** switch in the planner header. *Calendar* is an hour grid for the week (or one day,
+   **Day | Week**), opened at 06:00, scrollable 0–24 h, with a current-time line and the configured start of week. Tasks with date + time are blocks
+   (height = `estimate`, 30 min without one), tasks with a date only sit in an *All day* strip, overlapping blocks are laid out side by side.
+   A side list *To schedule* shows overdue, Inbox and undated tasks.
+2. **Direct manipulation.** Drag a block to another time/day (15-minute steps) or onto the All day strip (removes the time); drag its lower edge to change
+   the estimate; drag an all-day chip or a *To schedule* task into the grid to schedule it; click a block to open the task editor; click or drag on empty
+   slots to open *New task* with day, time and length filled in. Keyboard: ↑/↓ moves a focused block by 15 min, ←/→ by a day, Shift+↑/↓ changes the length.
+   Every change goes through `store.updateTask()` → `commit()` and offers **Undo**. Narrow screens (≤ 760 px) always get the day grid; touch uses a long press.
+3. **Calendar subscriptions (read-only).** *Settings → Calendars*: name, color and the ICS link of an Outlook ("Publish a calendar") or Google ("Secret address
+   in iCal format") calendar; shown masked; rename, recolor, hide, remove; or import a local `.ics` file. Events appear as hatched blocks / chips in the
+   calendar's color (click → read-only details) and on the dashboard ("Calendar today", only when calendars exist). Refresh at start, every 30 min and by button;
+   errors are shown per calendar while the last good version stays visible.
+4. **ICS parser** `js/ics.js` (own code, no dependency): see README → *ICS support* for the exact coverage.
+5. **Main-process download** `electron/calendar.js` + one bridge function `fetchCalendar(url)`.
+
+**Files**
+
+New: `js/ics.js`, `js/calfeeds.js`, `js/calendar.js`, `electron/calendar.js`, `tests/test-ics.mjs`, `tests/fixtures/ics/*.ics` (4 fixtures),
+`tests/functional-calendar.mjs` (part of the functional suite), `tests/electron-calendar.mjs` (part of the desktop suite).
+Changed: `js/planner.js` (switch, delegates to the calendar, `currentWeek()`/`setWeek()`; the Days view itself is unchanged), `js/settings.js` (Calendars card,
+reset also removes calendars), `js/dashboard.js` (Calendar today card), `index.html` (3 script tags; CSP and the inline head script unchanged),
+`css/styles.css` (calendar styles, `input[type=url]`), `electron/main.js` (`calendar.init()`), `electron/preload.js` (`fetchCalendar`),
+`tests/cdp-electron.mjs` (`mouse`/`drag`/`click` like `cdp.mjs`), `tests/test-functional.mjs`, `tests/test-electron.mjs` (bridge API list, 9 settings cards),
+`tests/test-desktop-shots.mjs` (finds the Documents card by name), README.
+No task or settings fields were added, so `storage.js` and the data document are unchanged; old data and exports load as before.
+
+**Decisions**
+
+| Question | Decision | Why |
+|---|---|---|
+| Where the calendar lives | A second view of the Weekly Planner (switch *Days \| Calendar*, remembered in `todo4me.planner.ui`, deep link `#/planner?view=calendar`), not a new navigation entry | It is the same week, the same week navigation and start of week, just drawn on an hour grid. The navigation (and the mobile bottom bar's *Planner*) stays as it is, and the original Days view is untouched and still the default |
+| Drag & drop technique | Pointer events (`pointerdown/move/up`) with a fixed-position ghost, not HTML5 drag & drop | HTML5 DnD can't resize, has no touch support and gives no control over snapping; the ghost lives outside `#main`, so a re-render during a drag (e.g. a reminder) doesn't break it |
+| Undo | Toast with *Undo* after every calendar change (restores date, time, estimate, Inbox flag, snooze) | The app already offers Undo for complete/delete; moving by mouse is easy to do by accident |
+| Reminders | Nothing extra: they are stored relative to `dueDate`/`dueTime`, so they follow; a calendar move also clears a pending snooze (as the task editor does) | Verified by a test that moves a task with the mouse and checks fire time, "not at the old time" and "fires at the new time" |
+| Subscription storage | Own keys `todo4me.calendars.v1` (list incl. secret URL) and `todo4me.calendars.cache.v1` (parsed events), not in `settings` | The links are secrets: settings are exported, merged and copied into the daily backup files and might be shared. Separate keys keep them on the device; reset removes them |
+| Cache | Parsed events (not raw ICS), single events older than 180 days dropped, ~1.5 M characters max (descriptions dropped first, then the largest calendars are kept in memory only) | LocalStorage (a few MB) is shared with the tasks: a big calendar must never make saving tasks fail |
+| Download | Main process, `net.request` with an in-memory session (`todo4me-calendar`), `credentials: 'omit'`, no cookies, https only (also after redirects), 5 MB, 20 s, 4 parallel, must be an ICS file | The page keeps `connect-src 'none'`. Chromium's stack uses the system proxy and Windows certificate store (corporate networks). Returning only ICS text limits what a hypothetical script injection could read through the bridge |
+| Browser version | `.ics` import only, with an explanation in Settings | CORS and the CSP make URL subscriptions impossible in a page |
+| Time zones | `Z` → UTC; `TZID` via `Intl` (IANA, Mozilla prefixes), Windows names (Outlook) via a CLDR table, then the file's `VTIMEZONE`; unknown or floating → local time | Covers Outlook (Windows names + VTIMEZONE) and Google (IANA). Series are expanded in their own zone so they keep their wall-clock time across DST |
+| RRULE | DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL, COUNT, UNTIL, BYDAY (± ordinals), BYMONTHDAY (±), BYMONTH, BYSETPOS, WKST, EXDATE, RECURRENCE-ID; expanded only for the visible days, capped at 5000 occurrences | What Outlook and Google publish for normal meetings; long series jump straight to the visible range |
+
+**Found while testing**
+
+1. Dragging from the All day strip into the grid landed an hour early: the pointer passed through the grid's top edge zone, and auto-scroll scrolled
+   immediately. Auto-scroll now starts only when the pointer rests there (350 ms).
+2. The guard that swallows the click ending a drag also swallowed a click on the toast's *Undo* right after it. It now only applies to real clicks inside the calendar.
+3. Outlook's `VTIMEZONE` observances start in 1601; the date check rejected years before 1900. Now 1000–9999.
+4. The VTIMEZONE transition cache was attached to the parsed objects and would have been written into the LocalStorage cache; it is a `WeakMap` now (a test checks that expanding doesn't change the cached JSON).
+5. Chromium caches certificate decisions, so the test's exception for the self-signed certificate must be set before the first request (test-only; the product never changes certificate checks).
+
+**Tests** (exact results at the end of this step, `PDFTEXT` and `TODO4ME_PDF_DIR` set)
+
+| Suite | Before | Now |
+|---|---|---|
+| Functional (Chrome) | 183 | **247** (+ grid, week start, now line, 06:00 scroll, block position/height, default 30 min, side-by-side overlap, all-day strip, To schedule; real mouse: move, resize, drag from All day strip, from To schedule, into the All day strip, click opens editor, click/drag on empty slots create a task; Undo; keyboard; reminder follows a moved task; .ics import, events (recurring, all-day, cancelled), HTML in ICS shown as text, read-only, details dialog, storage keys not in data/exports, dashboard card; narrow single day; dark theme; a11y; Days view and its drag & drop unchanged; route parameter) |
+| Editor (Chrome) | 166 | **166** |
+| Functional (Electron) | 183 | **247** |
+| Desktop (Electron) | 84 | **112** (+ bridge API, settings card count, `fetchCalendar` rejects http/file/javascript/credentials/over-long, webcal → https, invalid certificate rejected; against a local HTTPS server: download, no cookies/credentials sent, 404, > 5 MB, HTML page, redirect to http rejected / to https followed, 401, timeout; subscribe in Settings end to end, URL masked, never logged, stored only in its own key, event in today's column; server down → error per calendar, cached events stay, also after a reload; remove deletes the URL) |
+| ICS unit tests (Node, new) | – | **62** (fixtures: time zones incl. US and EU DST changes, Windows/Mozilla/VTIMEZONE/unknown zones, all-day, folding, escaping, VALARM, malicious HTML, RRULE weekly BYDAY + EXDATE + UNTIL, COUNT, INTERVAL, monthly 2TU / last day / BYSETPOS, yearly, RECURRENCE-ID moved/cancelled, cancelled events, leap day, unsupported HOURLY, caps, cache shape, pruning, other local zone) |
+
+All with 0 page errors.
+
+**Not verified / open points**
+
+- No real Outlook or Google feed was downloaded (no account in the test environment). The fixtures follow their formats (Windows zone names + VTIMEZONE,
+  IANA zones, RECURRENCE-ID overrides), and the network path was tested against a local HTTPS server. Worth one check with a real published link.
+- System proxy / TLS-inspecting corporate networks: should work because Chromium's network stack is used, not tested.
+- Touch dragging (long press) was not tried on a real touch device.
+- Simplifications: on the two DST days per year the grid has 24 equal hours (times are placed by wall clock); an ambiguous local time in the fall-back hour
+  uses the later offset (RFC 5545 says the earlier); timed tasks that run past midnight are cut at 24:00; in a busy week view with several overlaps titles get short (the day view shows them in full).
+- Calendar events cannot be turned into tasks yet (possible next step: "Create task from event").

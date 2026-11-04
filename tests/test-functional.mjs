@@ -1,4 +1,5 @@
 // Functional tests driven through the real DOM.
+import calendarChecks from './functional-calendar.mjs';
 const PRELUDE = `
   window.__r = window.__r || [];
   var $ = (s, r) => (r || document).querySelector(s);
@@ -474,6 +475,9 @@ export default async function (b) {
     }
     $$('.toast').forEach((el) => el.remove());
   `);
+
+  // Weekly Planner → Calendar view + calendar subscriptions (tests/functional-calendar.mjs)
+  await calendarChecks(b, run);
 
   await run('a11y-basics', `
     for (const r of ['dashboard','inbox','tasks','today','upcoming','planner','plan','notes','focus','stats','settings']) {

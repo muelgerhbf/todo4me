@@ -70,6 +70,10 @@ contextBridge.exposeInMainWorld('todo4meDesktop', {
     return () => ipcRenderer.removeListener('notification:click', listener);
   },
 
+  /* ---------- Calendar subscriptions (read-only ICS) ---------- */
+  /** Download a subscribed calendar: https:// or webcal:// only (validated in main). Resolves { ok, text } or { ok: false, error }. */
+  fetchCalendar: (url) => ipcRenderer.invoke('calendar:fetch', String(url == null ? '' : url).slice(0, 4096)),
+
   /* ---------- Updates ---------- */
   getUpdateState: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),

@@ -95,6 +95,35 @@ Ist das Kürzel schon von einem anderen Programm belegt, sagt das die Einstellun
 | Start Todo4Me when Windows starts (startet unsichtbar im Tray) | aus. Nur in der installierten Version; vor einer Deinstallation ausschalten, sonst bleibt ein verwaister Autostart-Eintrag |
 | System-wide shortcut / Shortcut | an / `Strg+Alt+Leertaste` |
 
+### Kalender abonnieren (Outlook / Google, nur lesen)
+
+Im **Weekly Planner** gibt es neben den Tagesspalten die Ansicht **Calendar** (Stundenraster für Woche oder Tag, siehe
+[Weekly Planner: calendar view](#weekly-planner-calendar-view)). Dort können zusätzlich die Termine aus Outlook oder Google Calendar erscheinen,
+**nur zum Ansehen**, in der Farbe des jeweiligen Kalenders und schraffiert, damit man sie nicht mit Aufgaben verwechselt. Auch das Dashboard zeigt „Calendar today“.
+
+**Einrichten** unter *Settings → Calendars*: Namen und Farbe wählen, den Kalender-Link einfügen, **Subscribe**. Den Link gibt es hier:
+
+- **Outlook** (Web/Microsoft 365): *Einstellungen → Kalender → Freigegebene Kalender → Kalender veröffentlichen* → Kalender und „Alle Details“ wählen → **ICS-Link** kopieren.
+- **Google Calendar**: *Einstellungen → (Kalender links auswählen) → Kalender integrieren* → **Privatadresse im iCal-Format**.
+
+Es geht ohne Anmeldung (kein OAuth): Todo4Me lädt nur diese ICS-Datei. Erlaubt sind `https://`- und `webcal://`-Adressen.
+Die Kalender werden **beim Start, alle 30 Minuten** und mit dem Knopf *Update* (im Kalender oder in den Einstellungen) aktualisiert.
+Klappt das nicht (offline, Link zurückgesetzt, Server-Fehler), steht der Grund beim jeweiligen Kalender, und die zuletzt geladene Fassung bleibt sichtbar.
+Statt eines Links kann man auch eine **`.ics`-Datei importieren** (wird dann nicht automatisch aktualisiert).
+
+> **Der Link ist ein Geheimnis:** Wer ihn kennt, kann den Kalender lesen. Todo4Me speichert ihn nur auf diesem Computer
+> (eigener LocalStorage-Schlüssel, **nicht** in Export, Import oder den täglichen Sicherungsdateien), zeigt ihn nur gekürzt an (`outlook.office365.com/••••••••`)
+> und schreibt ihn nie in ein Protokoll. Entfernen über das Papierkorb-Symbol; *Reset all data* löscht ihn ebenfalls.
+
+**Im Browser** (ohne Desktop-App) ist das Abonnieren per Link nicht möglich: Browser lassen eine Seite keine Kalender von fremden Servern laden (CORS),
+und die Sicherheitsrichtlinie der Seite verbietet Netzwerkzugriffe. Dort gibt es nur den `.ics`-Import, und die Einstellungen sagen das.
+
+**Technik:** Der Download läuft im Hauptprozess (`electron/calendar.js`) über die einzige neue Brücken-Funktion `fetchCalendar(url)`. Geprüft wird dort:
+nur `https://` (`webcal://` wird zu `https://`), keine Zugangsdaten in der Adresse, Weiterleitungen nur auf `https://` (max. 5), höchstens 5 MB, 20 s Zeitlimit,
+höchstens 4 Downloads gleichzeitig, eigene Sitzung im Arbeitsspeicher ohne Cookies und ohne Anmeldedaten (Passwort-Abfragen werden abgelehnt),
+und die Antwort muss eine iCalendar-Datei sein. Es gelten der System-Proxy und der Windows-Zertifikatspeicher wie im Browser.
+Ausgewertet wird die Datei in der Seite (`js/ics.js`, siehe [ICS support](#ics-support)).
+
 ### Automatische Updates
 
 Die **installierte** Version (Setup-Datei) aktualisiert sich selbst:
@@ -175,10 +204,12 @@ electron/main.js     Hauptprozess: Fenster, fester Datenordner, Einzelinstanz, M
 electron/updater.js  Automatische Updates (electron-updater, GitHub Releases)
 electron/background.js  Tray, Schließen in den Tray, Autostart, systemweites Tastenkürzel,
                      Windows-Benachrichtigungen (desktop-settings.json)
+electron/calendar.js Download abonnierter Kalender (ICS): nur https, Größen-/Zeitlimit, ohne Cookies
 electron/preload.js  Minimale, fest definierte Schnittstelle window.todo4meDesktop (contextBridge)
 js/desktop.js        Verbindet Menü, Tray, Tastenkürzel, Sicherungsdateien, Updates und Migrationshinweis
                      mit der Web-App. Ohne Electron (im Browser) tut die Datei nichts.
 js/reminders.js      Erinnerungen: Zeitplanung, einmaliges Auslösen, Snooze (Browser und Desktop)
+js/calfeeds.js       Kalender-Abos: Liste, Zwischenspeicher, Aktualisieren über fetchCalendar (im Browser nur .ics-Import)
 scripts/start.js     Startet Electron für npm start/dev
 scripts/build.js     Build-Skript (siehe oben), mit --publish für Releases
 scripts/vendor.js    Kopiert KaTeX, Prism und die Schriften aus node_modules nach vendor/
@@ -187,11 +218,12 @@ build/icon.png       App-Icon (aus assets/icons/favicon.svg erzeugt), electron-b
 
 **Sicherheit:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
 - Die Seite hat keinen Zugriff auf Node.js, sondern nur auf die fest definierten Funktionen aus `preload.js`
-  (Info, Sicherungsdateien, Ordner öffnen, PDF-Export, exportierte Datei öffnen, Updates, Menü-Befehle,
+  (Info, Sicherungsdateien, Ordner öffnen, PDF-Export, exportierte Datei öffnen, Updates, Menü-Befehle, Kalender-Download,
   Desktop-Einstellungen, Benachrichtigung anzeigen). Der Hauptprozess prüft jeden Wert (z. B. nur die vier Kürzel-Vorgaben, Textlängen).
 - Navigation weg von der App und neue Fenster werden blockiert. `http(s)`-Links öffnen im Standardbrowser.
 - Alle Berechtigungsanfragen (Kamera, Mikrofon, Standort, auch Web-Benachrichtigungen …) werden abgelehnt. Erinnerungen zeigt der Hauptprozess an, nicht die Seite.
-- Eine Content-Security-Policy in `index.html` erlaubt nur lokale Dateien.
+- Eine Content-Security-Policy in `index.html` erlaubt nur lokale Dateien (`connect-src 'none'`: die Seite selbst kann nichts aus dem Netz laden;
+  Kalender lädt ausschließlich der Hauptprozess über `fetchCalendar`, mit den oben beschriebenen Prüfungen). Alle Texte aus Kalenderdateien werden als Text angezeigt (HTML-escaped).
   Das kleine Inline-Skript im `<head>` ist per SHA-256-Hash freigegeben. Wer es ändert, muss den Hash in der CSP anpassen.
 
 ## Running it in the browser
@@ -220,13 +252,14 @@ npx serve .                        # or this, if you have Node.js
 | **Today / Upcoming** | Today's tasks plus overdue ones (with "move all to today") · the next 14 days grouped by day, then "Later" |
 | **Tasks** | Title, description, notes, priority (Critical / High / Medium / Low / none), status (To do / In progress / Completed), category, tags, due date, optional time, estimate, subtasks, recurrence (daily / weekly / monthly), created and completed timestamps · undo for completing and deleting |
 | **Reminders** | Per task: at due time, 5 / 15 / 30 min, 1 hour or 1 day before (date-only tasks use a configurable reminder time, default 09:00) · Windows notification in the desktop app (also from the tray), browser notification if allowed, always an in-app toast · click opens the task · **Snooze 10 min** · fires once per occurrence, never for completed tasks, recurring tasks get a new reminder per occurrence · reminders missed while the app was closed → one summary on start |
-| **Weekly Planner** | Monday–Sunday (or Sunday–Saturday) columns · previous/next week navigation · inline add per day · **drag and drop** to reschedule · click a day for details · the week's notes |
+| **Weekly Planner** | Two views, **Days \| Calendar**. Days: Monday–Sunday (or Sunday–Saturday) columns · previous/next week navigation · inline add per day · **drag and drop** to reschedule · click a day for details · the week's notes. **Calendar**: hour grid for the week or one day with a current-time line · timed tasks as blocks (height = estimate) · drag to move, drag the lower edge to resize, drag unscheduled tasks in, click/drag an empty slot to create · Undo · keyboard moves · see [Weekly Planner: calendar view](#weekly-planner-calendar-view) |
+| **Calendars** | Outlook / Google calendars **read-only** via their ICS link (desktop app; refreshed at start, every 30 min and on demand) or an imported `.ics` file (also in the browser) · events in the calendar view and on the dashboard · the link is stored only on this device, masked, never exported |
 | **Daily Plan** | For any date: main goal, Top 3, that day's tasks, daily notes and reflection. Saves automatically as you type |
 | **Weekly Notes** | Notes with a title, text, tags and pin, assigned to a week · grouped by week · search and filter by tag, week or pinned · kept separate from tasks |
 | **Editor** | Word-processor documents: formatting, headings, lists, tables, links, images, shapes, charts, LaTeX formulas, code blocks with syntax highlighting · document list with search, pin, duplicate, rename, trash · autosave, undo/redo · PDF (with header, footer, page numbers) and Markdown export · see [Dokumenten-Editor](#dokumenten-editor) |
 | **Focus Mode** | Distraction-free view of a single task with its description and checklist · Pomodoro timer (25/5 by default, configurable) with start, pause and reset. The timer keeps running across page refreshes |
 | **Statistics** | Completed today / this week / this month · completion rate · day streak · per-day chart for this week · 8-week trend · open tasks by priority · progress by category |
-| **Settings** | Your name, light / dark / system theme, accent color, default sorting, start of week, Pomodoro lengths, reminder time and notification test, categories (add / rename / recolor / delete), export, import, restore auto-backup, sample data, reset |
+| **Settings** | Your name, light / dark / system theme, accent color, default sorting, start of week, Pomodoro lengths, reminder time and notification test, calendars (subscribe / import `.ics` / rename / recolor / hide / remove), categories (add / rename / recolor / delete), export, import, restore auto-backup, sample data, reset |
 
 ### Quick-add syntax
 
@@ -252,6 +285,43 @@ In the Inbox, a token that sets a date, priority or category automatically files
 | `G` then `D` / `I` / `M` / `T` / `U` / `W` / `P` / `O` / `E` / `F` / `S` | Go to Dashboard / Inbox / My Tasks / Today / Upcoming / Week planner / daily Plan / nOtes / Editor / Focus / Stats |
 | `Ctrl/⌘ + Enter` | Save the open task or note form |
 | `Esc` | Close a dialog, or exit Focus Mode |
+| `↑` / `↓` on a focused calendar block | Move the task 15 minutes earlier / later |
+| `←` / `→` on a focused calendar block | Move the task to the previous / next day |
+| `Shift + ↑` / `Shift + ↓` on a focused calendar block | Make the task 15 minutes shorter / longer |
+| `Esc` while dragging in the calendar | Cancel the drag |
+
+### Weekly Planner: calendar view
+
+The Weekly Planner header has a **Days | Calendar** switch. *Days* is the original planner with day columns and is unchanged.
+*Calendar* shows the same week (same start of week, same week navigation) as an **hour grid**, or a single day (**Day | Week**; click a day's header to open it).
+The grid opens at 06:00 and scrolls from 00:00 to 24:00; a red line marks the current time. The choice is remembered, and `#/planner?view=calendar` opens it directly
+(the dashboard's "Open calendar" uses that). On narrow screens (≤ 760 px) the calendar always shows one day.
+
+| In the calendar | What happens |
+|---|---|
+| Task with a due date **and** time | A block from the due time; height = estimate (30 min if none). Overlapping blocks sit side by side. Completed tasks are dimmed |
+| Task with a date but no time | A chip in the **All day** strip of its day |
+| Drag a block | Moves the task to another time and/or day (15-minute steps); dropped on the All day strip it keeps the date and loses the time |
+| Drag the lower edge of a block | Changes the estimate (15-minute steps) |
+| Drag an all-day chip, or a task from **To schedule** (overdue, Inbox, no date) | Schedules it at that day and time (an Inbox task leaves the Inbox) |
+| Click a block / chip | Opens the usual task editor |
+| Click an empty slot / drag over empty slots | Opens *New task* with that day, start time (and length) filled in; `+` in the All day strip adds a task without a time |
+| Events of subscribed calendars | Read-only, hatched blocks in the calendar's color; click shows the details |
+
+Every change is saved like any other edit (`store.commit()`) and the toast offers **Undo**. Reminders move with the task automatically, because a reminder
+is stored relative to the due date/time; moving a task also clears a pending snooze (as the task editor does). Touch: press and hold a block briefly, then drag.
+
+### ICS support
+
+Calendar files are parsed by `js/ics.js` (no library): `VEVENT` with `DTSTART` + `DTEND` or `DURATION`, all-day and multi-day events (`VALUE=DATE`, end exclusive),
+line folding, escaped text, `STATUS:CANCELLED` (skipped), and recurring events with `RRULE` `FREQ=DAILY/WEEKLY/MONTHLY/YEARLY` plus `INTERVAL`, `COUNT`, `UNTIL`,
+`BYDAY` (also `2TU`, `-1FR`), `BYMONTHDAY` (also negative), `BYMONTH`, `BYSETPOS`, `WKST`, `EXDATE` and `RECURRENCE-ID` (single occurrences moved or cancelled).
+Recurrences are expanded only for the visible days. Not supported (ignored): `RDATE`, `BYWEEKNO`, `BYYEARDAY`, `BYHOUR`/`BYMINUTE`, `HOURLY` and finer (such an event is shown once).
+
+**Time zones:** `…Z` times are UTC; a `TZID` is resolved with the browser's time zone database (`Intl`), including Mozilla-style IDs and the Windows names Outlook
+writes (`W. Europe Standard Time` → `Europe/Berlin`); otherwise the file's own `VTIMEZONE` rules are used. A `TZID` that none of these know, and times without
+a zone ("floating"), are **treated as local time** of this computer. Recurring events are expanded in their own zone, so a 10:00 Berlin meeting stays at 10:00 Berlin time across daylight-saving changes,
+and everything is shown in this computer's local time. Single events that ended more than 180 days ago are not kept.
 
 ## Dokumenten-Editor
 
@@ -311,7 +381,7 @@ Alles, was in ein Dokument gelangt (Laden, Einfügen, Import, Rückgängig), lä
 
 ### Reset
 
-**Settings → Reset all data** deletes everything Todo4Me has stored in this browser (export first if you might need it).
+**Settings → Reset all data** deletes everything Todo4Me has stored in this browser, including calendar subscriptions (export first if you might need it).
 
 ## Project structure
 
@@ -323,6 +393,7 @@ todo4me/
 │   ├── main.js           Electron main process (window, data folder, menu, backups, PDF, security)
 │   ├── updater.js        Automatic updates (electron-updater)
 │   ├── background.js     Tray, close to tray, start with Windows, global hotkey, native notifications
+│   ├── calendar.js       Downloads subscribed calendars (ICS) for the page: https only, limits, no cookies
 │   └── preload.js        Minimal bridge exposed as window.todo4meDesktop
 ├── scripts/
 │   ├── start.js          npm start / npm run dev
@@ -336,7 +407,8 @@ todo4me/
 │   ├── katex/            Formula rendering + fonts
 │   ├── prism/prism.js    Syntax highlighting (11 languages)
 │   └── fonts/            Fira Code, Carlito (Calibri-compatible)
-├── tests/                Browser + desktop test suites (Chrome DevTools Protocol, no npm deps)
+├── tests/                Browser + desktop test suites (Chrome DevTools Protocol, no npm deps),
+│                         ICS parser unit tests (test-ics.mjs) and their fixtures (fixtures/ics/)
 ├── css/
 │   ├── styles.css        Design tokens (light/dark), components, views, responsive rules
 │   └── editor.css        Editor page, document typography, widgets, print/PDF rules
@@ -348,10 +420,13 @@ todo4me/
     ├── tasks.js          Task row/editor/quick capture, quick-add parser; Inbox, My Tasks, Today, Upcoming views
     ├── dashboard.js      Dashboard view, Top 3 card and picker
     ├── planner.js        Weekly planner (drag & drop, day details) and Daily Plan view
+    ├── ics.js            iCalendar parser + recurrence expansion (pure, also runs in Node for the tests)
+    ├── calfeeds.js       Calendar subscriptions: list, cache, refresh, Settings card, dashboard card
+    ├── calendar.js       Weekly Planner → Calendar view: hour grid, drag & drop, resize, create, keyboard
     ├── notes.js          Weekly notes view and editor
     ├── focus.js          Focus mode and Pomodoro timer
     ├── stats.js          Statistics view and charts
-    ├── settings.js       Settings view, theme, categories, export/import, sample data
+    ├── settings.js       Settings view, theme, calendars card, categories, export/import, sample data
     ├── editor-sanitize.js  Editor: HTML allowlist sanitizer (paste, import, storage, undo)
     ├── docstore.js       Editor: IndexedDB storage for documents and images, export/import
     ├── editor-widgets.js Editor: images, drawings/shapes, charts, formulas, code blocks, dialogs
@@ -500,6 +575,34 @@ Completions are counted per day as you complete tasks (and decremented if you re
 | `todo4me.editor.ui` | Editor view preferences: `{ "zoom": 100, "side": true }` (document list shown) |
 | `todo4me.app.version` | Desktop app: last started version (to confirm an update once) |
 | `todo4me.docs.backupDay` | Desktop app: day of the last documents backup file |
+| `todo4me.planner.ui` | Weekly Planner view preference: `{ "mode": "days" \| "calendar", "span": "week" \| "day" }` |
+| `todo4me.calendars.v1` | Calendar subscriptions (see below). **Not** part of `todo4me.data.v1`, exports, imports, merges or backup files, because the links are secrets |
+| `todo4me.calendars.cache.v1` | Last downloaded/imported version of each calendar, already parsed: `{ "<feedId>": { "at": ISO, "checkedAt": ISO, "error": null, "cal": { "name", "events": [Event], "zones": {} } } }`. Size-limited (~1.5 M characters; descriptions are dropped first), so it can never crowd out the tasks |
+
+```jsonc
+// todo4me.calendars.v1
+{
+  "version": 1,
+  "feeds": [{
+    "id": "cal_…",
+    "name": "Work",                  // ≤ 60 chars
+    "color": "#0e7c86",
+    "kind": "url",                   // "url" (subscription, desktop app) | "file" (imported .ics, no URL)
+    "url": "https://outlook.office365.com/owa/calendar/…/calendar.ics",   // only https (webcal:// is stored as https://)
+    "enabled": true,                 // "Show" checkbox
+    "addedAt": "ISO"
+  }]
+}
+// Event in the cache (js/ics.js): wall-clock times, expanded per visible range
+{ "uid": "…", "title": "…", "location": "…", "description": "…", "allDay": false,
+  "start": 1793785200000,            // wall-clock ms in the event's zone (all-day: day × 86400000)
+  "tz": "I:Europe/Berlin",           // "Z" (UTC) | "I:<IANA>" | "V:<VTIMEZONE id>" | "L" (local); null for all-day
+  "dur": 3600000,                    // ms (all-day: number of days)
+  "rrule": { "freq": "WEEKLY", "interval": 1, "byday": [{ "n": 0, "wd": 1 }], "until": { "wall": 1795000000000, "utc": true } },
+  "exdates": [], "exdays": [] }
+```
+
+No task or settings fields were added for the calendar: a block's position comes from `dueDate`, `dueTime` and `estimate`.
 
 The desktop app keeps its machine settings outside LocalStorage in `<userData>/desktop-settings.json`:
 `{ "closeToTray": true, "openAtLogin": false, "hotkeyEnabled": true, "hotkey": "Control+Alt+Space", "trayHintShown": false }`.
@@ -539,17 +642,24 @@ Imports never overwrite existing documents (id clashes get a new id).
 ## Tests
 
 ```bash
-node tests/cdp.mjs tests/test-functional.mjs           # 183 checks: all original features + reminders (data model, scheduler, UI) (Chrome)
+node tests/cdp.mjs tests/test-functional.mjs           # 247 checks: all original features + reminders + calendar view and .ics calendars (Chrome)
 node tests/cdp.mjs tests/test-editor.mjs               # 166 checks: editor, PDF, persistence, Markdown, security (Chrome)
-node tests/cdp-electron.mjs tests/test-functional.mjs  # the same 183 checks inside the desktop app
-node tests/cdp-electron.mjs tests/test-electron.mjs    # 84 checks: security, menu, restart, backups, PDF export, close-save, updates,
-                                                       #   tray, close to tray vs. quit, hotkey, start with Windows, notifications, missed summary
+node tests/cdp-electron.mjs tests/test-functional.mjs  # the same 247 checks inside the desktop app
+node tests/cdp-electron.mjs tests/test-electron.mjs    # 112 checks: security, menu, restart, backups, PDF export, close-save, updates,
+                                                       #   tray, close to tray vs. quit, hotkey, start with Windows, notifications, missed summary,
+                                                       #   fetchCalendar against a local HTTPS server, calendar subscription end to end
+node tests/test-ics.mjs                                # 62 checks: ICS parser unit tests (plain Node, fixtures in tests/fixtures/ics)
 ```
 
 Optional environment: `PDFTEXT=<script>` checks PDF text (page numbers, header/footer) with pdf.js, `TODO4ME_PDF_DIR=<folder>` lets the desktop test export PDFs without a dialog.
 The counts above include the `PDFTEXT` checks (editor 9, desktop 4). The desktop suite shows a few real Windows notifications and registers the
 global hotkey while it runs; "start with Windows" is never written to the registry in test runs (the call is stubbed).
 The reminder scheduler is tested with an explicit clock: `T4.reminders.check({ now })`, `setClock(fn)`, `setNotifier(fn)`.
+The calendar checks (`tests/functional-calendar.mjs`) use real mouse input (move, resize, drag in from the All day strip and the To schedule list,
+click and drag on empty slots) and the keyboard. The desktop calendar checks (`tests/electron-calendar.mjs`) start an HTTPS server on 127.0.0.1 with a
+self-signed certificate made by `openssl` for the run (Git for Windows ships it; without it these checks are skipped and say so). Only for that test the
+calendar's own network session is told to accept that certificate for 127.0.0.1; the test checks that the same certificate is still rejected under another host name.
+`test-ics.mjs` fixes the time zone to Europe/Berlin (and New York for one block), so its expected times do not depend on the computer.
 
 ## Browser support
 

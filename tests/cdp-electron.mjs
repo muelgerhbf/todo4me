@@ -109,6 +109,21 @@ const api = {
       await send('Input.insertText', { text: ch });
     }
   },
+  /** Real mouse input (same as tests/cdp.mjs). */
+  async mouse(type, x, y, buttons = 1) {
+    await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : buttons, clickCount: 1 });
+  },
+  async drag(x1, y1, x2, y2, steps = 6) {
+    await api.mouse('mouseMoved', x1, y1, 0);
+    await api.mouse('mousePressed', x1, y1);
+    for (let i = 1; i <= steps; i++) await api.mouse('mouseMoved', x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps);
+    await api.mouse('mouseReleased', x2, y2);
+  },
+  async click(x, y) {
+    await api.mouse('mouseMoved', x, y, 0);
+    await api.mouse('mousePressed', x, y);
+    await api.mouse('mouseReleased', x, y);
+  },
 };
 
 try {
