@@ -97,7 +97,11 @@ export default async function calendarChecks(b, run) {
   await run('calendar-schedule', `
     const c = window.__cal, C = T4.store.getTask(c.C), D = T4.store.getTask(c.D), B = T4.store.getTask(c.B);
     ok(C.dueDate === c.d4 && C.dueTime === '10:00' && !!$('.cal-blk[data-id="' + c.C + '"]'), 'drag from the all-day strip into the grid sets date and time: ' + C.dueDate + ' ' + C.dueTime);
-    ok(D.dueDate === c.d4 && D.dueTime === '14:00' && D.inbox === false && !$('.cal-side [data-cal-drag="' + c.D + '"]'), 'drag from the "To schedule" list schedules an inbox task (leaves the inbox)');
+    // Which group of the side list shows D now? (d4 can be a past day of this week — then D is
+    // rightly listed again, under "Overdue"; it must never stay under "Inbox".)
+    const dItem = $('.cal-side [data-cal-drag="' + c.D + '"]');
+    const dGroup = dItem ? dItem.closest('ul').previousElementSibling.textContent : null;
+    ok(D.dueDate === c.d4 && D.dueTime === '14:00' && D.inbox === false && (c.d4 < T4.util.today() ? /^Overdue/.test(dGroup) : !dItem), 'drag from the "To schedule" list schedules an inbox task (leaves the inbox' + (dGroup ? ', now listed under ' + dGroup.replace(/\\d+$/, '').trim() : '') + ')');
     ok(B.dueDate === c.d2 && B.dueTime === null && !!$('.cal__ad[data-cal-allday="' + c.d2 + '"] [data-cal-drag="' + c.B + '"]'), 'drag a block into the all-day strip: date kept, time removed');
     // Undo the last change from its toast
     const undo = $$('.toast__action').filter((x) => x.textContent === 'Undo').pop();

@@ -526,3 +526,25 @@ All with 0 page errors.
 - Simplifications: on the two DST days per year the grid has 24 equal hours (times are placed by wall clock); an ambiguous local time in the fall-back hour
   uses the later offset (RFC 5545 says the earlier); timed tasks that run past midnight are cut at 24:00; in a busy week view with several overlaps titles get short (the day view shows them in full).
 - Calendar events cannot be turned into tasks yet (possible next step: "Create task from event").
+
+## Part 7: Bug audit (2026-11-06)
+
+### Step 26: Code review of 2.1.0 — bugs found and fixed
+
+Reviewed reminders, store/recurrence, storage/merge, quick-add parser, task editor, calendar drag/keyboard,
+calendar subscriptions, tray/hotkey/notifications, updater, daily backups and statistics. Fixed:
+
+| Bug | Cause | Fix |
+|---|---|---|
+| Monthly recurring task drifts to the 28th (due Jan 31, completed in spring → next date on the 28th) | `nextOccurrenceDate` chained one-month steps, so the first short month clipped the day for good | Count whole months from the original date (`addMonths(from, k)`). The old test passed by construction (`… \|\| true`); replaced with a real check |
+| Quick-add `#büro` / `#einkäufe` stayed in the title | Tag/category token regex used `\w` (ASCII only) | Unicode letters/digits (`\p{L}\p{N}`) |
+| Quick-add `@month`, `@satire` became Monday / Saturday | Only the first 3 letters were compared with a day name | The word must be a prefix of the full day name (`@fri`, `@thurs`, `@friday` still work) |
+| Updates never installed while Todo4Me lives in the tray (regression of 2.1.0) | "Install on quit" relied on closing the window, which now only hides it; the "ready" toast appears in the hidden window | When an update is ready and the window is hidden, a Windows notification says so; clicking it saves everything and restarts into the new version |
+| No daily backup files while Todo4Me runs for days in the tray (regression of 2.1.0) | The daily snapshot was only triggered when the page started | Checked every 15 minutes for a new day (the main process still keeps the first file of each day) |
+| Calendar test "drag from To schedule" failed on Thursdays–Saturdays | Test assumed the target column (5th day of the week) is in the future; on later days the task is rightly listed again under "Overdue" | Test checks the group: never "Inbox", "Overdue" when the day has passed |
+
+Known limitation (not changed, would need a new data field): after completing a monthly task once on a short
+month's last day (Feb 28), the next occurrence counts from that date (Mar 28), not from the original 31st.
+
+Tests: 251 functional (browser and desktop), 166 editor, 112 desktop, 62 ICS. A desktop run while other windows
+had the focus showed 10 focus/mouse failures; the immediate re-run was green (test environment, not the app).

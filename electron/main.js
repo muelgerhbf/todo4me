@@ -73,7 +73,17 @@ function onReady() {
   hardenSession();
   registerIpc();
   calendar.init(); // calendar subscriptions: validated https download of ICS files (see calendar.js)
-  updater.init({ beforeInstall: saveEverything });
+  updater.init({
+    beforeInstall: saveEverything,
+    // The page announces a ready update with a toast, but nobody sees it while the window is hidden in
+    // the tray — and closing the window no longer quits (which used to install the update). So say it
+    // with a Windows notification; clicking it restarts into the new version.
+    onReady: (version) => {
+      const win = mainWindow;
+      if (win && !win.isDestroyed() && win.isVisible()) return;
+      background.notify({ id: 'update', title: 'Todo4Me ' + (version || '') + ' is ready', body: 'Click to restart and update now. Your data is kept.' });
+    },
+  });
   Menu.setApplicationMenu(buildMenu());
   background.init({
     appId,
@@ -82,6 +92,7 @@ function onReady() {
     showWindow,
     send,
     notificationClick: (id, action) => {
+      if (id === 'update') { updater.install(); return; }
       const win = mainWindow || BrowserWindow.getAllWindows()[0];
       if (win && !win.isDestroyed()) win.webContents.send('notification:click', id, action || null);
     },

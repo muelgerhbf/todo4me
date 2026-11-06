@@ -93,7 +93,7 @@ T4.tasks = (function () {
 
   /* ======================= Quick-add parsing ======================= */
   const PRIO_TOKENS = { '!1': 'critical', '!c': 'critical', '!critical': 'critical', '!2': 'high', '!h': 'high', '!high': 'high', '!3': 'medium', '!m': 'medium', '!medium': 'medium', '!4': 'low', '!l': 'low', '!low': 'low' };
-  const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   /** Parse "Call mom !2 #personal @tomorrow" → fields. */
   function parseQuickAdd(text) {
@@ -106,7 +106,7 @@ T4.tasks = (function () {
         const d = parseDateWord(lw.slice(1));
         if (d) { out.dueDate = d; return; }
       }
-      if (/^#[\w-]{1,40}$/u.test(w)) {
+      if (/^#[\p{L}\p{N}_-]{1,40}$/u.test(w)) { // letters of any language: #büro, #einkäufe
         const name = lw.slice(1);
         const cat = store.data.categories.find((c) => c.name.toLowerCase() === name) ||
           store.data.categories.find((c) => c.name.toLowerCase().startsWith(name));
@@ -125,8 +125,9 @@ T4.tasks = (function () {
     if (w === 'today' || w === 'tod') return t;
     if (w === 'tomorrow' || w === 'tom') return U.addDays(t, 1);
     if (w === 'nextweek') return U.addDays(store.weekStartOf(t), 7);
-    const i = DAYS.indexOf(w.slice(0, 3));
-    if (i >= 0 && w.length >= 3) {
+    // "@fri", "@frid", "@friday" — but not "@month" or "@satire" (must be a prefix of the day's name).
+    const i = w.length >= 3 ? DAY_NAMES.findIndex((n) => n.startsWith(w)) : -1;
+    if (i >= 0) {
       const cur = U.parseDate(t).getDay();
       return U.addDays(t, ((i - cur + 7) % 7) || 7);
     }

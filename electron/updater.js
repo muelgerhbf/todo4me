@@ -34,6 +34,7 @@ const state = {
 };
 let manualCheck = false;
 let beforeInstall = () => {};
+let onReady = () => {};
 
 function supported() {
   if (!autoUpdater) return 'The update module is missing.';
@@ -78,6 +79,7 @@ async function check(manual) {
 
 function init(opts) {
   beforeInstall = (opts && opts.beforeInstall) || beforeInstall;
+  onReady = (opts && opts.onReady) || onReady;
   ipcMain.handle('update:get', () => Object.assign({}, state, { reason: state.reason || supported() }));
   ipcMain.handle('update:check', () => check(true));
   ipcMain.handle('update:install', () => install());
@@ -95,7 +97,10 @@ function init(opts) {
   autoUpdater.on('update-available', (info) => set({ status: 'downloading', version: info && info.version, percent: 0 }));
   autoUpdater.on('update-not-available', () => set({ status: 'latest', checkedAt: new Date().toISOString(), version: null }));
   autoUpdater.on('download-progress', (p) => set({ status: 'downloading', percent: Math.round((p && p.percent) || 0) }));
-  autoUpdater.on('update-downloaded', (info) => set({ status: 'ready', version: info && info.version, percent: 100, checkedAt: new Date().toISOString() }));
+  autoUpdater.on('update-downloaded', (info) => {
+    set({ status: 'ready', version: info && info.version, percent: 100, checkedAt: new Date().toISOString() });
+    try { onReady(state.version); } catch (e) { /* the page still shows "Restart & install" */ }
+  });
   autoUpdater.on('error', (err) => set({ status: 'error', error: friendlyError(err), checkedAt: new Date().toISOString() }));
 
   setTimeout(() => check(false), CHECK_DELAY_MS);

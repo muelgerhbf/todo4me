@@ -209,8 +209,18 @@
         if (s.hotkeyEnabled && s.hotkeyError) console.info('[Todo4Me] ' + s.hotkeyError);
       });
     }
-    snapshot();
-    setTimeout(documentsSnapshot, 20000);
+    // Once per calendar day. Todo4Me can now run for days in the tray without a restart,
+    // so check for a new day regularly instead of only at start (the main process keeps the
+    // first file of each day and never overwrites it).
+    let snapDay = null;
+    const dailySnapshots = (docsDelay) => {
+      if (snapDay === U.today()) return;
+      snapDay = U.today();
+      snapshot();
+      setTimeout(documentsSnapshot, docsDelay);
+    };
+    dailySnapshots(20000);
+    setInterval(() => dailySnapshots(0), 15 * 60 * 1000);
     // Migration hint for people who used the browser version before.
     if (!hasData()) {
       setTimeout(() => {

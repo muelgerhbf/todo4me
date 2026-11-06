@@ -55,6 +55,12 @@ export default async function (b) {
     ok(t && t.priority === 'critical' && t.categoryId === 'cat_work' && t.dueDate === tom && !t.inbox, 'quick-add parses priority/category/date');
     ok(t && t.tags.includes('urgent') && t.title === 'Pay rent +x', 'unknown #word becomes a tag; title cleaned');
     ok(document.activeElement && document.activeElement.closest('#qa-tasks'), 'focus returns to quick-add after adding');
+    const p = T4.tasks.parseQuickAdd('Belege sortieren #büro #einkäufe');
+    ok(p.title === 'Belege sortieren' && p.tags.join() === 'büro,einkäufe', 'quick-add: tags with umlauts (#büro) are recognized: ' + JSON.stringify(p));
+    const p2 = T4.tasks.parseQuickAdd('Report @month @satire @fri');
+    ok(p2.title === 'Report @month @satire' && !!p2.dueDate, 'quick-add: only real day names are dates (@fri yes, @month/@satire no): ' + JSON.stringify(p2));
+    const p3 = T4.tasks.parseQuickAdd('Call @thurs');
+    ok(p3.title === 'Call' && p3.dueDate > T4.util.today(), 'quick-add: day-name prefixes like @thurs still work');
   `);
 
   await run('editor', `
@@ -115,8 +121,12 @@ export default async function (b) {
     ok(next && next.subtasks.length === 1 && !next.subtasks[0].done, 'next occurrence resets subtasks');
     T4.store.toggleComplete(t.id); T4.store.toggleComplete(t.id);
     ok(S().tasks.filter(x => x.title === 'Daily run').length === 2, 'reopen+complete does not duplicate occurrence');
+    // Due on the 31st, several months overdue: the next date must be the last day of its month
+    // (short months in between must not drag it to the 28th for good).
+    const lastDay = (s) => new Date(+s.slice(0, 4), +s.slice(5, 7), 0).getDate();
     const m = T4.store.nextOccurrenceDate('2026-01-31', 'monthly');
-    ok(m > T4.util.today() && m.endsWith('-28') === false || true, 'monthly next date computed: ' + m);
+    ok(m > T4.util.today() && +m.slice(8) === Math.min(31, lastDay(m)), 'monthly catch-up from Jan 31 keeps the 31st (or the last day of a short month): ' + m);
+    ok(T4.store.nextOccurrenceDate('2026-01-15', 'monthly').endsWith('-15'), 'monthly keeps the 15th');
     ok(T4.store.nextOccurrenceDate(T4.util.addDays(T4.util.today(), -10), 'weekly') > T4.util.today(), 'overdue weekly jumps to the future');
   `);
 

@@ -116,12 +116,14 @@ T4.store = (function () {
   }
 
   function nextOccurrenceDate(from, recurrence) {
-    const step = (s) => recurrence === 'daily' ? U.addDays(s, 1)
-      : recurrence === 'weekly' ? U.addDays(s, 7) : U.addMonths(s, 1);
-    let next = step(from);
+    // Always count whole intervals from `from`: chaining monthly steps would drift
+    // (Jan 31 → Feb 28 → Mar 28 …) because a short month clips the day for good.
+    const at = (k) => recurrence === 'daily' ? U.addDays(from, k)
+      : recurrence === 'weekly' ? U.addDays(from, 7 * k) : U.addMonths(from, k);
     const t = U.today();
-    let guard = 0;
-    while (next <= t && guard++ < 1000) next = step(next);
+    let k = 1;
+    let next = at(k);
+    while (next <= t && k < 1000) next = at(++k);
     return next;
   }
 
