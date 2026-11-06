@@ -14,6 +14,9 @@ Release tags use the prefix `windows-v`.
 ### Changed
 - Existing Daily/Weekly/Monthly tasks and older backups are converted automatically; nothing is lost.
 
+### Fixed
+- Quick-add: after adding a task, the field kept the text, so a second task was appended to the first one (since 1.0.0).
+
 ## [2.1.2] - 2026-11-06
 
 ### Added
