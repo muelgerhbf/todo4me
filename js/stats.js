@@ -4,6 +4,7 @@ T4.stats = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   const countRange = (map, from, to) => Object.keys(map).reduce((s, d) => s + (d >= from && d <= to ? map[d] : 0), 0);
 
@@ -23,8 +24,8 @@ T4.stats = (function () {
         (p.current && p.value ? '<span class="chart__val">' + p.value + '</span>' : '') +
         '<div class="chart__bar" style="height:' + (p.value / niceMax * 100).toFixed(1) + '%"></div></div>').join('');
     const labels = points.map((p) => '<span' + (p.current ? ' class="is-current"' : '') + '>' + esc(p.label) + '</span>').join('');
-    const table = '<details class="chart__table"><summary>View as table</summary><table><thead><tr><th scope="col">Period</th><th scope="col">Completed</th></tr></thead><tbody>' +
-      points.map((p) => '<tr><td>' + esc(p.tip.split(':')[0]) + '</td><td>' + p.value + '</td></tr>').join('') + '</tbody></table></details>';
+    const table = '<details class="chart__table"><summary>' + esc(tt('st.viewTable')) + '</summary><table><thead><tr><th scope="col">' + esc(tt('st.period')) + '</th><th scope="col">' + esc(tt('st.completed')) + '</th></tr></thead><tbody>' +
+      points.map((p) => '<tr><td>' + esc(p.period || p.tip.split(':')[0]) + '</td><td>' + p.value + '</td></tr>').join('') + '</tbody></table></details>';
     return '<div class="chart" aria-label="' + esc(title) + '">' +
       '<div class="chart__plot">' +
         '<div class="chart__axis" aria-hidden="true"><span>' + niceMax + '</span><span>' + (niceMax / 2 % 1 ? '' : niceMax / 2) + '</span><span>0</span></div>' +
@@ -40,7 +41,7 @@ T4.stats = (function () {
   }
 
   T4.views.stats = {
-    title: 'Statistics',
+    get title() { return tt('nav.stats'); },
     render() {
       const map = store.data.stats.completions;
       const today = U.today();
@@ -57,20 +58,19 @@ T4.stats = (function () {
       const focusWeek = countRange(store.data.stats.focusSessions, ws, U.addDays(ws, 6));
       const st = streak(map);
 
-      const weekPoints = U.weekDays(ws).map((d) => ({
-        label: U.fmt(d, { weekday: 'short' }),
-        value: map[d] || 0,
-        current: d === today,
-        tip: U.fmt(d, { weekday: 'long', month: 'short', day: 'numeric' }) + ': ' + U.plural(map[d] || 0, 'task') + ' completed',
-      }));
+      const weekPoints = U.weekDays(ws).map((d) => {
+        const period = U.fmt(d, { weekday: 'long', month: 'short', day: 'numeric' });
+        return { label: U.fmt(d, { weekday: 'short' }), value: map[d] || 0, current: d === today, period, tip: tt('st.tipDay', { date: period, count: map[d] || 0 }) };
+      });
       const trendPoints = [];
       for (let i = 7; i >= 0; i--) {
         const s = U.addDays(ws, -7 * i);
         const v = countRange(map, s, U.addDays(s, 6));
-        trendPoints.push({ label: U.fmt(s, { month: 'short', day: 'numeric' }), value: v, current: i === 0, tip: 'Week of ' + U.fmt(s, { month: 'short', day: 'numeric' }) + ': ' + U.plural(v, 'task') + ' completed' });
+        const sd = U.fmt(s, { month: 'short', day: 'numeric' });
+        trendPoints.push({ label: sd, value: v, current: i === 0, period: tt('nt.weekOf', { date: sd }), tip: tt('st.tipWeek', { date: sd, count: v }) });
       }
       const weekDelta = doneWeek - lastWeek;
-      const deltaTxt = lastWeek || doneWeek ? (weekDelta >= 0 ? '+' : '') + weekDelta + ' vs last week' : '';
+      const deltaTxt = lastWeek || doneWeek ? tt('st.vsLast', { delta: (weekDelta >= 0 ? '+' : '') + weekDelta }) : '';
 
       // Breakdown: open tasks by priority
       const open = store.planned().filter(store.isOpen).concat(store.inboxTasks());
@@ -92,22 +92,22 @@ T4.stats = (function () {
           '<span class="hbar__val">' + d + '/' + ts.length + '</span></div>';
       }).join('');
 
-      return '<header class="page-head"><div><h1 class="page-title">Statistics</h1><p class="page-sub">A quick look at your momentum.</p></div></header>' +
-        '<section class="stats stats--4" aria-label="Key numbers">' +
-          tile('Completed today', doneToday, '', 'check') +
-          tile('This week', doneWeek, esc(deltaTxt), 'week') +
-          tile('This month', doneMonth, esc(U.fmt(today, { month: 'long' })), 'calendar') +
-          tile('Completion rate', Math.round(rate * 100) + '%', done + ' of ' + U.plural(total, 'task'), 'chart') +
+      return '<header class="page-head"><div><h1 class="page-title">' + esc(tt('nav.stats')) + '</h1><p class="page-sub">' + esc(tt('st.sub')) + '</p></div></header>' +
+        '<section class="stats stats--4" aria-label="' + esc(tt('st.keyNumbers')) + '">' +
+          tile(tt('st.doneToday'), doneToday, '', 'check') +
+          tile(tt('st.thisWeek'), doneWeek, esc(deltaTxt), 'week') +
+          tile(tt('st.thisMonth'), doneMonth, esc(U.fmt(today, { month: 'long' })), 'calendar') +
+          tile(tt('st.rate'), Math.round(rate * 100) + '%', esc(tt('st.rateSub', { done, count: total })), 'chart') +
         '</section>' +
         '<div class="dash-grid">' +
-          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('week') + 'Completed this week</h2></div>' + barChart(weekPoints, 'Tasks completed per day this week') + '</section>' +
-          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('chart') + 'Weekly trend</h2><span class="muted small">Last 8 weeks</span></div>' + barChart(trendPoints, 'Tasks completed per week, last 8 weeks') + '</section>' +
-          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('flag') + 'Open tasks by priority</h2></div>' +
-            (open.length ? prioRows : '<p class="muted small">No open tasks.</p>') + '</section>' +
-          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('tag') + 'Progress by category</h2></div>' +
-            (catRows || '<p class="muted small">Assign categories to tasks to see progress here.</p>') +
-            '<div class="mini-stats"><div><strong>' + st + '</strong><span>day streak</span></div><div><strong>' + focusWeek + '</strong><span>focus sessions this week</span></div>' +
-            '<div><strong>' + ui.progressRing(rate, 64, 'Overall completion ' + Math.round(rate * 100) + '%') + '</strong><span>overall</span></div></div>' +
+          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('week') + esc(tt('st.doneThisWeek')) + '</h2></div>' + barChart(weekPoints, tt('st.perDay')) + '</section>' +
+          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('chart') + esc(tt('st.trend')) + '</h2><span class="muted small">' + esc(tt('st.last8')) + '</span></div>' + barChart(trendPoints, tt('st.perWeek')) + '</section>' +
+          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('flag') + esc(tt('st.byPriority')) + '</h2></div>' +
+            (open.length ? prioRows : '<p class="muted small">' + esc(tt('st.noOpen')) + '</p>') + '</section>' +
+          '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('tag') + esc(tt('st.byCategory')) + '</h2></div>' +
+            (catRows || '<p class="muted small">' + esc(tt('st.assignCats')) + '</p>') +
+            '<div class="mini-stats"><div><strong>' + st + '</strong><span>' + esc(tt('st.streak')) + '</span></div><div><strong>' + focusWeek + '</strong><span>' + esc(tt('st.focusWeek')) + '</span></div>' +
+            '<div><strong>' + ui.progressRing(rate, 64, tt('st.overallRing', { pct: Math.round(rate * 100) })) + '</strong><span>' + esc(tt('st.overall')) + '</span></div></div>' +
           '</section>' +
         '</div>';
     },
