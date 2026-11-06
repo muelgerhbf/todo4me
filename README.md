@@ -7,6 +7,7 @@ There is a Windows desktop app (Electron) and a browser version.
 ![Version](https://img.shields.io/badge/Version-2.1.1-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
 
 ![Todo4Me dashboard](docs/screenshots/dashboard-light.png)
 
@@ -774,3 +775,8 @@ selection copied to `docs/screenshots/`. Details: `.claude/skills/readme-screens
 ## Browser support
 
 Current versions of Chrome, Edge, Firefox and Safari (desktop and mobile). Requirements are `<dialog>`, CSS `color-mix()` and `:has()` (all current browsers since 2023).
+
+## License
+
+Todo4Me is released under the [MIT License](LICENSE). Bundled third-party files in `vendor/` keep their own licenses
+(KaTeX and Prism: MIT; fonts Carlito and Fira Code: SIL Open Font License), included in the respective folders.
