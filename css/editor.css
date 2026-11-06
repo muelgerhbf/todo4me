@@ -37,7 +37,7 @@ body.is-editor .main { max-width: none; padding: 0; flex: 1; min-height: 0; }
 .ed-side__title { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 .ed-side__search { width: 100%; flex: none; }
 .ed-side__views { align-self: stretch; flex: none; flex-wrap: nowrap; }
-.ed-side__views .seg__btn { flex: 1; justify-content: center; padding: 0 8px; }
+.ed-side__views .seg__btn { flex: 1 1 auto; min-width: 0; justify-content: center; padding: 0 6px; gap: 4px; white-space: nowrap; } /* longer words (de: "Papierkorb", "Angeheftet") must fit */
 .ed-side__views .icon { width: 13px; height: 13px; }
 .ed-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin: 0 -4px; padding: 0 4px; }
 .ed-list__empty { padding: 12px 6px; }
@@ -132,7 +132,7 @@ body.is-editor .main { max-width: none; padding: 0; flex: 1; min-height: 0; }
 .ed-hf--foot[data-pos="bottom-center"]::after { right: auto; left: 50%; transform: translateX(-50%); }
 .ed-doc { outline: none; min-height: 60mm; caret-color: #1f2330; }
 .ed-doc:empty::before, .ed-doc > p:only-child:has(> br:only-child)::before { content: attr(data-placeholder); color: #a3a7b0; pointer-events: none; position: absolute; }
-.ed-doc > p:only-child:has(> br:only-child)::before { content: "Start writing… Type / for elements, # for headings, - for lists."; }
+.ed-doc > p:only-child:has(> br:only-child)::before { content: attr(data-placeholder); /* text comes from the editor shell (translated) */ }
 
 /* ---------- Document content (editor + PDF) ---------- */
 .t4-doc { font-family: Calibri, Carlito, "Segoe UI", sans-serif; font-size: 11pt; line-height: 1.15; color: #1f2330; overflow-wrap: break-word; -webkit-font-smoothing: auto; font-feature-settings: normal; }
