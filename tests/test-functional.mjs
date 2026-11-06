@@ -124,10 +124,155 @@ export default async function (b) {
     // Due on the 31st, several months overdue: the next date must be the last day of its month
     // (short months in between must not drag it to the 28th for good).
     const lastDay = (s) => new Date(+s.slice(0, 4), +s.slice(5, 7), 0).getDate();
-    const m = T4.store.nextOccurrenceDate('2026-01-31', 'monthly');
+    const m = T4.recur.next('monthly', { due: '2026-01-31' });
     ok(m > T4.util.today() && +m.slice(8) === Math.min(31, lastDay(m)), 'monthly catch-up from Jan 31 keeps the 31st (or the last day of a short month): ' + m);
-    ok(T4.store.nextOccurrenceDate('2026-01-15', 'monthly').endsWith('-15'), 'monthly keeps the 15th');
-    ok(T4.store.nextOccurrenceDate(T4.util.addDays(T4.util.today(), -10), 'weekly') > T4.util.today(), 'overdue weekly jumps to the future');
+    ok(T4.recur.next('monthly', { due: '2026-01-15' }).endsWith('-15'), 'monthly keeps the 15th');
+    ok(T4.recur.next('weekly', { due: T4.util.addDays(T4.util.today(), -10) }) > T4.util.today(), 'overdue weekly jumps to the future');
+  `);
+
+  // ---- Flexible recurrence (2.2.0): engine T4.recur, legacy strings, store integration ----
+  await run('recurrence-engine', `
+    const R = T4.recur, n = (o) => JSON.stringify(R.normalize(o));
+    const nx = (rule, due, done, today) => R.next(rule, { due, done, today });
+    const day = (d) => ({ unit: 'day', every: d, from: 'due' });
+    // --- normalize: legacy strings, objects, invalid input
+    ok(n('daily') === JSON.stringify({ unit: 'day', every: 1, from: 'due' }), 'normalize: legacy "daily"');
+    ok(n('weekly') === JSON.stringify({ unit: 'week', every: 1, from: 'due' }) && n('monthly') === JSON.stringify({ unit: 'month', every: 1, from: 'due' }), 'normalize: legacy "weekly" / "monthly"');
+    ok(R.normalize(null) === null && R.normalize('') === null && R.normalize('yearly') === null && R.normalize(5) === null && R.normalize({}) === null && R.normalize({ unit: 'hour' }) === null && R.normalize([]) === null, 'normalize: invalid values give null');
+    ok(R.normalize({ unit: 'day', every: 500 }).every === 99 && R.normalize({ unit: 'day', every: 0 }).every === 1 && R.normalize({ unit: 'day', every: '3' }).every === 3 && R.normalize({ unit: 'day' }).every === 1 && R.normalize({ unit: 'day', every: 'x' }) === null, 'normalize: every clamped to 1..99, missing = 1');
+    ok(JSON.stringify(R.normalize({ unit: 'week', every: 1, weekdays: [5, 1, 1, 9, -1, 'x', 3] }).weekdays) === '[1,3,5]', 'normalize: weekdays sorted, unique, 0..6 only');
+    ok(R.normalize({ unit: 'week', weekdays: [] }).weekdays === undefined && R.normalize({ unit: 'day', weekdays: [1], monthDay: 5 }).weekdays === undefined && R.normalize({ unit: 'day', monthDay: 5 }).monthDay === undefined, 'normalize: weekdays / monthDay only for their unit, empty weekdays dropped');
+    ok(R.normalize({ unit: 'month', monthDay: 31 }).monthDay === 31 && R.normalize({ unit: 'month', monthDay: -1 }).monthDay === -1 && R.normalize({ unit: 'month', monthDay: 32 }).monthDay === undefined && R.normalize({ unit: 'month', monthDay: 0 }).monthDay === undefined, 'normalize: monthDay 1..31 or -1');
+    ok(R.normalize({ unit: 'day', from: 'done' }).from === 'done' && R.normalize({ unit: 'day', from: 'whenever' }).from === 'due', 'normalize: from defaults to due');
+    ok(R.equals('daily', { unit: 'day', every: 1 }) && !R.equals('daily', 'weekly') && R.equals(null, undefined) && !R.equals(null, 'daily'), 'equals');
+    // --- next: day / week / month / year
+    ok(nx(day(1), '2030-05-10', null, '2030-05-10') === '2030-05-11', 'day: due today, next is tomorrow');
+    ok(nx(day(3), '2030-05-10', null, '2030-05-10') === '2030-05-13', 'day: every 3 days');
+    ok(nx(day(3), '2030-05-01', null, '2030-05-10') === '2030-05-13', 'day: overdue every 3 days stays on the 3-day grid (1,4,7,10,13)');
+    ok(nx(day(1), '2030-05-20', null, '2030-05-10') === '2030-05-21', 'day: due in the future, one step after the due date');
+    ok(nx('weekly', '2030-05-10', null, '2030-05-10') === '2030-05-17' && nx('weekly', '2030-04-01', null, '2030-05-10') === '2030-05-13', 'week: plain weekly keeps the weekday, overdue jumps forward');
+    ok(nx({ unit: 'week', every: 2 }, '2030-05-10', null, '2030-05-10') === '2030-05-24', 'week: every 2 weeks');
+    ok(nx({ unit: 'month', every: 2 }, '2030-01-31', null, '2030-01-31') === '2030-03-31' && nx({ unit: 'month', every: 3 }, '2030-01-15', null, '2030-01-15') === '2030-04-15', 'month: every 2 / 3 months');
+    ok(nx('monthly', '2030-01-31', null, '2030-01-31') === '2030-02-28' && nx('monthly', '2030-01-31', null, '2030-02-28') === '2030-03-31', 'month: Jan 31 to Feb 28 to Mar 31 (no drift)');
+    ok(nx('monthly', '2030-01-31', null, '2030-06-10') === '2030-06-30' && nx('monthly', '2030-01-31', null, '2030-06-30') === '2030-07-31', 'month: overdue from Jan 31 keeps the 31st / last day');
+    ok(nx({ unit: 'year', every: 1 }, '2030-03-15', null, '2030-03-15') === '2031-03-15' && nx({ unit: 'year', every: 2 }, '2030-03-15', null, '2030-03-15') === '2032-03-15', 'year: every 1 / 2 years');
+    ok(nx({ unit: 'year', every: 1 }, '2028-02-29', null, '2028-02-29') === '2029-02-28', 'year: Feb 29 becomes Feb 28 in a non-leap year');
+    ok(nx({ unit: 'year', every: 1 }, '2028-02-29', null, '2031-06-01') === '2032-02-29', 'year: Feb 29 comes back in the next leap year (no drift)');
+    ok(nx({ unit: 'year', every: 1 }, '2020-06-01', null, '2030-03-01') === '2030-06-01', 'year: long overdue lands on the next future occurrence');
+    // --- weekdays (2030-05-08 is a Wednesday, 05-10 a Friday, 05-13 a Monday)
+    const wd = [1, 2, 3, 4, 5];
+    ok(nx({ unit: 'week', every: 1, weekdays: wd }, '2030-05-10', null, '2030-05-10') === '2030-05-13', 'every weekday: Friday to Monday');
+    ok(nx({ unit: 'week', every: 1, weekdays: wd }, '2030-05-08', null, '2030-05-08') === '2030-05-09', 'every weekday: Wednesday to Thursday');
+    ok(nx({ unit: 'week', every: 1, weekdays: [1, 3] }, '2030-05-08', null, '2030-05-08') === '2030-05-13' && nx({ unit: 'week', every: 1, weekdays: [1, 3] }, '2030-05-13', null, '2030-05-13') === '2030-05-15', 'weekly on Mon, Wed: Wed to Mon to Wed');
+    ok(nx({ unit: 'week', every: 1, weekdays: [0] }, '2030-05-08', null, '2030-05-08') === '2030-05-12', 'weekdays: Sunday is the last day of the Monday-based week');
+    ok(nx({ unit: 'week', every: 2, weekdays: [1, 3] }, '2030-05-08', null, '2030-05-08') === '2030-05-20', 'every 2 weeks on Mon, Wed from a Wednesday: skips next week, Monday two weeks on');
+    ok(nx({ unit: 'week', every: 2, weekdays: [1, 3] }, '2030-05-20', null, '2030-05-20') === '2030-05-22' && nx({ unit: 'week', every: 2, weekdays: [1, 3] }, '2030-05-22', null, '2030-05-22') === '2030-06-03', 'every 2 weeks on Mon, Wed: Mon, Wed, then Mon two weeks later');
+    ok(nx({ unit: 'week', every: 2, weekdays: [5] }, '2030-05-10', null, '2030-05-10') === '2030-05-24', 'every 2 weeks on Friday');
+    {
+      const c = nx({ unit: 'week', every: 2, weekdays: [1, 3] }, '2030-05-08', null, '2030-07-01');
+      const weeks = T4.util.diffDays(T4.util.startOfWeek('2030-05-08', 1), T4.util.startOfWeek(c, 1)) / 7;
+      ok(c > '2030-07-01' && weeks % 2 === 0 && [1, 3].includes(T4.util.parseDate(c).getDay()), 'every 2 weeks, overdue: future date on the 2-week grid: ' + c);
+    }
+    // --- monthDay
+    const md = (d, ev) => ({ unit: 'month', every: ev || 1, monthDay: d });
+    ok(nx(md(15), '2030-01-10', null, '2030-01-10') === '2030-01-15', 'monthDay 15, due on the 10th: this month on the 15th');
+    ok(nx(md(15), '2030-01-15', null, '2030-01-15') === '2030-02-15' && nx(md(15), '2030-01-20', null, '2030-01-20') === '2030-02-15', 'monthDay 15: after the 15th, next month');
+    ok(nx(md(31), '2030-03-31', null, '2030-03-31') === '2030-04-30', 'monthDay 31 in April gives the 30th');
+    ok(nx(md(31), '2030-01-31', null, '2030-01-31') === '2030-02-28' && nx(md(31), '2030-02-28', null, '2030-02-28') === '2030-03-31', 'monthDay 31: Feb 28, then back to the 31st');
+    ok(nx(md(-1), '2030-01-31', null, '2030-01-31') === '2030-02-28' && nx(md(-1), '2030-02-28', null, '2030-02-28') === '2030-03-31' && nx(md(-1), '2028-02-10', null, '2028-02-10') === '2028-02-29', 'monthDay -1 = last day (incl. leap year)');
+    ok(nx(md(15, 2), '2030-01-15', null, '2030-01-15') === '2030-03-15', 'monthDay 15 every 2 months');
+    // --- from 'done'
+    const dn = (u, ev) => ({ unit: u, every: ev || 1, from: 'done' });
+    ok(nx(dn('day', 3), '2030-05-01', '2030-05-10', '2030-05-10') === '2030-05-13', "from 'done': counted from the completion day, not the due date");
+    ok(nx(dn('day', 3), '2030-05-10', '2030-05-14', '2030-05-14') === '2030-05-17', "from 'done': completed 4 days after the due date, completion + 3 days");
+    ok(nx(dn('week'), '2030-05-01', '2030-05-10', '2030-05-10') === '2030-05-17', "from 'done': weekly after completion");
+    ok(nx(dn('month'), '2030-01-01', '2030-01-31', '2030-01-31') === '2030-02-28', "from 'done': monthly after completion on Jan 31 gives Feb 28");
+    ok(nx(dn('year'), '2029-01-01', '2030-03-05', '2030-03-05') === '2031-03-05', "from 'done': yearly after completion");
+    ok(nx({ unit: 'week', every: 1, weekdays: [1], from: 'done' }, '2030-05-01', '2030-05-10', '2030-05-10') === '2030-05-13', "from 'done' + weekday: next Monday after completion");
+    ok(nx(dn('day', 2), '2030-05-10', '2030-05-10', '2030-05-10') === '2030-05-12', "from 'done': completed on the due date");
+    // --- describe / presets
+    const dsc = (o, s) => R.describe(o, { short: s });
+    ok(dsc('daily') === 'Daily' && dsc(day(3)) === 'Every 3 days' && dsc('weekly') === 'Weekly' && dsc('monthly') === 'Monthly' && dsc({ unit: 'year' }) === 'Yearly', 'describe: basics');
+    ok(dsc({ unit: 'week', weekdays: wd }) === 'Every weekday' && dsc({ unit: 'week', weekdays: [3, 1] }) === 'Weekly on Mon, Wed' && dsc({ unit: 'week', every: 2, weekdays: [5] }) === 'Every 2 weeks on Fri', 'describe: weekdays');
+    ok(dsc(md(15)) === 'Monthly on the 15th' && dsc(md(-1)) === 'Monthly on the last day' && dsc(md(1)) === 'Monthly on the 1st' && dsc(md(22)) === 'Monthly on the 22nd' && dsc(md(23)) === 'Monthly on the 23rd' && dsc(md(11)) === 'Monthly on the 11th', 'describe: month days / ordinals');
+    ok(dsc(dn('day')) === 'Daily after completion' && dsc(dn('week', 2)) === 'Every 2 weeks after completion', 'describe: after completion');
+    ok(dsc({ unit: 'week', every: 2 }, true) === 'Every 2 wks' && dsc({ unit: 'week', weekdays: wd }, true) === 'Weekdays' && dsc('daily', true) === 'Daily' && dsc(null) === '', 'describe: short chip text');
+    const pr = R.presets('2030-05-08');
+    ok(pr.map((p) => p.id).join() === 'daily,weekdays,weekly,biweekly,monthly,yearly' && pr.find((p) => p.id === 'weekly').label === 'Weekly on Wednesday' && pr.find((p) => p.id === 'monthly').label === 'Monthly on the 8th' && pr.find((p) => p.id === 'yearly').label === 'Yearly on May 8', 'presets: labels follow the due date');
+    ok(R.presets('2030-04-30').some((p) => p.id === 'monthly-last' && p.rule.monthDay === -1) && !pr.some((p) => p.id === 'monthly-last'), 'presets: "last day" only when the due date is the last day');
+    ok(pr.every((p) => R.equals(p.rule, R.normalize(p.rule))) && R.presets(null).length >= 6, 'presets: rules are normalized, no due date means today');
+    // --- storage: legacy strings and old backups
+    const lg = T4.storage.sanitize({ version: 1, tasks: [
+      { id: 'a1', title: 'Old weekly', recurrence: 'weekly', createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z' },
+      { id: 'a2', title: 'Old garbage', recurrence: 'hourly' },
+      { id: 'a3', title: 'New rule', recurrence: { unit: 'week', every: 2, weekdays: [3, 1] } },
+      { id: 'a4', title: 'None' }] }).data.tasks;
+    const rec = (id) => lg.find((x) => x.id === id).recurrence;
+    ok(JSON.stringify(rec('a1')) === JSON.stringify({ unit: 'week', every: 1, from: 'due' }) && rec('a2') === null && rec('a4') === null && JSON.stringify(rec('a3').weekdays) === '[1,3]', 'sanitize: legacy strings become rules, garbage / missing become null');
+    // old JSON backup (2.1 format with string values) through sanitize and through the real import path
+    const old = { version: 1, tasks: [{ id: 'imp_old1', title: 'Imported weekly (2.1)', dueDate: '2030-05-10', recurrence: 'weekly', createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z' }], categories: [], notes: [], dailyPlans: {}, settings: {}, stats: { completions: {}, focusSessions: {} }, meta: {} };
+    const impTask = T4.storage.sanitize(JSON.parse(JSON.stringify(old))).data.tasks[0];
+    ok(impTask && impTask.recurrence && impTask.recurrence.unit === 'week' && impTask.recurrence.every === 1, 'old JSON backup with "weekly" sanitizes to a rule object');
+    const before = S().tasks.length;
+    T4.store.mergeData(T4.storage.parseImport(JSON.stringify(old)).data); // same path as Settings → Import → Merge
+    const imported = S().tasks.find((x) => x.id === 'imp_old1');
+    if (imported) {
+      ok(imported.recurrence && imported.recurrence.unit === 'week', 'import (merge) of an old backup: recurrence becomes a rule object');
+      T4.store.deleteTask('imp_old1');
+    }
+    ok(S().tasks.length === before, 'recurrence import: no leftovers');
+    const viaAdd = T4.store.addTask({ title: 'Legacy via addTask', dueDate: '2030-05-10', recurrence: 'monthly' });
+    ok(viaAdd && viaAdd.recurrence && viaAdd.recurrence.unit === 'month', 'addTask with a legacy string stores a rule object');
+    T4.store.deleteTask(viaAdd.id);
+  `);
+
+  await run('recurrence-store', `
+    const D0 = T4.util.today();
+    const done = (id) => { T4.store.toggleComplete(id); const t = T4.store.getTask(id); return T4.store.getTask(t.nextOccurrenceId); };
+    const dow = (s) => T4.util.parseDate(s).getDay();
+    // weekdays rule through the store
+    const a = T4.store.addTask({ title: 'Rule: every weekday', dueDate: D0, recurrence: { unit: 'week', every: 1, weekdays: [1, 2, 3, 4, 5] } });
+    const na = done(a.id);
+    ok(na && na.dueDate > D0 && dow(na.dueDate) >= 1 && dow(na.dueDate) <= 5, 'store: every weekday, next occurrence is a weekday after today: ' + (na && na.dueDate));
+    ok(na && na.recurrence && na.recurrence.unit === 'week' && na.recurrence.weekdays.length === 5, 'store: the next occurrence keeps the rule');
+    // legacy string completes like before
+    const b = T4.store.addTask({ title: 'Rule: legacy weekly', dueDate: D0, recurrence: 'weekly' });
+    ok(done(b.id).dueDate === T4.util.addDays(D0, 7), 'store: legacy "weekly" gives +7 days');
+    // from 'done': a task due 6 days ago, completed today, counts from today
+    const c = T4.store.addTask({ title: 'Rule: after done', dueDate: T4.util.addDays(D0, -6), recurrence: { unit: 'day', every: 3, from: 'done' } });
+    ok(done(c.id).dueDate === T4.util.addDays(D0, 3), "store: from 'done' counts from the completion day (today + 3)");
+    // from 'due': the same overdue task stays on its grid (-6, -3, 0, +3)
+    const d = T4.store.addTask({ title: 'Rule: from due', dueDate: T4.util.addDays(D0, -6), recurrence: { unit: 'day', every: 3, from: 'due' } });
+    ok(done(d.id).dueDate === T4.util.addDays(D0, 3), "store: from 'due', overdue by 6 days, every 3 gives today + 3 (grid)");
+    // no due date: base is today
+    const e = T4.store.addTask({ title: 'Rule: no due date', recurrence: { unit: 'month', every: 1, monthDay: -1 } });
+    const ne = done(e.id);
+    ok(ne && ne.dueDate > D0 && T4.util.addDays(ne.dueDate, 1).endsWith('-01'), 'store: no due date, last day of the month gives a future last day: ' + (ne && ne.dueDate));
+    // reopen + complete does not duplicate
+    T4.store.toggleComplete(a.id); T4.store.toggleComplete(a.id);
+    ok(S().tasks.filter((x) => x.title === 'Rule: every weekday').length === 2, 'store: reopen + complete does not duplicate (rule object)');
+    // reminders on the next occurrence of a rule-based task
+    const R = T4.reminders;
+    const r = T4.store.addTask({ title: 'Rule: reminder', dueDate: D0, dueTime: '08:00', reminder: 30, recurrence: { unit: 'week', every: 1, weekdays: [0, 1, 2, 3, 4, 5, 6] } });
+    const nr = done(r.id);
+    const fireAt = R.fireAt(nr, S().settings);
+    ok(nr && nr.dueDate === T4.util.addDays(D0, 1) && nr.reminder === 30 && nr.reminderFired === null, 'reminder: rule-based next occurrence keeps the offset');
+    ok(R.check({ now: new Date(+fireAt - 60000) }).fired.length === 0 && R.check({ now: fireAt }).fired.join() === nr.id, 'reminder: rule-based next occurrence fires on its own date');
+    // editor: existing rules are shown and survive a save
+    const x = T4.store.addTask({ title: 'Rule: editor', dueDate: D0, recurrence: { unit: 'week', every: 2, weekdays: [1, 3] } });
+    T4.tasks.openEditor(T4.store.getTask(x.id)); await wait(40);
+    ok($('#tf-recur').selectedOptions[0].textContent === 'Every 2 weeks on Mon, Wed', 'editor: a non-basic rule is shown as the selected option');
+    $('#tf-title').value = 'Rule: editor 2'; $('#task-form').requestSubmit(); await wait(50);
+    const x2 = T4.store.getTask(x.id);
+    ok(x2.title === 'Rule: editor 2' && x2.recurrence.every === 2 && x2.recurrence.weekdays.join() === '1,3', 'editor: saving keeps the non-basic rule');
+    T4.tasks.openEditor(x2); await wait(40);
+    $('#tf-recur').value = 'monthly'; $('#task-form').requestSubmit(); await wait(50);
+    ok(T4.store.getTask(x.id).recurrence.unit === 'month' && typeof T4.store.getTask(x.id).recurrence === 'object', 'editor: choosing Monthly saves a rule object');
+    T4.tasks.openEditor(T4.store.getTask(x.id)); await wait(40);
+    ok($('#tf-recur').value === 'monthly', 'editor: a basic rule selects the matching preset');
+    $('#tf-recur').value = ''; $('#task-form').requestSubmit(); await wait(50);
+    ok(T4.store.getTask(x.id).recurrence === null, 'editor: Does not repeat clears the rule');
+    S().tasks.filter((t) => t.title.startsWith('Rule:')).forEach((t) => T4.store.deleteTask(t.id));
   `);
 
   await run('delete', `

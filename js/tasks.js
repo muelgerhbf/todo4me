@@ -14,7 +14,8 @@ T4.tasks = (function () {
     low: { label: 'Low', hint: 'Can wait' },
   };
   const STATUS = { todo: 'To do', in_progress: 'In progress', done: 'Completed' };
-  const RECUR = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+  // Repeat presets of the editor select (part 2 replaces this with T4.recur.presets); other rules show as an extra option.
+  const RECUR_BASIC = ['daily', 'weekly', 'monthly'];
   const SORT_LABELS = { priority: 'Priority', due: 'Due date', created: 'Newest first', alpha: 'Alphabetical', status: 'Status' };
 
   /* ======================= Components ======================= */
@@ -55,7 +56,7 @@ T4.tasks = (function () {
     if (!opts.hideCategory) meta.push(categoryChip(t.categoryId));
     if (t.subtasks.length) meta.push('<span class="chip">' + icon('list') + subDone + '/' + t.subtasks.length + '</span>');
     if (t.estimate && !opts.compact) meta.push('<span class="chip">' + icon('clock') + U.fmtMinutes(t.estimate) + '</span>');
-    if (t.recurrence) meta.push('<span class="chip" title="Repeats ' + RECUR[t.recurrence].toLowerCase() + '">' + icon('repeat') + (opts.compact ? '' : RECUR[t.recurrence]) + '</span>');
+    if (t.recurrence) meta.push('<span class="chip" title="Repeats: ' + esc(T4.recur.describe(t.recurrence)) + '">' + icon('repeat') + (opts.compact ? '' : esc(T4.recur.describe(t.recurrence, { short: true }))) + '</span>');
     if (t.reminder != null && t.dueDate && !done && T4.reminders) meta.push('<span class="chip chip--reminder" title="Reminder: ' + esc(T4.reminders.label(t.reminder).toLowerCase()) + '">' + icon('bell') + '<span class="sr-only">Reminder</span></span>');
     if (!opts.compact) t.tags.forEach((g) => meta.push('<span class="chip chip--tag">#' + esc(g) + '</span>'));
     const metaHtml = meta.filter(Boolean).join('');
@@ -136,6 +137,20 @@ T4.tasks = (function () {
   }
 
   /* ======================= Editor ======================= */
+  /** Options of the Repeat select: the 3 basic rules; any other existing rule is shown as an extra selected option. */
+  function recurOptions(rule) {
+    const r = T4.recur.normalize(rule);
+    const basic = RECUR_BASIC.find((k) => r && T4.recur.equals(r, k));
+    const opt = (v, label, sel) => '<option value="' + v + '"' + (sel ? ' selected' : '') + '>' + esc(label) + '</option>';
+    return RECUR_BASIC.map((k) => opt(k, T4.recur.describe(k), basic === k)).join('') +
+      (r && !basic ? opt('current', T4.recur.describe(r), true) : '');
+  }
+  /** Select value → rule object ('current' keeps the existing non-basic rule). */
+  function recurFromSelect(value, existingRule) {
+    if (!value) return null;
+    return T4.recur.normalize(value === 'current' ? existingRule : value);
+  }
+
   /** Open the task editor. existing = task or null; defaults for new tasks. */
   function openEditor(existing, defaults) {
     const t = existing || Object.assign({
@@ -175,7 +190,7 @@ T4.tasks = (function () {
             '</select><button type="button" class="icon-btn" id="tf-newcat-btn" title="New category" aria-label="New category" aria-expanded="false">' + icon('plus') + '</button></div>' +
             '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="Category name" aria-label="New category name"><button type="button" class="btn btn--sm" id="tf-newcat-add">Add</button></div></div>' +
           '<div class="field"><label for="tf-recur">Repeat</label><select id="tf-recur" name="recurrence"><option value="">Does not repeat</option>' +
-            Object.keys(RECUR).map((r) => '<option value="' + r + '"' + (t.recurrence === r ? ' selected' : '') + '>' + RECUR[r] + '</option>').join('') + '</select></div>' +
+            recurOptions(t.recurrence) + '</select></div>' +
         '</div>' +
         (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">Reminder</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">No reminder</option>' +
             remindOpts.map((o) => '<option value="' + o[0] + '"' + (t.reminder === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' +
@@ -297,7 +312,7 @@ T4.tasks = (function () {
             dueDate: fd.get('dueDate') || null,
             dueTime: fd.get('dueDate') ? (fd.get('dueTime') || null) : null,
             estimate: fd.get('estimate') ? Number(fd.get('estimate')) : null,
-            recurrence: fd.get('recurrence') || null,
+            recurrence: recurFromSelect(fd.get('recurrence'), t.recurrence),
             subtasks,
           };
           if (remSel) fields.reminder = remSel.value === '' ? null : Number(remSel.value);

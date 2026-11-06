@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PORT = 9333;
+// Debug port: default 9333; override with env CDP_PORT so several test runs can use different ports in parallel.
+const PORT = Number(process.env.CDP_PORT) || 9333;
 const here = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, '$1');
 const profile = path.join(here, 'profile-' + Date.now());
 const APP = 'file:///C:/dev/todo4me/index.html';

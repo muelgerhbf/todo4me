@@ -88,7 +88,7 @@ T4.store = (function () {
     d.stats.completions[day] = (d.stats.completions[day] || 0) + 1;
     // Recurring task: spawn the next occurrence once.
     if (task.recurrence && !task.nextOccurrenceId) {
-      const next = nextOccurrenceDate(task.dueDate || day, task.recurrence);
+      const next = T4.recur.next(task.recurrence, { due: task.dueDate || day, done: day, today: day });
       const clone = S.sanitizeTask(Object.assign({}, task, {
         id: U.uid('task'),
         status: 'todo',
@@ -113,18 +113,6 @@ T4.store = (function () {
       d.stats.completions[day] -= 1;
       if (d.stats.completions[day] <= 0) delete d.stats.completions[day];
     }
-  }
-
-  function nextOccurrenceDate(from, recurrence) {
-    // Always count whole intervals from `from`: chaining monthly steps would drift
-    // (Jan 31 → Feb 28 → Mar 28 …) because a short month clips the day for good.
-    const at = (k) => recurrence === 'daily' ? U.addDays(from, k)
-      : recurrence === 'weekly' ? U.addDays(from, 7 * k) : U.addMonths(from, k);
-    const t = U.today();
-    let k = 1;
-    let next = at(k);
-    while (next <= t && k < 1000) next = at(++k);
-    return next;
   }
 
   function deleteTask(id) {
@@ -325,7 +313,7 @@ T4.store = (function () {
     get data() { return data; },
     get settings() { return data.settings; },
     // tasks
-    getTask, addTask, updateTask, setStatus, toggleComplete, deleteTask, toggleSubtask, nextOccurrenceDate,
+    getTask, addTask, updateTask, setStatus, toggleComplete, deleteTask, toggleSubtask,
     // categories
     category, addCategory, updateCategory, deleteCategory,
     // notes

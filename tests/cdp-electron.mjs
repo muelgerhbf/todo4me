@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PORT = 9333;
+// Debug port: default 9333; override with env CDP_PORT so several test runs can use different ports in parallel.
+const PORT = Number(process.env.CDP_PORT) || 9333;
 const here = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, '$1');
 const profile = path.join(here, 'profile-' + Date.now());
 const APP = 'file:///C:/dev/todo4me/index.html';
@@ -19,7 +20,7 @@ const EXE_ARGS = process.env.EXE ? [] : [path.resolve(here, '..')];
 const env = Object.assign({}, process.env, { TODO4ME_USER_DATA: process.env.UDATA || profile });
 delete env.ELECTRON_RUN_AS_NODE;
 let chrome;
-function launch() { chrome = spawn(EXE, EXE_ARGS.concat(['--remote-debugging-port=' + PORT, '--inspect=9339']), { stdio: 'ignore', env }); }
+function launch() { chrome = spawn(EXE, EXE_ARGS.concat(['--remote-debugging-port=' + PORT, '--inspect=' + (PORT + 6)]), { stdio: 'ignore', env }); }
 launch();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,7 +52,7 @@ async function enable() { await send('Runtime.enable'); await send('Log.enable')
 await enable();
 
 async function mainEval(expr) {
-  const list = await (await fetch('http://127.0.0.1:9339/json/list')).json();
+  const list = await (await fetch('http://127.0.0.1:' + (PORT + 6) + '/json/list')).json();
   const mws = new WebSocket(list[0].webSocketDebuggerUrl);
   await new Promise((r) => mws.addEventListener('open', r));
   const res = await new Promise((r) => {

@@ -19,7 +19,6 @@ T4.storage = (function () {
 
   const PRIORITIES = ['critical', 'high', 'medium', 'low'];
   const STATUSES = ['todo', 'in_progress', 'done'];
-  const RECURRENCES = ['daily', 'weekly', 'monthly'];
   const THEMES = ['light', 'dark', 'system'];
   const SORTS = ['priority', 'due', 'created', 'alpha', 'status'];
   const ACCENTS = ['#5b5bd6', '#0e7c86', '#2f6fed', '#d6409f', '#e5603c', '#3e9b4f', '#8e4ec6', '#5f6b7a'];
@@ -101,7 +100,7 @@ T4.storage = (function () {
       dueTime: U.isDateStr(t.dueDate) && U.isTimeStr(t.dueTime) ? t.dueTime : null,
       estimate: est,
       subtasks,
-      recurrence: t.recurrence == null ? null : oneOf(t.recurrence, RECURRENCES, null),
+      recurrence: T4.recur.normalize(t.recurrence), // legacy 'daily'/'weekly'/'monthly' strings become rule objects
       reminder: reminderOrNull(t.reminder, U.isDateStr(t.dueDate)),
       reminderFired: firedKey(t.reminderFired),
       reminderSnooze: isoOrNull(t.reminderSnooze),
@@ -396,7 +395,7 @@ T4.storage = (function () {
   }
 
   return {
-    KEY, SCHEMA_VERSION, REMINDER_MAX, PRIORITIES, STATUSES, RECURRENCES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
+    KEY, SCHEMA_VERSION, REMINDER_MAX, PRIORITIES, STATUSES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
     defaultData, defaultSettings, sanitize, sanitizeTask, sanitizeNote, sanitizeSettings, load, save, loadBackup,
     backupInfo, usageBytes, clearAll, exportJSON, parseImport, merge,
     get isAvailable() { return available; },

@@ -148,10 +148,10 @@ T4.settings = (function () {
     const tasks = [
       mk('Finish quarterly report', { priority: 'critical', categoryId: 'cat_work', dueDate: t, dueTime: '15:00', estimate: 90, tags: ['q4'], description: 'Summarize results and next steps for the team.', subtasks: [{ title: 'Collect numbers', done: true }, { title: 'Write summary' }, { title: 'Send to manager' }] }),
       mk('Reply to client emails', { priority: 'high', categoryId: 'cat_work', dueDate: t, estimate: 30, status: 'in_progress' }),
-      mk('30-minute run', { priority: 'medium', categoryId: 'cat_health', dueDate: t, recurrence: 'daily', estimate: 30 }),
+      mk('30-minute run', { priority: 'medium', categoryId: 'cat_health', dueDate: t, recurrence: { unit: 'day', every: 1, from: 'due' }, estimate: 30 }),
       mk('Buy groceries', { priority: 'low', categoryId: 'cat_shopping', dueDate: t, subtasks: [{ title: 'Vegetables' }, { title: 'Coffee' }, { title: 'Oat milk' }] }),
       mk('Prepare slides for Monday meeting', { priority: 'high', categoryId: 'cat_work', dueDate: d(2), estimate: 60 }),
-      mk('Read one chapter of a book', { priority: 'medium', categoryId: 'cat_learning', dueDate: d(1), recurrence: 'weekly' }),
+      mk('Read one chapter of a book', { priority: 'medium', categoryId: 'cat_learning', dueDate: d(1), recurrence: { unit: 'week', every: 1, from: 'due' } }),
       mk('Call mom', { priority: 'medium', categoryId: 'cat_personal', dueDate: d(3) }),
       mk('Renew passport', { priority: 'critical', categoryId: 'cat_personal', dueDate: d(5), notes: 'Need photo + old passport.' }),
       mk('Pay electricity bill', { priority: 'high', categoryId: 'cat_personal', dueDate: d(-1) }),
