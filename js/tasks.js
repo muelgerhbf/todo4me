@@ -96,16 +96,22 @@ T4.tasks = (function () {
   const PRIO_TOKENS = { '!1': 'critical', '!c': 'critical', '!critical': 'critical', '!2': 'high', '!h': 'high', '!high': 'high', '!3': 'medium', '!m': 'medium', '!medium': 'medium', '!4': 'low', '!l': 'low', '!low': 'low' };
   const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-  /** Parse "Call mom !2 #personal @tomorrow" → fields. */
+  /** Parse "Call mom !2 #personal @tomorrow every monday" → fields. */
   function parseQuickAdd(text) {
     const out = { tags: [] };
     const words = [];
-    String(text).trim().split(/\s+/).forEach((w) => {
+    const src = String(text).trim().split(/\s+/);
+    for (let i = 0; i < src.length; i++) {
+      const w = src[i];
       const lw = w.toLowerCase();
-      if (PRIO_TOKENS[lw]) { out.priority = PRIO_TOKENS[lw]; return; }
+      if (PRIO_TOKENS[lw]) { out.priority = PRIO_TOKENS[lw]; continue; }
       if (/^@\S+$/.test(lw)) {
         const d = parseDateWord(lw.slice(1));
-        if (d) { out.dueDate = d; return; }
+        if (d) { out.dueDate = d; continue; }
+      }
+      if (!out.recurrence) {
+        const rec = lw === 'every' ? parseEveryPhrase(src.slice(i + 1).map((x) => x.toLowerCase())) : parseRecurShorthand(lw);
+        if (rec) { out.recurrence = rec.rule; i += rec.used; continue; }
       }
       if (/^#[\p{L}\p{N}_-]{1,40}$/u.test(w)) { // letters of any language: #büro, #einkäufe
         const name = lw.slice(1);
@@ -113,12 +119,83 @@ T4.tasks = (function () {
           store.data.categories.find((c) => c.name.toLowerCase().startsWith(name));
         if (cat && !out.categoryId) out.categoryId = cat.id;
         else out.tags.push(name);
-        return;
+        continue;
       }
       words.push(w);
-    });
+    }
     out.title = words.join(' ');
+    if (out.recurrence && !out.dueDate) out.dueDate = firstRecurDate(out.recurrence);
     return out;
+  }
+
+  /* ---- recurrence phrases: "every monday", "*weekly" ---- */
+  const RECUR_UNITS = { day: 'day', days: 'day', week: 'week', weeks: 'week', month: 'month', months: 'month', year: 'year', years: 'year' };
+  const RECUR_SHORT = {
+    '*daily': { unit: 'day' }, '*weekly': { unit: 'week' }, '*monthly': { unit: 'month' }, '*yearly': { unit: 'year' },
+    '*weekdays': { unit: 'week', weekdays: [1, 2, 3, 4, 5] },
+  };
+  function parseRecurShorthand(lw) {
+    const r = RECUR_SHORT[lw];
+    return r ? { rule: T4.recur.normalize(Object.assign({ every: 1 }, r)), used: 0 } : null;
+  }
+  /** "mon", "monday", "mondays" (at least 3 letters, prefix of the day name, optional plural s) → 0..6 or -1. */
+  function dayIndexOf(w) {
+    const x = w.length > 3 && w.endsWith('s') && DAY_NAMES.some((n) => n.startsWith(w.slice(0, -1))) ? w.slice(0, -1) : w;
+    return x.length >= 3 ? DAY_NAMES.findIndex((n) => n.startsWith(x)) : -1;
+  }
+  /**
+   * Words after "every" (lowercase) → { rule, used } (used = number of words consumed) or null when they are no valid rule
+   * (then "every" simply stays in the title). Numbers outside 1..99 are rejected, not clamped.
+   */
+  function parseEveryPhrase(w) {
+    let rule = null;
+    let n = 0;
+    const strip = (x) => (x || '').replace(/[.,;!?]+$/, '');
+    if (w[0] === 'other' && RECUR_UNITS[strip(w[1])] === 'week') { rule = { unit: 'week', every: 2 }; n = 2; }
+    else if (w[0] === 'other' && dayIndexOf(strip(w[1])) >= 0) { rule = { unit: 'week', every: 2, weekdays: [dayIndexOf(strip(w[1]))] }; n = 2; }
+    else if (/^\d{1,3}$/.test(w[0] || '') && RECUR_UNITS[strip(w[1])]) {
+      const k = Number(w[0]);
+      if (k < 1 || k > 99) return null;
+      rule = { unit: RECUR_UNITS[strip(w[1])], every: k }; n = 2;
+    } else if (/^\d{1,2}(st|nd|rd|th)$/.test(strip(w[0]))) {
+      const k = parseInt(w[0], 10);
+      if (k < 1 || k > 31) return null;
+      rule = { unit: 'month', every: 1, monthDay: k }; n = 1;
+    } else if (w[0] === 'last' && strip(w[1]) === 'day') { rule = { unit: 'month', every: 1, monthDay: -1 }; n = 2; }
+    else if (strip(w[0]) === 'weekday' || strip(w[0]) === 'weekdays') { rule = { unit: 'week', every: 1, weekdays: [1, 2, 3, 4, 5] }; n = 1; }
+    else if (RECUR_UNITS[strip(w[0])]) { rule = { unit: RECUR_UNITS[strip(w[0])], every: 1 }; n = 1; }
+    if (!rule && w[0]) { // "mon", "mondays", "mon,wed,fri", "mon, wed"
+      const days = [];
+      for (let j = 0; j < w.length; j++) {
+        const parts = w[j].split(',').filter(Boolean);
+        const idx = parts.map((p) => dayIndexOf(strip(p)));
+        if (!parts.length || idx.some((d) => d < 0)) break;
+        days.push(...idx);
+        n = j + 1;
+        if (!w[j].endsWith(',')) break;
+      }
+      if (days.length) rule = { unit: 'week', every: 1, weekdays: days };
+    }
+    if (!rule) return null;
+    if (w[n] === 'after' && strip(w[n + 1]) === 'done') { rule.from = 'done'; n += 2; }
+    const norm = T4.recur.normalize(rule);
+    return norm ? { rule: norm, used: n } : null;
+  }
+  /** First date >= today that fits the rule (every monday → next Monday or today; every 15th → next 15th; otherwise today). */
+  function firstRecurDate(rule) {
+    const t = U.today();
+    if (!(rule.weekdays && rule.weekdays.length) && rule.monthDay == null) return t;
+    for (let i = 0; i < 70; i++) {
+      const d = U.addDays(t, i);
+      const dt = U.parseDate(d);
+      if (rule.weekdays && rule.weekdays.length) {
+        if (rule.weekdays.includes(dt.getDay())) return d;
+      } else {
+        const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+        if (dt.getDate() === (rule.monthDay === -1 ? last : Math.min(rule.monthDay, last))) return d;
+      }
+    }
+    return t;
   }
 
   function parseDateWord(w) {
@@ -400,7 +477,7 @@ T4.tasks = (function () {
     }
     const fields = Object.assign({ priority: null }, defaults, stripUndefined(parsed));
     if (!parsed.tags.length) delete fields.tags;
-    if (fields.inbox && (parsed.dueDate || parsed.priority || parsed.categoryId)) fields.inbox = false;
+    if (fields.inbox && (parsed.dueDate || parsed.priority || parsed.categoryId || parsed.recurrence)) fields.inbox = false;
     const task = store.addTask(fields);
     if (task) {
       ui.toast(task.inbox ? 'Added to Inbox' : 'Task added' + (task.dueDate ? ' for ' + U.relDate(task.dueDate) : ''), 'success', 4000, {
