@@ -31,7 +31,7 @@ T4.app = (function () {
     /** All views in effective order (sections fixed, custom order within each section), hidden ones included. */
     function items() {
       const order = cfg().order.filter(known);
-      const rank = (n) => { const i = order.indexOf(n.id); return i < 0 ? 1e6 + NAV.indexOf(n) : i; };
+      const rank = (n) => { if (n.id === 'dashboard') return -1; if (n.id === 'settings') return 2e6; const i = order.indexOf(n.id); return i < 0 ? 1e6 + NAV.indexOf(n) : i; };
       const out = [];
       SECTIONS.forEach((sec) => out.push(...NAV.filter((n) => n.section === sec).sort((a, b) => rank(a) - rank(b))));
       return out.map(decorate);
@@ -40,7 +40,7 @@ T4.app = (function () {
     function setHidden(id, hide) {
       const n = NAV.find((x) => x.id === id);
       if (!n || n.locked) return false;
-      const set = new Set(cfg().hidden.filter(known));
+      const set = new Set(cfg().hidden.filter((h) => known(h) && h !== 'dashboard' && h !== 'settings'));
       if (hide) set.add(id); else set.delete(id);
       store.updateSettings({ nav: { hidden: Array.from(set), order: cfg().order } });
       return true;
@@ -52,7 +52,7 @@ T4.app = (function () {
       if (!it) return false;
       const sec = all.filter((x) => x.section === it.section);
       const i = sec.indexOf(sec.find((x) => x.id === id)), j = Math.max(0, Math.min(sec.length - 1, i + (delta < 0 ? -1 : 1) * Math.max(1, Math.abs(delta | 0))));
-      if (i === j) return false;
+      if (i === j || sec[j].locked || it.locked) return false; // locked items stay pinned
       const [m] = sec.splice(i, 1);
       sec.splice(j, 0, m);
       const ids = [];

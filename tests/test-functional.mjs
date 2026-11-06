@@ -913,6 +913,7 @@ export default async function (b) {
     T4.nav.setHidden('plan', true); await wait(60);
     ok(JSON.stringify(S().settings.nav.hidden.slice().sort()) === '["focus","plan"]', 'nav: saved in settings');
   `);
+  const res0 = await b.evaluate('window.__r'); // collect before the reload, which clears window.__r
   await b.reload();
   await run('nav-custom-persist', `
     const links = $$('#nav .nav__link').map(a => a.getAttribute('href').slice(2));
@@ -953,7 +954,7 @@ export default async function (b) {
     ok(T4.store.data.tasks.length >= 10 && T4.store.data.notes.length === 3, 'sample data loads');
   `);
   const res2 = await b.evaluate('window.__r');
-  const all = res1.concat(res2);
+  const all = res0.concat(res1, res2);
   all.forEach((r) => console.log(r));
   console.log('\n' + all.filter((r) => r.startsWith('PASS')).length + ' passed, ' + all.filter((r) => r.startsWith('FAIL')).length + ' failed');
 }
