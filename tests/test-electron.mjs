@@ -26,7 +26,7 @@ export default async function (b) {
   await run(`
     ok(typeof require === 'undefined' && typeof process === 'undefined' && typeof module === 'undefined', 'no Node.js APIs in the page (nodeIntegration off, contextIsolation on)');
     ok(window.todo4meDesktop && window.todo4meDesktop.isDesktop, 'preload bridge available');
-    ok(Object.keys(window.todo4meDesktop).sort().join() === 'checkForUpdates,exportPDF,fetchCalendar,getDesktopSettings,getInfo,getUpdateState,installUpdate,isDesktop,notify,onBeforeClose,onMenuAction,onNotificationClick,onUpdateState,openFolder,openPath,platform,setDesktopSettings,writeBackup,writeDocBackup', 'bridge exposes only the intended API: ' + Object.keys(window.todo4meDesktop).sort().join());
+    ok(Object.keys(window.todo4meDesktop).sort().join() === 'checkForUpdates,exportPDF,fetchCalendar,getDesktopSettings,getInfo,getUpdateState,installUpdate,isDesktop,notify,onBeforeClose,onMenuAction,onNotificationClick,onUpdateState,openFolder,openPath,platform,setDesktopSettings,setLanguage,writeBackup,writeDocBackup', 'bridge exposes only the intended API: ' + Object.keys(window.todo4meDesktop).sort().join());
     ok(document.documentElement.classList.contains('is-desktop'), 'desktop class set');
     const w = window.open('file:///C:/Windows/win.ini');
     ok(w === null, 'window.open is denied');

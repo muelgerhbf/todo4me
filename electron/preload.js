@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('todo4meDesktop', {
     });
   },
 
+  /** Tell the main process which language the UI uses ('en' | 'de' | 'tr' | 'es'); validated in main. */
+  setLanguage: (lang) => ipcRenderer.invoke('i18n:set-language', String(lang == null ? '' : lang).slice(0, 8)),
+
   /* ---------- Tray, start with Windows, global hotkey (machine settings, validated in main) ---------- */
   getDesktopSettings: () => ipcRenderer.invoke('desktop:get-settings'),
   setDesktopSettings: (patch) => {
