@@ -3,6 +3,7 @@ T4.ui = (function () {
   'use strict';
   const U = T4.util;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   /* ---------------- Action registry (event delegation) ---------------- */
   const actions = {};
@@ -44,7 +45,7 @@ T4.ui = (function () {
     modal.innerHTML =
       '<div class="modal__header">' +
         '<h2 class="modal__title" id="modal-title">' + esc(opts.title) + '</h2>' +
-        '<button type="button" class="icon-btn" data-action="modal-close" aria-label="Close">' + icon('x') + '</button>' +
+        '<button type="button" class="icon-btn" data-action="modal-close" aria-label="' + esc(tt('c.close')) + '">' + icon('x') + '</button>' +
       '</div>' +
       '<div class="modal__body">' + opts.body + '</div>' +
       (opts.footer ? '<div class="modal__footer">' + opts.footer + '</div>' : '');
@@ -79,11 +80,11 @@ T4.ui = (function () {
     return new Promise((resolve) => {
       confirmEl.innerHTML =
         '<div class="modal__header"><h2 class="modal__title" id="confirm-title">' +
-          (opts.danger ? icon('alert', 'text-danger') + ' ' : '') + esc(opts.title || 'Are you sure?') + '</h2></div>' +
+          (opts.danger ? icon('alert', 'text-danger') + ' ' : '') + esc(opts.title || tt('c.areYouSure')) + '</h2></div>' +
         '<div class="modal__body"><p class="muted">' + esc(opts.message || '') + '</p></div>' +
         '<div class="modal__footer">' +
-          '<button type="button" class="btn btn--ghost" data-confirm="no">' + esc(opts.cancelText || 'Cancel') + '</button>' +
-          '<button type="button" class="btn ' + (opts.danger ? 'btn--danger' : 'btn--primary') + '" data-confirm="yes">' + esc(opts.confirmText || 'Confirm') + '</button>' +
+          '<button type="button" class="btn btn--ghost" data-confirm="no">' + esc(opts.cancelText || tt('c.cancel')) + '</button>' +
+          '<button type="button" class="btn ' + (opts.danger ? 'btn--danger' : 'btn--primary') + '" data-confirm="yes">' + esc(opts.confirmText || tt('c.confirm')) + '</button>' +
         '</div>';
       const prevFocus = document.activeElement;
       const done = (val) => {
@@ -117,7 +118,7 @@ T4.ui = (function () {
     const ic = type === 'error' ? 'alert' : type === 'reminder' ? 'bell' : type === 'info' ? 'sparkle' : 'check';
     el.innerHTML = icon(ic) + '<span class="toast__msg">' + esc(message) + '</span>' +
       actionsList.map((a, i) => '<button type="button" class="toast__action" data-i="' + i + '">' + esc(a.label) + '</button>').join('') +
-      '<button type="button" class="toast__close" aria-label="Dismiss">' + icon('x') + '</button>';
+      '<button type="button" class="toast__close" aria-label="' + esc(tt('c.dismiss')) + '">' + icon('x') + '</button>';
     const remove = () => {
       if (!el.isConnected) return;
       el.classList.add('toast--out');
@@ -144,7 +145,7 @@ T4.ui = (function () {
   function progressRing(pct, size, label) {
     const r = (size - 8) / 2, c = 2 * Math.PI * r;
     const off = c * (1 - Math.max(0, Math.min(1, pct)));
-    return '<div class="ring" style="width:' + size + 'px;height:' + size + 'px" role="img" aria-label="' + esc(label || Math.round(pct * 100) + '% complete') + '">' +
+    return '<div class="ring" style="width:' + size + 'px;height:' + size + 'px" role="img" aria-label="' + esc(label || tt('ui.percentComplete', { pct: Math.round(pct * 100) })) + '">' +
       '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '">' +
         '<circle class="ring__track" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '"/>' +
         '<circle class="ring__bar" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '"/>' +

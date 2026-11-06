@@ -3,6 +3,7 @@ T4.app = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   // Sections are fixed; custom order applies within a section. Dashboard and Settings are locked (always visible).
   const NAV = [
@@ -108,7 +109,7 @@ T4.app = (function () {
       const danger = n.id === 'today' && overdue;
       return sep + '<li><a class="nav__link' + (active ? ' is-active' : '') + '" href="#/' + n.id + '"' + (active ? ' aria-current="page"' : '') + '>' +
         icon(n.icon) + '<span>' + esc(n.label) + '</span>' +
-        (count ? '<span class="nav__count' + (danger ? ' nav__count--danger' : '') + '"' + (danger ? ' title="' + U.plural(overdue, 'overdue task') + '"' : '') + '>' + count + '<span class="sr-only"> items</span></span>' : '') +
+        (count ? '<span class="nav__count' + (danger ? ' nav__count--danger' : '') + '"' + (danger ? ' title="' + esc(tt('nav.overdueTasks', { count: overdue })) + '"' : '') + '>' + count + '<span class="sr-only"> ' + esc(tt('app.itemsWord', { count })) + '</span></span>' : '') +
         '</a></li>';
     }).join('') + '</ul>';
     const shown = nav.visible().map((n) => n.id);
@@ -117,19 +118,19 @@ T4.app = (function () {
       const active = current.name === id;
       const count = n.count ? counts[n.count] : 0;
       return '<a class="bnav__link' + (active ? ' is-active' : '') + '" href="#/' + id + '"' + (active ? ' aria-current="page"' : '') + '>' +
-        icon(n.icon) + '<span>' + esc(navLabel(n).replace('Weekly ', '')) + '</span>' + (count ? '<span class="bnav__dot" aria-hidden="true"></span>' : '') + '</a>';
+        icon(n.icon) + '<span>' + esc(tt('nav.short.' + id)) + '</span>' + (count ? '<span class="bnav__dot" aria-hidden="true"></span>' : '') + '</a>';
     }).join('') +
-      '<button type="button" class="bnav__link" data-action="open-sidebar" aria-label="More sections">' + icon('menu') + '<span>More</span></button>';
+      '<button type="button" class="bnav__link" data-action="open-sidebar" aria-label="' + esc(tt('nav.moreSections')) + '">' + icon('menu') + '<span>' + esc(tt('nav.more')) + '</span></button>';
     document.getElementById('topbar-title').textContent = (T4.views[current.name] || {}).title || 'Todo4Me';
   }
 
   function updateSaveIndicator(info) {
     const el = document.getElementById('save-indicator');
     if (!el) return;
-    if (info && info.saved === false) { el.textContent = 'Not saved!'; el.classList.add('is-error'); return; }
+    if (info && info.saved === false) { el.textContent = tt('app.notSaved'); el.classList.add('is-error'); return; }
     el.classList.remove('is-error');
     const at = T4.storage.lastSavedAt;
-    el.textContent = at ? 'Saved ' + new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(at) : 'All changes saved locally';
+    el.textContent = at ? tt('app.savedAt', { time: new Intl.DateTimeFormat(T4.i18n.locale(), { hour: 'numeric', minute: '2-digit' }).format(at) }) : tt('app.savedLocal');
   }
 
   /* ---------- Rendering ---------- */
@@ -261,8 +262,8 @@ T4.app = (function () {
     updateSaveIndicator();
     res.warnings.forEach((w) => ui.toast(w, 'error', 10000));
     if (res.firstRun) {
-      ui.toast('Welcome to Todo4Me! Press N for a new task, Q to capture an idea, or add sample data in Settings.', 'info', 9000, {
-        label: 'Settings', fn: () => { location.hash = '#/settings'; },
+      ui.toast(tt('app.welcome'), 'info', 9000, {
+        label: tt('nav.settings'), fn: () => { location.hash = '#/settings'; },
       });
     }
   }
@@ -276,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     T4.app.init();
   } catch (err) {
     console.error(err);
-    document.getElementById('main').innerHTML = '<div class="empty"><p class="empty__title">Something went wrong while starting Todo4Me.</p>' +
-      '<p class="empty__text">Your data has not been deleted. Try reloading the page. Details: ' + T4.util.esc(err.message) + '</p></div>';
+    document.getElementById('main').innerHTML = '<div class="empty"><p class="empty__title">' + T4.util.esc(T4.i18n.t('app.startError')) + '</p>' +
+      '<p class="empty__text">' + T4.util.esc(T4.i18n.t('app.startErrorText', { details: err.message })) + '</p></div>';
   }
 });

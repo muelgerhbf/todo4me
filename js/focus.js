@@ -4,6 +4,7 @@ T4.focus = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store, tasks = T4.tasks;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
   const KEY = 'todo4me.focus.v1';
 
   // { taskId, mode: 'focus'|'break', running, endsAt (ms), remaining (s) }
@@ -73,9 +74,9 @@ T4.focus = (function () {
     beep();
     if (was === 'focus') {
       store.recordFocusSession();
-      ui.toast('Focus session complete — time for a ' + store.settings.pomodoroBreak + '-minute break.', 'info', 8000);
+      ui.toast(tt('fc.doneFocus', { n: store.settings.pomodoroBreak }), 'info', 8000);
     } else {
-      ui.toast('Break over — ready for another focus session?', 'info', 8000);
+      ui.toast(tt('fc.doneBreak'), 'info', 8000);
     }
   }
 
@@ -99,7 +100,7 @@ T4.focus = (function () {
   }
 
   function updateTitle() {
-    document.title = st.running ? mmss(secondsLeft()) + ' · ' + (st.mode === 'focus' ? 'Focus' : 'Break') + ' — Todo4Me' : (T4.app ? T4.app.pageTitle() : 'Todo4Me');
+    document.title = st.running ? mmss(secondsLeft()) + ' · ' + tt(st.mode === 'focus' ? 'fc.focus' : 'fc.break') + ' — Todo4Me' : (T4.app ? T4.app.pageTitle() : 'Todo4Me');
   }
 
   /** Update only timer DOM (cheap; called every second). */
@@ -115,28 +116,28 @@ T4.focus = (function () {
     el.classList.toggle('is-break', st.mode === 'break');
     el.classList.toggle('is-running', st.running);
     const btn = el.querySelector('[data-action="pomo-toggle"]');
-    btn.innerHTML = icon(st.running ? 'pause' : 'play') + (st.running ? 'Pause' : (left < total ? 'Resume' : 'Start'));
+    btn.innerHTML = icon(st.running ? 'pause' : 'play') + esc(tt(st.running ? 'fc.pause' : (left < total ? 'fc.resume' : 'fc.start')));
     U.$$('[data-action="pomo-mode"]', el).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === st.mode)));
   }
 
   function pomodoroHtml() {
     const size = 200, r = 92, c = 2 * Math.PI * r;
     const sessions = store.data.stats.focusSessions[U.today()] || 0;
-    return '<section class="pomo card" id="pomo" aria-label="Pomodoro timer">' +
-      '<div class="seg seg--sm" role="group" aria-label="Timer mode">' +
-        '<button type="button" class="seg__btn" data-action="pomo-mode" data-mode="focus" aria-pressed="' + (st.mode === 'focus') + '">Focus ' + store.settings.pomodoroFocus + 'm</button>' +
-        '<button type="button" class="seg__btn" data-action="pomo-mode" data-mode="break" aria-pressed="' + (st.mode === 'break') + '">Break ' + store.settings.pomodoroBreak + 'm</button>' +
+    return '<section class="pomo card" id="pomo" aria-label="' + esc(tt('fc.timer')) + '">' +
+      '<div class="seg seg--sm" role="group" aria-label="' + esc(tt('fc.timerMode')) + '">' +
+        '<button type="button" class="seg__btn" data-action="pomo-mode" data-mode="focus" aria-pressed="' + (st.mode === 'focus') + '">' + esc(tt('fc.focusMin', { n: store.settings.pomodoroFocus })) + '</button>' +
+        '<button type="button" class="seg__btn" data-action="pomo-mode" data-mode="break" aria-pressed="' + (st.mode === 'break') + '">' + esc(tt('fc.breakMin', { n: store.settings.pomodoroBreak })) + '</button>' +
       '</div>' +
       '<div class="pomo__ring"><svg viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
         '<circle class="ring__track" cx="100" cy="100" r="' + r + '"/>' +
         '<circle class="ring__bar" cx="100" cy="100" r="' + r + '" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="0"/></svg>' +
         '<div class="pomo__center"><span class="pomo__time" role="timer" aria-live="off">' + mmss(secondsLeft()) + '</span>' +
-        '<span class="pomo__mode">' + (st.mode === 'focus' ? 'Focus' : 'Break') + '</span></div></div>' +
+        '<span class="pomo__mode">' + esc(tt(st.mode === 'focus' ? 'fc.focus' : 'fc.break')) + '</span></div></div>' +
       '<div class="pomo__controls">' +
         '<button type="button" class="btn btn--primary" data-action="pomo-toggle"></button>' +
-        '<button type="button" class="btn" data-action="pomo-reset">' + icon('reset') + 'Reset</button>' +
+        '<button type="button" class="btn" data-action="pomo-reset">' + icon('reset') + esc(tt('fc.reset')) + '</button>' +
       '</div>' +
-      '<p class="muted small">' + U.plural(sessions, 'focus session') + ' completed today</p>' +
+      '<p class="muted small">' + esc(tt('fc.sessions', { count: sessions })) + '</p>' +
       '</section>';
   }
 
@@ -158,7 +159,7 @@ T4.focus = (function () {
   ui.on('focus-subtask', (el) => store.toggleSubtask(el.dataset.id, el.dataset.sub));
   ui.on('focus-start', (el) => {
     const t = store.getTask(el.dataset.id);
-    if (t && t.status === 'todo') { store.setStatus(t.id, 'in_progress'); ui.toast('Marked as in progress', 'info'); }
+    if (t && t.status === 'todo') { store.setStatus(t.id, 'in_progress'); ui.toast(tt('tk.markedIn_progress'), 'info'); }
   });
 
   function pickerHtml() {
@@ -170,12 +171,12 @@ T4.focus = (function () {
       (star ? icon('star', 'text-accent') : '<span class="prio-dot"></span>') + '<span class="pick-task__title">' + esc(t.title) + '</span>' +
       '<span class="task__meta">' + tasks.priorityBadge(t.priority) + tasks.dueChip(t) + '</span></button></li>';
     if (!top.length && !rest.length) {
-      return ui.emptyState('target', 'Nothing to focus on', 'You have no open tasks. Enjoy the calm, or add a task.', '<button type="button" class="btn btn--primary" data-action="new-task">' + icon('plus') + 'New task</button>');
+      return ui.emptyState('target', tt('fc.nothing'), tt('fc.nothingText'), '<button type="button" class="btn btn--primary" data-action="new-task">' + icon('plus') + esc(tt('tk.newTask')) + '</button>');
     }
     return '<div class="focus-picker">' +
-      '<h2 class="focus-picker__title">What do you want to focus on?</h2>' +
-      (top.length ? '<h3 class="subhead">' + icon('star') + 'Today\'s Top 3</h3><ul class="pick-tasks" role="list">' + top.map((t) => item(t, true)).join('') + '</ul>' : '') +
-      (rest.length ? '<h3 class="subhead">Open tasks</h3><ul class="pick-tasks" role="list">' + rest.slice(0, 30).map((t) => item(t)).join('') + '</ul>' : '') +
+      '<h2 class="focus-picker__title">' + esc(tt('fc.what')) + '</h2>' +
+      (top.length ? '<h3 class="subhead">' + icon('star') + esc(tt('fc.todayTop3')) + '</h3><ul class="pick-tasks" role="list">' + top.map((t) => item(t, true)).join('') + '</ul>' : '') +
+      (rest.length ? '<h3 class="subhead">' + esc(tt('fc.openTasks')) + '</h3><ul class="pick-tasks" role="list">' + rest.slice(0, 30).map((t) => item(t)).join('') + '</ul>' : '') +
       '</div>';
   }
 
@@ -185,40 +186,40 @@ T4.focus = (function () {
       return '<section class="focus-card card is-done">' +
         '<div class="focus-done">' + icon('check') + '</div>' +
         '<h2 class="focus-card__title">' + esc(t.title) + '</h2>' +
-        '<p class="muted">Completed. Nice work!</p>' +
-        '<div class="focus-card__actions"><button type="button" class="btn btn--primary" data-action="focus-switch">' + icon('target') + 'Pick next task</button>' +
-        '<button type="button" class="btn" data-action="toggle-task" data-id="' + t.id + '">' + icon('reset') + 'Reopen</button></div></section>';
+        '<p class="muted">' + esc(tt('fc.completedNice')) + '</p>' +
+        '<div class="focus-card__actions"><button type="button" class="btn btn--primary" data-action="focus-switch">' + icon('target') + esc(tt('fc.pickNext')) + '</button>' +
+        '<button type="button" class="btn" data-action="toggle-task" data-id="' + t.id + '">' + icon('reset') + esc(tt('fc.reopen')) + '</button></div></section>';
     }
     const subDone = t.subtasks.filter((s) => s.done).length;
     return '<section class="focus-card card prio-' + (t.priority || 'none') + '">' +
       '<div class="task__meta">' + tasks.priorityBadge(t.priority) + tasks.categoryChip(t.categoryId) + tasks.dueChip(t) +
-        (t.status === 'in_progress' ? '<span class="chip chip--progress">' + icon('progress') + 'In progress</span>' : '') +
+        (t.status === 'in_progress' ? '<span class="chip chip--progress">' + icon('progress') + esc(tt('status.in_progress')) + '</span>' : '') +
         (t.estimate ? '<span class="chip">' + icon('clock') + U.fmtMinutes(t.estimate) + '</span>' : '') + '</div>' +
       '<h2 class="focus-card__title">' + esc(t.title) + '</h2>' +
       (t.description ? '<p class="focus-card__desc">' + U.escMultiline(t.description) + '</p>' : '') +
-      (t.subtasks.length ? '<div class="focus-subs"><h3 class="subhead">Checklist <span class="count">' + subDone + '/' + t.subtasks.length + '</span></h3>' +
-        ui.progressBar(subDone / t.subtasks.length, 'Checklist progress') +
+      (t.subtasks.length ? '<div class="focus-subs"><h3 class="subhead">' + esc(tt('fc.checklist')) + ' <span class="count">' + subDone + '/' + t.subtasks.length + '</span></h3>' +
+        ui.progressBar(subDone / t.subtasks.length, tt('fc.checklistProgress')) +
         '<ul class="subtasks" role="list">' + t.subtasks.map((s) =>
           '<li class="subtask' + (s.done ? ' is-done' : '') + '"><button type="button" class="check check--sm" role="checkbox" aria-checked="' + s.done + '" data-action="focus-subtask" data-id="' + t.id + '" data-sub="' + s.id + '" aria-label="' + esc(s.title) + '">' + icon('check') + '</button>' +
           '<span>' + esc(s.title) + '</span></li>').join('') + '</ul></div>' : '') +
-      (t.notes ? '<details class="focus-notes"><summary>Notes</summary><p>' + U.escMultiline(t.notes) + '</p></details>' : '') +
+      (t.notes ? '<details class="focus-notes"><summary>' + esc(tt('tk.fNotes')) + '</summary><p>' + U.escMultiline(t.notes) + '</p></details>' : '') +
       '<div class="focus-card__actions">' +
-        '<button type="button" class="btn btn--primary btn--lg" data-action="toggle-task" data-id="' + t.id + '">' + icon('check') + 'Mark complete</button>' +
-        (t.status === 'todo' ? '<button type="button" class="btn" data-action="focus-start" data-id="' + t.id + '">' + icon('play') + 'Start</button>' : '') +
-        '<button type="button" class="btn btn--ghost" data-action="edit-task" data-id="' + t.id + '">' + icon('edit') + 'Edit</button>' +
-        '<button type="button" class="btn btn--ghost" data-action="focus-switch">' + icon('repeat') + 'Switch task</button>' +
+        '<button type="button" class="btn btn--primary btn--lg" data-action="toggle-task" data-id="' + t.id + '">' + icon('check') + esc(tt('fc.markComplete')) + '</button>' +
+        (t.status === 'todo' ? '<button type="button" class="btn" data-action="focus-start" data-id="' + t.id + '">' + icon('play') + esc(tt('fc.start')) + '</button>' : '') +
+        '<button type="button" class="btn btn--ghost" data-action="edit-task" data-id="' + t.id + '">' + icon('edit') + esc(tt('c.edit')) + '</button>' +
+        '<button type="button" class="btn btn--ghost" data-action="focus-switch">' + icon('repeat') + esc(tt('fc.switch')) + '</button>' +
       '</div></section>';
   }
 
   T4.views.focus = {
-    title: 'Focus Mode',
+    get title() { return tt('nav.focus'); },
     bodyClass: 'is-focus',
     render() {
       const t = st.taskId ? store.getTask(st.taskId) : null;
       if (st.taskId && !t) { st.taskId = null; persist(); }
       return '<div class="focus-wrap">' +
-        '<header class="focus-top"><span class="focus-top__label">' + icon('target') + 'Focus mode</span>' +
-          '<button type="button" class="btn btn--ghost" data-action="focus-exit">' + icon('x') + 'Exit focus <kbd>Esc</kbd></button></header>' +
+        '<header class="focus-top"><span class="focus-top__label">' + icon('target') + esc(tt('nav.focus')) + '</span>' +
+          '<button type="button" class="btn btn--ghost" data-action="focus-exit">' + icon('x') + esc(tt('fc.exit')) + ' <kbd>Esc</kbd></button></header>' +
         '<div class="focus-layout">' +
           '<div class="focus-main">' + (t ? taskHtml(t) : pickerHtml()) + '</div>' +
           '<aside class="focus-side">' + pomodoroHtml() + '</aside>' +

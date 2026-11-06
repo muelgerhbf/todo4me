@@ -251,8 +251,8 @@ T4.docstore = (function () {
   }
   function parseBundle(text) {
     let j;
-    try { j = typeof text === 'string' ? JSON.parse(text) : text; } catch (e) { throw new Error('The file is not valid JSON.'); }
-    if (!j || j.kind !== 'documents' || !Array.isArray(j.documents)) throw new Error('This file is not a Todo4Me documents export.');
+    try { j = typeof text === 'string' ? JSON.parse(text) : text; } catch (e) { throw new Error(T4.i18n.t('sto.badJson')); }
+    if (!j || j.kind !== 'documents' || !Array.isArray(j.documents)) throw new Error(T4.i18n.t('sto.notDocs'));
     return j;
   }
   /** Import documents. Existing documents are never overwritten: id clashes get a new id. */

@@ -3,6 +3,7 @@ T4.dashboard = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store, tasks = T4.tasks;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   function stat(label, value, iconName, tone, hint) {
     return '<div class="stat stat--' + (tone || 'default') + '">' +
@@ -12,12 +13,10 @@ T4.dashboard = (function () {
   }
 
   function summarySentence(open, overdue, important) {
-    if (!open && !overdue) return 'Your day is clear. A good moment to plan ahead or capture new ideas.';
-    const parts = [];
-    parts.push('You have <strong>' + U.plural(open, 'task') + '</strong> left today');
-    if (important) parts.push('<strong>' + important + '</strong> of them high priority');
-    let s = parts.join(', ') + '.';
-    if (overdue) s += ' <span class="text-danger">' + U.plural(overdue, 'task is', 'tasks are') + ' overdue.</span>';
+    if (!open && !overdue) return tt('db.sumClear');
+    // Dictionary text with <strong>; the only values are numbers.
+    let s = tt(important ? 'db.sumLeftImp' : 'db.sumLeft', { count: open, important });
+    if (overdue) s += ' <span class="text-danger">' + esc(tt('db.sumOverdue', { count: overdue })) + '</span>';
     return s;
   }
 
@@ -32,25 +31,25 @@ T4.dashboard = (function () {
         const done = t.status === 'done';
         slots += '<li class="top3__item prio-' + (t.priority || 'none') + (done ? ' is-done' : '') + '">' +
           '<span class="top3__num">' + (i + 1) + '</span>' +
-          '<button type="button" class="check" role="checkbox" aria-checked="' + done + '" data-action="toggle-task" data-id="' + t.id + '" aria-label="' + (done ? 'Reopen' : 'Complete') + ': ' + esc(t.title) + '">' + icon('check') + '</button>' +
+          '<button type="button" class="check" role="checkbox" aria-checked="' + done + '" data-action="toggle-task" data-id="' + t.id + '" aria-label="' + esc(tt(done ? 'tk.reopenLabel' : 'tk.completeLabel', { title: t.title })) + '">' + icon('check') + '</button>' +
           '<button type="button" class="top3__title" data-action="edit-task" data-id="' + t.id + '">' + esc(t.title) +
             '<span class="task__meta">' + tasks.priorityBadge(t.priority) + tasks.categoryChip(t.categoryId) + (t.dueDate && t.dueDate !== date ? tasks.dueChip(t) : '') + '</span></button>' +
-          (done ? '' : '<button type="button" class="icon-btn icon-btn--sm" data-action="focus-task" data-id="' + t.id + '" aria-label="Focus on this task" title="Focus">' + icon('target') + '</button>') +
-          '<button type="button" class="icon-btn icon-btn--sm" data-action="toggle-top3" data-id="' + t.id + '" data-date="' + date + '" aria-label="Remove from Top 3" title="Remove from Top 3">' + icon('x') + '</button>' +
+          (done ? '' : '<button type="button" class="icon-btn icon-btn--sm" data-action="focus-task" data-id="' + t.id + '" aria-label="' + esc(tt('tk.focusOn')) + '" title="' + esc(tt('db.focus')) + '">' + icon('target') + '</button>') +
+          '<button type="button" class="icon-btn icon-btn--sm" data-action="toggle-top3" data-id="' + t.id + '" data-date="' + date + '" aria-label="' + esc(tt('tk.removeTop3')) + '" title="' + esc(tt('tk.removeTop3')) + '">' + icon('x') + '</button>' +
           '</li>';
       } else {
         slots += '<li class="top3__item top3__item--empty"><span class="top3__num">' + (i + 1) + '</span>' +
-          '<button type="button" class="top3__pick" data-action="pick-top3" data-date="' + date + '">' + icon('plus') + 'Choose an important task</button></li>';
+          '<button type="button" class="top3__pick" data-action="pick-top3" data-date="' + date + '">' + icon('plus') + esc(tt('db.chooseImportant')) + '</button></li>';
       }
     }
     const doneCount = items.filter((t) => t.status === 'done').length;
     return '<section class="card card--top3" aria-labelledby="top3-h-' + date + '">' +
-      '<div class="card__head"><h2 class="card__title" id="top3-h-' + date + '">' + icon('star') + 'Top 3' + (compactHeader ? '' : ' for today') +
+      '<div class="card__head"><h2 class="card__title" id="top3-h-' + date + '">' + icon('star') + esc(tt(compactHeader ? 'db.top3' : 'db.top3Today')) +
         (items.length ? ' <span class="count">' + doneCount + '/' + items.length + '</span>' : '') + '</h2>' +
-        '<button type="button" class="btn btn--sm btn--ghost" data-action="pick-top3" data-date="' + date + '">Choose</button></div>' +
+        '<button type="button" class="btn btn--sm btn--ghost" data-action="pick-top3" data-date="' + date + '">' + esc(tt('db.choose')) + '</button></div>' +
       (!compactHeader ? (plan.goal
-        ? '<a class="goal" href="#/plan">' + icon('target') + '<span><span class="goal__label">Main goal</span>' + esc(plan.goal) + '</span></a>'
-        : '<a class="goal goal--empty" href="#/plan">' + icon('target') + '<span>Set today\'s main goal</span></a>') : '') +
+        ? '<a class="goal" href="#/plan">' + icon('target') + '<span><span class="goal__label">' + esc(tt('db.mainGoal')) + '</span>' + esc(plan.goal) + '</span></a>'
+        : '<a class="goal goal--empty" href="#/plan">' + icon('target') + '<span>' + esc(tt('db.setGoal')) + '</span></a>') : '') +
       '<ol class="top3" role="list">' + slots + '</ol></section>';
   }
 
@@ -65,20 +64,20 @@ T4.dashboard = (function () {
       return '<li><label class="pick' + (on ? ' is-on' : '') + (disabled ? ' is-disabled' : '') + '">' +
         '<input type="checkbox" value="' + t.id + '"' + (on ? ' checked' : '') + (disabled ? ' disabled' : '') + '>' +
         '<span class="pick__title">' + esc(t.title) + '</span>' +
-        '<span class="task__meta">' + tasks.priorityBadge(t.priority) + tasks.dueChip(t) + (t.inbox ? '<span class="chip">' + icon('inbox') + 'Inbox</span>' : '') + '</span>' +
+        '<span class="task__meta">' + tasks.priorityBadge(t.priority) + tasks.dueChip(t) + (t.inbox ? '<span class="chip">' + icon('inbox') + esc(tt('nav.inbox')) + '</span>' : '') + '</span>' +
         '</label></li>';
     }).join('');
     ui.openModal({
-      title: 'Choose your Top 3 — ' + U.relDate(date),
-      body: '<p class="muted small mb">Pick up to three tasks that would make ' + (date === U.today() ? 'today' : 'this day') + ' a success. <span id="pick-count"></span></p>' +
+      title: tt('db.pickTitle', { date: U.relDate(date) }),
+      body: '<p class="muted small mb">' + esc(tt(date === U.today() ? 'db.pickTextToday' : 'db.pickTextDay')) + ' <span id="pick-count"></span></p>' +
         (candidates.length ? '<ul class="pick-list" id="pick-list" role="list">' + render() + '</ul>'
-          : ui.emptyState('list', 'No open tasks', 'Create a task first, then come back to choose your Top 3.', '<button type="button" class="btn btn--primary" data-action="new-task" data-date="' + date + '">' + icon('plus') + 'New task</button>')),
-      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">Cancel</button>' +
-        '<button type="button" class="btn btn--primary" id="pick-save"' + (candidates.length ? '' : ' disabled') + '>Save Top 3</button>',
+          : ui.emptyState('list', tt('db.noOpenTasks'), tt('db.noOpenTasksText'), '<button type="button" class="btn btn--primary" data-action="new-task" data-date="' + date + '">' + icon('plus') + esc(tt('tk.newTask')) + '</button>')),
+      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(tt('c.cancel')) + '</button>' +
+        '<button type="button" class="btn btn--primary" id="pick-save"' + (candidates.length ? '' : ' disabled') + '>' + esc(tt('db.saveTop3')) + '</button>',
       onMount(m) {
         const listEl = m.querySelector('#pick-list');
         const countEl = m.querySelector('#pick-count');
-        const upd = () => { countEl.textContent = selected.length + '/3 selected.'; };
+        const upd = () => { countEl.textContent = tt('db.selected', { n: selected.length }); };
         upd();
         if (listEl) listEl.addEventListener('change', (e) => {
           const id = e.target.value;
@@ -91,7 +90,7 @@ T4.dashboard = (function () {
         m.querySelector('#pick-save').addEventListener('click', () => {
           store.updatePlan(date, { top3: selected });
           ui.closeModal(true);
-          ui.toast('Top 3 saved');
+          ui.toast(tt('db.top3Saved'));
         });
       },
     });
@@ -100,7 +99,7 @@ T4.dashboard = (function () {
 
   /* ---------- Dashboard view ---------- */
   T4.views.dashboard = {
-    title: 'Dashboard',
+    get title() { return tt('nav.dashboard'); },
     render() {
       const today = U.today();
       const s = store.settings;
@@ -129,7 +128,7 @@ T4.dashboard = (function () {
         const dn = dt.filter((t) => t.status === 'done').length;
         const cls = d === today ? ' is-today' : d < today ? ' is-past' : '';
         const p = dt.length ? dn / dt.length : 0;
-        return '<a class="strip__day' + cls + '" href="#/planner" title="' + esc(U.fmt(d, { weekday: 'long', month: 'short', day: 'numeric' })) + ': ' + dn + '/' + dt.length + ' done">' +
+        return '<a class="strip__day' + cls + '" href="#/planner" title="' + esc(tt('db.stripTip', { date: U.fmt(d, { weekday: 'long', month: 'short', day: 'numeric' }), done: dn, total: dt.length })) + '">' +
           '<span class="strip__wd">' + esc(U.fmt(d, { weekday: 'narrow' })) + '</span>' +
           '<span class="strip__num">' + Number(d.slice(8)) + '</span>' +
           '<span class="strip__bar"><span style="height:' + (p * 100).toFixed(0) + '%"></span></span>' +
@@ -145,50 +144,50 @@ T4.dashboard = (function () {
             '<h1 class="hero__title">' + U.greeting() + name + '</h1>' +
             '<p class="hero__sub">' + summarySentence(openToday.length, overdue.length, importantToday) + '</p>' +
           '</div>' +
-          '<div class="hero__ring">' + ui.progressRing(pct, 96, 'Today ' + Math.round(pct * 100) + '% complete') + '<span class="hero__ring-cap">today</span></div>' +
+          '<div class="hero__ring">' + ui.progressRing(pct, 96, tt('db.todayRing', { pct: Math.round(pct * 100) })) + '<span class="hero__ring-cap">' + esc(tt('db.todayCap')) + '</span></div>' +
         '</section>' +
 
-        '<section class="card card--capture">' + tasks.quickAddForm({ inbox: true }, 'Quick capture to Inbox… (press Enter)', 'qa-dash') + '</section>' +
+        '<section class="card card--capture">' + tasks.quickAddForm({ inbox: true }, tt('db.quickPh'), 'qa-dash') + '</section>' +
 
-        '<section class="stats" aria-label="Today at a glance">' +
-          stat('Tasks today', todays.length, 'calendar', 'default') +
-          stat('Completed', doneToday.length, 'check', 'good') +
-          stat('Remaining', openToday.length, 'clock', 'accent') +
-          stat('Overdue', overdue.length, 'alert', overdue.length ? 'danger' : 'default') +
+        '<section class="stats" aria-label="' + esc(tt('db.glance')) + '">' +
+          stat(tt('db.statTasks'), todays.length, 'calendar', 'default') +
+          stat(tt('db.statDone'), doneToday.length, 'check', 'good') +
+          stat(tt('db.statRemaining'), openToday.length, 'clock', 'accent') +
+          stat(tt('db.statOverdue'), overdue.length, 'alert', overdue.length ? 'danger' : 'default') +
         '</section>' +
 
         '<div class="dash-grid">' +
           '<div class="dash-col">' +
             top3Card(today) +
             '<section class="card" aria-labelledby="dash-today-h">' +
-              '<div class="card__head"><h2 class="card__title" id="dash-today-h">' + icon('sun') + 'Today\'s tasks <span class="count">' + todayList.length + '</span></h2>' +
-                '<a class="btn btn--sm btn--ghost" href="#/today">View all ' + icon('arrow-right') + '</a></div>' +
-              tasks.list(todayList, {}, ui.emptyState('sun', todays.length ? 'All done for today!' : 'Nothing scheduled today',
-                todays.length ? 'You completed everything planned for today.' : 'Add a task for today or plan your week.',
-                '<button type="button" class="btn btn--sm" data-action="new-task" data-date="' + today + '">' + icon('plus') + 'Add task for today</button>')) +
-              (doneToday.length ? '<p class="card__foot muted small">' + icon('check') + U.plural(doneToday.length, 'task') + ' completed today</p>' : '') +
+              '<div class="card__head"><h2 class="card__title" id="dash-today-h">' + icon('sun') + esc(tt('db.todaysTasks')) + ' <span class="count">' + todayList.length + '</span></h2>' +
+                '<a class="btn btn--sm btn--ghost" href="#/today">' + esc(tt('db.viewAll')) + ' ' + icon('arrow-right') + '</a></div>' +
+              tasks.list(todayList, {}, ui.emptyState('sun', tt(todays.length ? 'tk.allDoneToday' : 'db.nothingToday'),
+                tt(todays.length ? 'db.allDoneText' : 'db.nothingTodayText'),
+                '<button type="button" class="btn btn--sm" data-action="new-task" data-date="' + today + '">' + icon('plus') + esc(tt('db.addForToday')) + '</button>')) +
+              (doneToday.length ? '<p class="card__foot muted small">' + icon('check') + esc(tt('db.completedToday', { count: doneToday.length })) + '</p>' : '') +
             '</section>' +
             (T4.calfeeds ? T4.calfeeds.todayCard() : '') + // only when calendars are subscribed
           '</div>' +
           '<div class="dash-col">' +
             '<section class="card" aria-labelledby="dash-imp-h">' +
-              '<div class="card__head"><h2 class="card__title" id="dash-imp-h">' + icon('zap') + 'Important</h2></div>' +
-              tasks.list(important, { compact: false }, '<p class="muted small">No critical or high-priority deadlines in the next 7 days.</p>') +
+              '<div class="card__head"><h2 class="card__title" id="dash-imp-h">' + icon('zap') + esc(tt('db.important')) + '</h2></div>' +
+              tasks.list(important, { compact: false }, '<p class="muted small">' + esc(tt('db.noImportant')) + '</p>') +
             '</section>' +
             '<section class="card" aria-labelledby="dash-week-h">' +
-              '<div class="card__head"><h2 class="card__title" id="dash-week-h">' + icon('week') + 'This week</h2>' +
-                '<a class="btn btn--sm btn--ghost" href="#/planner">Planner ' + icon('arrow-right') + '</a></div>' +
-              '<div class="week-progress"><span>' + weekDone + ' of ' + weekTasks.length + ' tasks done</span>' + ui.progressBar(weekTasks.length ? weekDone / weekTasks.length : 0, 'Week progress') + '</div>' +
+              '<div class="card__head"><h2 class="card__title" id="dash-week-h">' + icon('week') + esc(tt('db.thisWeek')) + '</h2>' +
+                '<a class="btn btn--sm btn--ghost" href="#/planner">' + esc(tt('nav.short.planner')) + ' ' + icon('arrow-right') + '</a></div>' +
+              '<div class="week-progress"><span>' + esc(tt('db.weekDone', { done: weekDone, total: weekTasks.length })) + '</span>' + ui.progressBar(weekTasks.length ? weekDone / weekTasks.length : 0, tt('db.weekProgress')) + '</div>' +
               '<div class="strip">' + strip + '</div>' +
-              '<h3 class="subhead">Coming up</h3>' +
+              '<h3 class="subhead">' + esc(tt('db.comingUp')) + '</h3>' +
               (upcoming.length ? '<ul class="mini-list" role="list">' + upcoming.map((t) =>
                 '<li><button type="button" class="mini-item prio-' + (t.priority || 'none') + '" data-action="edit-task" data-id="' + t.id + '"><span class="prio-dot"></span><span class="mini-item__title">' + esc(t.title) + '</span><span class="muted small">' + esc(U.relDate(t.dueDate)) + '</span></button></li>').join('') + '</ul>'
-                : '<p class="muted small">No upcoming tasks.</p>') +
-              '<h3 class="subhead">Weekly notes <a class="link small" href="#/notes">All notes</a></h3>' +
+                : '<p class="muted small">' + esc(tt('db.noUpcoming')) + '</p>') +
+              '<h3 class="subhead">' + esc(tt('db.weeklyNotes')) + ' <a class="link small" href="#/notes">' + esc(tt('db.allNotes')) + '</a></h3>' +
               (weekNotes.length ? '<ul class="mini-notes" role="list">' + weekNotes.map((n) =>
                 '<li><button type="button" class="mini-note" data-action="edit-note" data-id="' + n.id + '">' + (n.pinned ? icon('pin', 'text-accent') : '') +
-                '<span><strong>' + esc(n.title || 'Untitled') + '</strong><span class="muted small clamp-2">' + esc(n.body) + '</span></span></button></li>').join('') + '</ul>'
-                : '<p class="muted small">No notes this week. <button type="button" class="link" data-action="new-note">Add a note</button></p>') +
+                '<span><strong>' + esc(n.title || tt('db.untitled')) + '</strong><span class="muted small clamp-2">' + esc(n.body) + '</span></span></button></li>').join('') + '</ul>'
+                : '<p class="muted small">' + esc(tt('db.noNotesWeek')) + ' <button type="button" class="link" data-action="new-note">' + esc(tt('db.addNote')) + '</button></p>') +
             '</section>' +
           '</div>' +
         '</div>';

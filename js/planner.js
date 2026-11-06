@@ -3,6 +3,7 @@ T4.planner = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store, tasks = T4.tasks;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   let weekStart = null; // null → current week
   let planDate = null;  // null → today
@@ -17,22 +18,22 @@ T4.planner = (function () {
     const hasDeadline = list.some((t) => store.isOpen(t) && (t.priority === 'critical' || t.priority === 'high'));
     const cls = (d === today ? ' is-today' : '') + (d < today ? ' is-past' : '');
     return '<section class="day' + cls + '" data-drop-date="' + d + '" aria-label="' + esc(U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' })) + '">' +
-      '<button type="button" class="day__head" data-action="open-day" data-date="' + d + '" title="Open day">' +
+      '<button type="button" class="day__head" data-action="open-day" data-date="' + d + '" title="' + esc(tt('pl.openDay')) + '">' +
         '<span class="day__wd">' + esc(U.fmt(d, { weekday: 'short' })) + '</span>' +
         '<span class="day__num">' + Number(d.slice(8)) + '</span>' +
-        (hasDeadline ? '<span class="day__flag" title="Important deadline">' + icon('flag') + '</span>' : '') +
+        (hasDeadline ? '<span class="day__flag" title="' + esc(tt('pl.deadline')) + '">' + icon('flag') + '</span>' : '') +
         '<span class="day__count">' + (list.length ? done + '/' + list.length : '') + '</span>' +
       '</button>' +
       (list.length ? '<ul class="task-list task-list--compact" role="list">' + list.map((t) => tasks.row(t, { hideDate: true, compact: true, draggable: true, hideCategory: true, actions: false })).join('') + '</ul>'
-        : '<p class="day__empty">No tasks</p>') +
+        : '<p class="day__empty">' + esc(tt('pl.noTasks')) + '</p>') +
       '<form class="day__add" data-form="quick-add" data-defaults="' + esc(JSON.stringify({ dueDate: d, priority: 'medium' })) + '" id="qa-day-' + d + '">' +
-        '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="+ Add task" aria-label="Add task on ' + esc(U.fmt(d, { weekday: 'long' })) + '">' +
+        '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(tt('pl.addTask')) + '" aria-label="' + esc(tt('pl.addTaskOn', { day: U.fmt(d, { weekday: 'long' }) })) + '">' +
       '</form>' +
       '</section>';
   }
 
   T4.views.planner = {
-    title: 'Weekly Planner',
+    get title() { return tt('nav.planner'); },
     render(params) {
       // "Calendar" view (hour grid, js/calendar.js); "Days" below is the original planner.
       if (T4.calendar && T4.calendar.active(params)) return T4.calendar.render(params);
@@ -45,27 +46,27 @@ T4.planner = (function () {
       const urgent = weekTasks.filter((t) => store.isOpen(t) && (t.priority === 'critical' || t.priority === 'high')).length;
       const notes = T4.notes.notesForWeek(ws);
 
-      return '<header class="page-head"><div><h1 class="page-title">Weekly Planner</h1>' +
-          '<p class="page-sub">' + esc(U.weekRangeLabel(ws)) + (isCurrent ? ' · <span class="text-accent">This week</span>' : '') + '</p></div>' +
+      return '<header class="page-head"><div><h1 class="page-title">' + esc(tt('nav.planner')) + '</h1>' +
+          '<p class="page-sub">' + esc(U.weekRangeLabel(ws)) + (isCurrent ? ' · <span class="text-accent">' + esc(tt('pl.thisWeek')) + '</span>' : '') + '</p></div>' +
           '<div class="page-actions">' + (T4.calendar ? T4.calendar.modeToggle('days') : '') +
-            '<div class="btn-group" role="group" aria-label="Week navigation">' +
-              '<button type="button" class="btn" data-action="week-nav" data-dir="-1" aria-label="Previous week">' + icon('chevron-left') + '</button>' +
-              '<button type="button" class="btn" data-action="week-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>This week</button>' +
-              '<button type="button" class="btn" data-action="week-nav" data-dir="1" aria-label="Next week">' + icon('chevron-right') + '</button>' +
+            '<div class="btn-group" role="group" aria-label="' + esc(tt('pl.weekNav')) + '">' +
+              '<button type="button" class="btn" data-action="week-nav" data-dir="-1" aria-label="' + esc(tt('pl.prevWeek')) + '">' + icon('chevron-left') + '</button>' +
+              '<button type="button" class="btn" data-action="week-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>' + esc(tt('pl.thisWeek')) + '</button>' +
+              '<button type="button" class="btn" data-action="week-nav" data-dir="1" aria-label="' + esc(tt('pl.nextWeek')) + '">' + icon('chevron-right') + '</button>' +
             '</div></div></header>' +
         '<section class="week-summary">' +
-          '<div class="week-summary__item"><strong>' + weekTasks.length + '</strong> scheduled</div>' +
-          '<div class="week-summary__item"><strong>' + done + '</strong> completed</div>' +
-          '<div class="week-summary__item"><strong>' + (weekTasks.length - done) + '</strong> open</div>' +
-          '<div class="week-summary__item' + (urgent ? ' text-danger' : '') + '"><strong>' + urgent + '</strong> high priority</div>' +
-          '<div class="week-summary__bar">' + ui.progressBar(weekTasks.length ? done / weekTasks.length : 0, 'Week progress') + '</div>' +
+          '<div class="week-summary__item"><strong>' + weekTasks.length + '</strong> ' + esc(tt('pl.scheduled')) + '</div>' +
+          '<div class="week-summary__item"><strong>' + done + '</strong> ' + esc(tt('pl.completed')) + '</div>' +
+          '<div class="week-summary__item"><strong>' + (weekTasks.length - done) + '</strong> ' + esc(tt('pl.open')) + '</div>' +
+          '<div class="week-summary__item' + (urgent ? ' text-danger' : '') + '"><strong>' + urgent + '</strong> ' + esc(tt('pl.highPriority')) + '</div>' +
+          '<div class="week-summary__bar">' + ui.progressBar(weekTasks.length ? done / weekTasks.length : 0, tt('db.weekProgress')) + '</div>' +
         '</section>' +
-        '<p class="muted small hint-dnd">Tip: drag tasks between days to reschedule. Click a day for details.</p>' +
+        '<p class="muted small hint-dnd">' + esc(tt('pl.tip')) + '</p>' +
         '<div class="week-grid">' + days.map(dayColumn).join('') + '</div>' +
-        '<section class="section mt-lg"><div class="section__head"><h2 class="section__title">' + icon('note') + 'Notes for this week <span class="count">' + notes.length + '</span></h2>' +
-          '<button type="button" class="btn btn--sm" data-action="new-note" data-week="' + ws + '">' + icon('plus') + 'Add note</button></div>' +
+        '<section class="section mt-lg"><div class="section__head"><h2 class="section__title">' + icon('note') + esc(tt('pl.notesWeek')) + ' <span class="count">' + notes.length + '</span></h2>' +
+          '<button type="button" class="btn btn--sm" data-action="new-note" data-week="' + ws + '">' + icon('plus') + esc(tt('pl.addNote')) + '</button></div>' +
           (notes.length ? '<div class="notes-grid">' + notes.map(T4.notes.card).join('') + '</div>'
-            : '<p class="muted small">No notes for this week yet.</p>') +
+            : '<p class="muted small">' + esc(tt('pl.noNotes')) + '</p>') +
         '</section>';
     },
     mount(root) { if (T4.calendar && T4.calendar.isActive()) T4.calendar.mount(root); },
@@ -83,22 +84,22 @@ T4.planner = (function () {
   function dayBody(d) {
     const list = store.sortTasks(store.tasksOn(d));
     const done = list.filter((t) => t.status === 'done').length;
-    return '<div class="day-modal__summary">' + U.plural(list.length, 'task') + ' · ' + done + ' completed' +
-        (list.length ? ui.progressBar(done / list.length, 'Day progress') : '') + '</div>' +
-      tasks.list(list, { hideDate: true, top3Date: d }, ui.emptyState('calendar', 'Nothing scheduled', 'Add a task for this day below.')) +
+    return '<div class="day-modal__summary">' + esc(tt('pl.daySummary', { count: list.length, done })) +
+        (list.length ? ui.progressBar(done / list.length, tt('pl.dayProgress')) : '') + '</div>' +
+      tasks.list(list, { hideDate: true, top3Date: d }, ui.emptyState('calendar', tt('pl.nothingScheduled'), tt('pl.addForDay'))) +
       '<form class="quick-add mt" data-form="quick-add" data-defaults="' + esc(JSON.stringify({ dueDate: d, priority: 'medium' })) + '" id="qa-daymodal">' +
-        icon('plus', 'quick-add__icon') + '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="Add a task for this day…" aria-label="New task title">' +
-        '<button type="submit" class="btn btn--primary btn--sm">Add</button></form>';
+        icon('plus', 'quick-add__icon') + '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(tt('pl.addForDayPh')) + '" aria-label="' + esc(tt('tk.newTaskTitle')) + '">' +
+        '<button type="submit" class="btn btn--primary btn--sm">' + esc(tt('c.add')) + '</button></form>';
   }
 
   function openDay(d) {
     ui.openModal({
-      title: U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) + (d === U.today() ? ' · Today' : ''),
+      title: U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) + (d === U.today() ? ' · ' + tt('tk.today') : ''),
       size: 'lg',
       body: dayBody(d),
       refresh: () => dayBody(d),
-      footer: '<a class="btn btn--ghost mr-auto" href="#/plan?date=' + d + '" data-action="modal-close">' + icon('book') + 'Open daily plan</a>' +
-        '<button type="button" class="btn btn--primary" data-action="modal-close">Done</button>',
+      footer: '<a class="btn btn--ghost mr-auto" href="#/plan?date=' + d + '" data-action="modal-close">' + icon('book') + esc(tt('pl.openPlan')) + '</a>' +
+        '<button type="button" class="btn btn--primary" data-action="modal-close">' + esc(tt('pl.done')) + '</button>',
     });
   }
   ui.on('open-day', (el) => openDay(el.dataset.date));
@@ -137,7 +138,7 @@ T4.planner = (function () {
     const date = day.dataset.dropDate;
     if (t && t.dueDate !== date) {
       store.updateTask(id, { dueDate: date, inbox: false });
-      ui.toast('Moved to ' + U.relDate(date));
+      ui.toast(tt('pl.movedTo', { date: U.relDate(date) }));
     }
   });
 
@@ -146,14 +147,14 @@ T4.planner = (function () {
   function savePlanField(date, key, value) {
     store.updatePlan(date, { [key]: value }, { silent: true });
     const ind = document.getElementById('plan-saved');
-    if (ind) { ind.textContent = 'Saved'; ind.classList.add('is-on'); }
+    if (ind) { ind.textContent = tt('pl.saved'); ind.classList.add('is-on'); }
   }
   function queueSave(date, key, value) {
     const id = date + '|' + key;
     clearTimeout(pending[id] && pending[id].t);
     pending[id] = { date, key, value, t: setTimeout(() => { delete pending[id]; savePlanField(date, key, value); }, 500) };
     const ind = document.getElementById('plan-saved');
-    if (ind) { ind.textContent = 'Saving…'; ind.classList.remove('is-on'); }
+    if (ind) { ind.textContent = tt('pl.saving'); ind.classList.remove('is-on'); }
   }
   function flushPlanSaves() {
     Object.keys(pending).forEach((id) => {
@@ -182,7 +183,7 @@ T4.planner = (function () {
   });
 
   T4.views.plan = {
-    title: 'Daily Plan',
+    get title() { return tt('nav.plan'); },
     render(params) {
       planDate = params && U.isDateStr(params.date) && params.date !== U.today() ? params.date : null;
       const d = planDate || U.today();
@@ -191,33 +192,33 @@ T4.planner = (function () {
       const done = dayTasks.filter((t) => t.status === 'done').length;
       const isToday = d === U.today();
       const isPast = d < U.today();
-      return '<header class="page-head"><div><h1 class="page-title">Daily Plan</h1>' +
+      return '<header class="page-head"><div><h1 class="page-title">' + esc(tt('nav.plan')) + '</h1>' +
           '<p class="page-sub">' + esc(U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })) +
-            (isToday ? ' · <span class="text-accent">Today</span>' : '') + '</p></div>' +
-          '<div class="page-actions"><span class="saved-pill" id="plan-saved" aria-live="polite">' + (plan.updatedAt ? 'Saved' : '') + '</span>' +
-            '<div class="btn-group" role="group" aria-label="Day navigation">' +
-              '<button type="button" class="btn" data-action="plan-nav" data-dir="-1" aria-label="Previous day">' + icon('chevron-left') + '</button>' +
-              '<button type="button" class="btn" data-action="plan-nav" data-dir="0"' + (isToday ? ' disabled' : '') + '>Today</button>' +
-              '<button type="button" class="btn" data-action="plan-nav" data-dir="1" aria-label="Next day">' + icon('chevron-right') + '</button>' +
+            (isToday ? ' · <span class="text-accent">' + esc(tt('tk.today')) + '</span>' : '') + '</p></div>' +
+          '<div class="page-actions"><span class="saved-pill" id="plan-saved" aria-live="polite">' + (plan.updatedAt ? esc(tt('pl.saved')) : '') + '</span>' +
+            '<div class="btn-group" role="group" aria-label="' + esc(tt('pl.dayNav')) + '">' +
+              '<button type="button" class="btn" data-action="plan-nav" data-dir="-1" aria-label="' + esc(tt('pl.prevDay')) + '">' + icon('chevron-left') + '</button>' +
+              '<button type="button" class="btn" data-action="plan-nav" data-dir="0"' + (isToday ? ' disabled' : '') + '>' + esc(tt('tk.today')) + '</button>' +
+              '<button type="button" class="btn" data-action="plan-nav" data-dir="1" aria-label="' + esc(tt('pl.nextDay')) + '">' + icon('chevron-right') + '</button>' +
             '</div></div></header>' +
         '<div class="plan-grid">' +
           '<div class="dash-col">' +
-            '<section class="card"><label class="card__title" for="plan-goal">' + icon('target') + 'Main goal</label>' +
-              '<input id="plan-goal" class="goal-input" type="text" maxlength="500" data-input="plan-field" data-change="plan-field" data-key="goal" data-date="' + d + '" value="' + esc(plan.goal) + '" placeholder="If I achieve one thing ' + (isToday ? 'today' : 'this day') + ', it should be…"></section>' +
+            '<section class="card"><label class="card__title" for="plan-goal">' + icon('target') + esc(tt('db.mainGoal')) + '</label>' +
+              '<input id="plan-goal" class="goal-input" type="text" maxlength="500" data-input="plan-field" data-change="plan-field" data-key="goal" data-date="' + d + '" value="' + esc(plan.goal) + '" placeholder="' + esc(tt(isToday ? 'pl.goalPhToday' : 'pl.goalPhDay')) + '"></section>' +
             T4.dashboard.top3Card(d, true) +
-            '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('list') + 'Tasks <span class="count">' + done + '/' + dayTasks.length + '</span></h2>' +
-              '<button type="button" class="btn btn--sm btn--ghost" data-action="new-task" data-date="' + d + '">' + icon('plus') + 'New</button></div>' +
-              tasks.list(dayTasks, { hideDate: true, top3Date: d }, '<p class="muted small">No tasks scheduled for this day.</p>') +
+            '<section class="card"><div class="card__head"><h2 class="card__title">' + icon('list') + esc(tt('pl.tasks')) + ' <span class="count">' + done + '/' + dayTasks.length + '</span></h2>' +
+              '<button type="button" class="btn btn--sm btn--ghost" data-action="new-task" data-date="' + d + '">' + icon('plus') + esc(tt('pl.new')) + '</button></div>' +
+              tasks.list(dayTasks, { hideDate: true, top3Date: d }, '<p class="muted small">' + esc(tt('pl.noTasksDay')) + '</p>') +
               '<form class="quick-add quick-add--flat mt-sm" data-form="quick-add" data-defaults="' + esc(JSON.stringify({ dueDate: d, priority: 'medium' })) + '" id="qa-plan">' +
-                icon('plus', 'quick-add__icon') + '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="Add a task to this day…" aria-label="New task title"></form>' +
+                icon('plus', 'quick-add__icon') + '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(tt('pl.addToDayPh')) + '" aria-label="' + esc(tt('tk.newTaskTitle')) + '"></form>' +
             '</section>' +
           '</div>' +
           '<div class="dash-col">' +
-            '<section class="card"><label class="card__title" for="plan-notes">' + icon('note') + 'Daily notes</label>' +
-              '<textarea id="plan-notes" class="plan-text" rows="7" data-input="plan-field" data-change="plan-field" data-key="notes" data-date="' + d + '" placeholder="Meetings, thoughts, things to remember today…">' + esc(plan.notes) + '</textarea></section>' +
-            '<section class="card"><label class="card__title" for="plan-reflection">' + icon('sparkle') + 'Reflection</label>' +
-              '<p class="muted small">' + (isPast || isToday ? 'What went well? What could be better? What did you learn?' : 'Come back at the end of the day to reflect.') + '</p>' +
-              '<textarea id="plan-reflection" class="plan-text" rows="6" data-input="plan-field" data-change="plan-field" data-key="reflection" data-date="' + d + '" placeholder="End-of-day reflection…">' + esc(plan.reflection) + '</textarea></section>' +
+            '<section class="card"><label class="card__title" for="plan-notes">' + icon('note') + esc(tt('pl.dailyNotes')) + '</label>' +
+              '<textarea id="plan-notes" class="plan-text" rows="7" data-input="plan-field" data-change="plan-field" data-key="notes" data-date="' + d + '" placeholder="' + esc(tt('pl.dailyNotesPh')) + '">' + esc(plan.notes) + '</textarea></section>' +
+            '<section class="card"><label class="card__title" for="plan-reflection">' + icon('sparkle') + esc(tt('pl.reflection')) + '</label>' +
+              '<p class="muted small">' + esc(tt(isPast || isToday ? 'pl.reflectNow' : 'pl.reflectLater')) + '</p>' +
+              '<textarea id="plan-reflection" class="plan-text" rows="6" data-input="plan-field" data-change="plan-field" data-key="reflection" data-date="' + d + '" placeholder="' + esc(tt('pl.reflectPh')) + '">' + esc(plan.reflection) + '</textarea></section>' +
           '</div>' +
         '</div>';
     },

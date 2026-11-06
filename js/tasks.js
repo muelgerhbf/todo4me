@@ -6,15 +6,14 @@ T4.tasks = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
-  const PRIORITY = {
-    critical: { label: 'Critical', hint: 'Requires immediate attention' },
-    high: { label: 'High', hint: 'Very important' },
-    medium: { label: 'Medium', hint: 'Normal importance' },
-    low: { label: 'Low', hint: 'Can wait' },
-  };
-  const STATUS = { todo: 'To do', in_progress: 'In progress', done: 'Completed' };
-  const SORT_LABELS = { priority: 'Priority', due: 'Due date', created: 'Newest first', alpha: 'Alphabetical', status: 'Status' };
+  // Labels are getters: they follow the active language at the time they are read.
+  const lab = (o) => { Object.keys(o).forEach((k) => { const key = o[k]; Object.defineProperty(o, k, { get: () => (typeof key === 'string' ? tt(key) : key), enumerable: true }); }); return o; };
+  const PRIORITY = {};
+  ['critical', 'high', 'medium', 'low'].forEach((p) => { PRIORITY[p] = lab({ label: 'prio.' + p, hint: 'prio.hint.' + p }); });
+  const STATUS = lab({ todo: 'status.todo', in_progress: 'status.in_progress', done: 'status.done' });
+  const SORT_LABELS = lab({ priority: 'sort.priority', due: 'sort.due', created: 'sort.created', alpha: 'sort.alpha', status: 'sort.status' });
 
   /* ======================= Components ======================= */
   function priorityBadge(p) {
@@ -48,29 +47,29 @@ T4.tasks = (function () {
     const inTop3 = store.getPlan(top3Date).top3.includes(t.id);
     const subDone = t.subtasks.filter((s) => s.done).length;
     const meta = [];
-    if (t.status === 'in_progress') meta.push('<span class="chip chip--progress">' + icon('progress') + 'In progress</span>');
+    if (t.status === 'in_progress') meta.push('<span class="chip chip--progress">' + icon('progress') + esc(STATUS.in_progress) + '</span>');
     if (!opts.hideDate) meta.push(dueChip(t));
     if (!opts.compact) meta.push(priorityBadge(t.priority));
     if (!opts.hideCategory) meta.push(categoryChip(t.categoryId));
     if (t.subtasks.length) meta.push('<span class="chip">' + icon('list') + subDone + '/' + t.subtasks.length + '</span>');
     if (t.estimate && !opts.compact) meta.push('<span class="chip">' + icon('clock') + U.fmtMinutes(t.estimate) + '</span>');
-    if (t.recurrence) meta.push('<span class="chip" title="Repeats: ' + esc(T4.recur.describe(t.recurrence)) + '">' + icon('repeat') + (opts.compact ? '' : esc(T4.recur.describe(t.recurrence, { short: true }))) + '</span>');
-    if (t.reminder != null && t.dueDate && !done && T4.reminders) meta.push('<span class="chip chip--reminder" title="Reminder: ' + esc(T4.reminders.label(t.reminder).toLowerCase()) + '">' + icon('bell') + '<span class="sr-only">Reminder</span></span>');
+    if (t.recurrence) meta.push('<span class="chip" title="' + esc(tt('tk.repeats', { rule: T4.recur.describe(t.recurrence) })) + '">' + icon('repeat') + (opts.compact ? '' : esc(T4.recur.describe(t.recurrence, { short: true }))) + '</span>');
+    if (t.reminder != null && t.dueDate && !done && T4.reminders) meta.push('<span class="chip chip--reminder" title="' + esc(tt('tk.reminderTip', { label: T4.reminders.label(t.reminder) })) + '">' + icon('bell') + '<span class="sr-only">' + esc(tt('tk.reminder')) + '</span></span>');
     if (!opts.compact) t.tags.forEach((g) => meta.push('<span class="chip chip--tag">#' + esc(g) + '</span>'));
     const metaHtml = meta.filter(Boolean).join('');
 
     return '<li class="task prio-' + (t.priority || 'none') + (done ? ' is-done' : '') + (store.isOverdue(t) ? ' is-overdue' : '') + (opts.compact ? ' task--compact' : '') + '" data-id="' + t.id + '"' +
       (opts.draggable ? ' draggable="true"' : '') + '>' +
-      '<button type="button" class="check" role="checkbox" aria-checked="' + done + '" data-action="toggle-task" data-id="' + t.id + '" aria-label="' + (done ? 'Reopen' : 'Complete') + ': ' + esc(t.title) + '">' + icon('check') + '</button>' +
-      '<button type="button" class="task__body" data-action="edit-task" data-id="' + t.id + '" aria-label="Edit: ' + esc(t.title) + '">' +
+      '<button type="button" class="check" role="checkbox" aria-checked="' + done + '" data-action="toggle-task" data-id="' + t.id + '" aria-label="' + esc(tt(done ? 'tk.reopenLabel' : 'tk.completeLabel', { title: t.title })) + '">' + icon('check') + '</button>' +
+      '<button type="button" class="task__body" data-action="edit-task" data-id="' + t.id + '" aria-label="' + esc(tt('tk.editLabel', { title: t.title })) + '">' +
         '<span class="task__title">' + esc(t.title) + '</span>' +
         (metaHtml ? '<span class="task__meta">' + metaHtml + '</span>' : '') +
       '</button>' +
       (opts.actions === false ? '' :
       '<span class="task__actions">' +
-        (done ? '' : '<button type="button" class="icon-btn icon-btn--sm' + (inTop3 ? ' is-on' : '') + '" data-action="toggle-top3" data-id="' + t.id + '" data-date="' + top3Date + '" aria-pressed="' + inTop3 + '" title="' + (inTop3 ? 'Remove from' : 'Add to') + ' Top 3" aria-label="' + (inTop3 ? 'Remove from' : 'Add to') + ' Top 3">' + icon('star') + '</button>') +
-        (done ? '' : '<button type="button" class="icon-btn icon-btn--sm" data-action="focus-task" data-id="' + t.id + '" title="Focus on this task" aria-label="Focus on this task">' + icon('target') + '</button>') +
-        '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-task" data-id="' + t.id + '" title="Delete" aria-label="Delete task">' + icon('trash') + '</button>' +
+        (done ? '' : '<button type="button" class="icon-btn icon-btn--sm' + (inTop3 ? ' is-on' : '') + '" data-action="toggle-top3" data-id="' + t.id + '" data-date="' + top3Date + '" aria-pressed="' + inTop3 + '" title="' + esc(tt(inTop3 ? 'tk.removeTop3' : 'tk.addTop3')) + '" aria-label="' + esc(tt(inTop3 ? 'tk.removeTop3' : 'tk.addTop3')) + '">' + icon('star') + '</button>') +
+        (done ? '' : '<button type="button" class="icon-btn icon-btn--sm" data-action="focus-task" data-id="' + t.id + '" title="' + esc(tt('tk.focusOn')) + '" aria-label="' + esc(tt('tk.focusOn')) + '">' + icon('target') + '</button>') +
+        '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-task" data-id="' + t.id + '" title="' + esc(tt('c.delete')) + '" aria-label="' + esc(tt('tk.deleteTask')) + '">' + icon('trash') + '</button>' +
       '</span>') +
       '</li>';
   }
@@ -84,9 +83,9 @@ T4.tasks = (function () {
   function quickAddForm(defaults, placeholder, id) {
     return '<form class="quick-add" data-form="quick-add" data-defaults="' + esc(JSON.stringify(defaults || {})) + '"' + (id ? ' id="' + id + '"' : '') + '>' +
       icon('plus', 'quick-add__icon') +
-      '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(placeholder || 'Add a task…') + '" aria-label="New task title">' +
-      '<span class="quick-add__hint" aria-hidden="true">!1–!4 · #category · @tomorrow</span>' +
-      '<button type="submit" class="btn btn--primary btn--sm">Add</button>' +
+      '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(placeholder || tt('tk.addPlaceholder')) + '" aria-label="' + esc(tt('tk.newTaskTitle')) + '">' +
+      '<span class="quick-add__hint" aria-hidden="true">' + esc(tt('tk.quickHint')) + '</span>' +
+      '<button type="submit" class="btn btn--primary btn--sm">' + esc(tt('c.add')) + '</button>' +
       '</form>';
   }
 
@@ -213,8 +212,8 @@ T4.tasks = (function () {
 
   /* ======================= Editor ======================= */
   const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
-  const WEEK_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const WEEK_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekShort = (d) => T4.i18n.fmtWeekday(d, 'short');
+  const weekLong = (d) => T4.i18n.fmtWeekday(d, 'long');
   /** Rule with the defaults of the due date filled in (weekday for weeks, day of month for months). */
   function fillRecurDefaults(rule, due) {
     const r = T4.recur.normalize(rule);
@@ -227,14 +226,14 @@ T4.tasks = (function () {
   /** Markup of the inline controls for a custom repeat rule (filled and wired in openEditor). */
   function recurCustomHtml() {
     return '<div class="recur-custom" id="tf-recur-custom" hidden>' +
-      '<div class="recur-custom__row"><label for="tf-r-every">Every</label>' +
+      '<div class="recur-custom__row"><label for="tf-r-every">' + esc(tt('tk.every')) + '</label>' +
         '<input id="tf-r-every" type="number" min="1" max="99" step="1" inputmode="numeric">' +
-        '<select id="tf-r-unit" aria-label="Unit"><option value="day">days</option><option value="week">weeks</option><option value="month">months</option><option value="year">years</option></select></div>' +
-      '<div class="recur-custom__row" id="tf-r-week" role="group" aria-label="Repeat on these weekdays" hidden><span class="label">On</span><div class="seg">' +
-        WEEK_ORDER.map((d) => '<button type="button" class="seg__btn" data-wd="' + d + '" aria-pressed="false" aria-label="' + WEEK_LONG[d] + '">' + WEEK_SHORT[d] + '</button>').join('') + '</div></div>' +
-      '<div class="recur-custom__row" id="tf-r-month" hidden><label for="tf-r-monthday">On day</label><select id="tf-r-monthday">' +
-        Array.from({ length: 31 }, (_, i) => '<option value="' + (i + 1) + '">' + (i + 1) + '</option>').join('') + '<option value="-1">Last day</option></select></div>' +
-      '<label class="checkbox"><input type="checkbox" id="tf-r-done"><span>Count from completion date</span></label>' +
+        '<select id="tf-r-unit" aria-label="' + esc(tt('tk.unit')) + '"><option value="day">' + esc(tt('tk.unitDays')) + '</option><option value="week">' + esc(tt('tk.unitWeeks')) + '</option><option value="month">' + esc(tt('tk.unitMonths')) + '</option><option value="year">' + esc(tt('tk.unitYears')) + '</option></select></div>' +
+      '<div class="recur-custom__row" id="tf-r-week" role="group" aria-label="' + esc(tt('tk.repeatOnWeekdays')) + '" hidden><span class="label">' + esc(tt('tk.on')) + '</span><div class="seg">' +
+        WEEK_ORDER.map((d) => '<button type="button" class="seg__btn" data-wd="' + d + '" aria-pressed="false" aria-label="' + esc(weekLong(d)) + '">' + esc(weekShort(d)) + '</button>').join('') + '</div></div>' +
+      '<div class="recur-custom__row" id="tf-r-month" hidden><label for="tf-r-monthday">' + esc(tt('tk.onDay')) + '</label><select id="tf-r-monthday">' +
+        Array.from({ length: 31 }, (_, i) => '<option value="' + (i + 1) + '">' + (i + 1) + '</option>').join('') + '<option value="-1">' + esc(tt('tk.lastDay')) + '</option></select></div>' +
+      '<label class="checkbox"><input type="checkbox" id="tf-r-done"><span>' + esc(tt('tk.countFromDone')) + '</span></label>' +
       '<p class="recur-custom__preview" id="tf-r-preview" aria-live="polite"></p></div>';
   }
 
@@ -253,50 +252,51 @@ T4.tasks = (function () {
 
     const prioRadios = ['critical', 'high', 'medium', 'low', 'none'].map((p) =>
       '<label class="seg__opt seg__opt--' + p + '"><input type="radio" name="priority" value="' + p + '"' + ((t.priority || 'none') === p ? ' checked' : '') + '>' +
-      '<span>' + (p === 'none' ? 'None' : PRIORITY[p].label) + '</span></label>').join('');
+      '<span>' + esc(p === 'none' ? tt('c.none') : PRIORITY[p].label) + '</span></label>').join('');
 
     const body =
       '<form id="task-form" class="form" novalidate>' +
-        (t.inbox && existing ? '<p class="callout">' + icon('inbox') + 'This task is in your Inbox. Setting a date, priority or category moves it to My Tasks.</p>' : '') +
-        '<div class="field"><label for="tf-title">Title</label>' +
-          '<input id="tf-title" name="title" type="text" maxlength="500" required value="' + esc(t.title) + '" autofocus placeholder="What needs to be done?">' +
-          '<p class="field__error" id="tf-title-err" hidden>Please enter a title.</p></div>' +
-        '<div class="field"><label for="tf-desc">Description</label>' +
-          '<textarea id="tf-desc" name="description" rows="2" placeholder="Add details…">' + esc(t.description) + '</textarea></div>' +
-        '<fieldset class="field"><legend>Priority</legend><div class="seg seg--prio">' + prioRadios + '</div></fieldset>' +
+        (t.inbox && existing ? '<p class="callout">' + icon('inbox') + esc(tt('tk.inboxCallout')) + '</p>' : '') +
+        '<div class="field"><label for="tf-title">' + esc(tt('tk.fTitle')) + '</label>' +
+          '<input id="tf-title" name="title" type="text" maxlength="500" required value="' + esc(t.title) + '" autofocus placeholder="' + esc(tt('tk.fTitlePh')) + '">' +
+          '<p class="field__error" id="tf-title-err" hidden>' + esc(tt('tk.fTitleErr')) + '</p></div>' +
+        '<div class="field"><label for="tf-desc">' + esc(tt('tk.fDesc')) + '</label>' +
+          '<textarea id="tf-desc" name="description" rows="2" placeholder="' + esc(tt('tk.fDescPh')) + '">' + esc(t.description) + '</textarea></div>' +
+        '<fieldset class="field"><legend>' + esc(tt('tk.fPriority')) + '</legend><div class="seg seg--prio">' + prioRadios + '</div></fieldset>' +
         '<div class="grid-3">' +
-          '<div class="field"><label for="tf-date">Due date</label><input id="tf-date" name="dueDate" type="date" value="' + esc(t.dueDate || '') + '"></div>' +
-          '<div class="field"><label for="tf-time">Due time <span class="muted">(optional)</span></label><input id="tf-time" name="dueTime" type="time" value="' + esc(t.dueTime || '') + '"></div>' +
-          '<div class="field"><label for="tf-est">Estimate <span class="muted">(min)</span></label><input id="tf-est" name="estimate" type="number" min="1" max="1440" step="5" inputmode="numeric" value="' + esc(t.estimate || '') + '" placeholder="e.g. 30"></div>' +
+          '<div class="field"><label for="tf-date">' + esc(tt('tk.fDue')) + '</label><input id="tf-date" name="dueDate" type="date" value="' + esc(t.dueDate || '') + '"></div>' +
+          '<div class="field"><label for="tf-time">' + esc(tt('tk.fDueTime')) + ' <span class="muted">' + esc(tt('tk.optional')) + '</span></label><input id="tf-time" name="dueTime" type="time" value="' + esc(t.dueTime || '') + '"></div>' +
+          '<div class="field"><label for="tf-est">' + esc(tt('tk.fEstimate')) + ' <span class="muted">' + esc(tt('tk.minShort')) + '</span></label><input id="tf-est" name="estimate" type="number" min="1" max="1440" step="5" inputmode="numeric" value="' + esc(t.estimate || '') + '" placeholder="' + esc(tt('tk.fEstimatePh')) + '"></div>' +
         '</div>' +
         '<div class="grid-3">' +
-          '<div class="field"><label for="tf-status">Status</label><select id="tf-status" name="status">' +
-            Object.keys(STATUS).map((s) => '<option value="' + s + '"' + (t.status === s ? ' selected' : '') + '>' + STATUS[s] + '</option>').join('') + '</select></div>' +
-          '<div class="field"><label for="tf-cat">Category</label><div class="input-row"><select id="tf-cat" name="categoryId"><option value="">No category</option>' +
+          '<div class="field"><label for="tf-status">' + esc(tt('tk.fStatus')) + '</label><select id="tf-status" name="status">' +
+            Object.keys(STATUS).map((s) => '<option value="' + s + '"' + (t.status === s ? ' selected' : '') + '>' + esc(STATUS[s]) + '</option>').join('') + '</select></div>' +
+          '<div class="field"><label for="tf-cat">' + esc(tt('tk.fCategory')) + '</label><div class="input-row"><select id="tf-cat" name="categoryId"><option value="">' + esc(tt('tk.noCategory')) + '</option>' +
             cats.map((c) => '<option value="' + c.id + '"' + (t.categoryId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') +
-            '</select><button type="button" class="icon-btn" id="tf-newcat-btn" title="New category" aria-label="New category" aria-expanded="false">' + icon('plus') + '</button></div>' +
-            '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="Category name" aria-label="New category name"><button type="button" class="btn btn--sm" id="tf-newcat-add">Add</button></div></div>' +
-          '<div class="field"><label for="tf-recur">Repeat</label><select id="tf-recur" name="recurrence"><option value="">Does not repeat</option></select></div>' +
+            '</select><button type="button" class="icon-btn" id="tf-newcat-btn" title="' + esc(tt('tk.newCategory')) + '" aria-label="' + esc(tt('tk.newCategory')) + '" aria-expanded="false">' + icon('plus') + '</button></div>' +
+            '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="' + esc(tt('tk.categoryName')) + '" aria-label="' + esc(tt('tk.newCategoryName')) + '"><button type="button" class="btn btn--sm" id="tf-newcat-add">' + esc(tt('c.add')) + '</button></div></div>' +
+          '<div class="field"><label for="tf-recur">' + esc(tt('tk.fRepeat')) + '</label><select id="tf-recur" name="recurrence"><option value="">' + esc(tt('tk.noRepeat')) + '</option></select></div>' +
         '</div>' + recurCustomHtml() +
-        (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">Reminder</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">No reminder</option>' +
+        (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">' + esc(tt('tk.fReminder')) + '</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">' + esc(tt('tk.noReminder')) + '</option>' +
             remindOpts.map((o) => '<option value="' + o[0] + '"' + (t.reminder === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' +
             '<p class="field__hint" id="tf-remind-hint" aria-live="polite"></p></div></div>' : '') +
-        '<div class="field"><label for="tf-tags">Tags <span class="muted">(comma separated)</span></label><input id="tf-tags" name="tags" type="text" value="' + esc(t.tags.join(', ')) + '" placeholder="e.g. urgent, client-a" list="tf-tag-list">' +
+        '<div class="field"><label for="tf-tags">' + esc(tt('tk.fTags')) + ' <span class="muted">' + esc(tt('tk.commaSeparated')) + '</span></label><input id="tf-tags" name="tags" type="text" value="' + esc(t.tags.join(', ')) + '" placeholder="' + esc(tt('tk.fTagsPh')) + '" list="tf-tag-list">' +
           '<datalist id="tf-tag-list">' + store.allTags().map((g) => '<option value="' + esc(g) + '">').join('') + '</datalist></div>' +
-        '<div class="field"><span class="label">Subtasks</span><ul class="subtasks" id="tf-subtasks"></ul>' +
-          '<div class="input-row"><input type="text" id="tf-sub-new" maxlength="300" placeholder="Add a subtask and press Enter" aria-label="New subtask"><button type="button" class="btn btn--sm" id="tf-sub-add">Add</button></div></div>' +
-        '<div class="field"><label for="tf-notes">Notes</label><textarea id="tf-notes" name="notes" rows="3" placeholder="Links, context, anything useful…">' + esc(t.notes) + '</textarea></div>' +
-        (existing ? '<p class="meta-line">Created ' + esc(U.fmtDateTime(t.createdAt)) +
-          (t.completedAt ? ' · Completed ' + esc(U.fmtDateTime(t.completedAt)) : '') + '</p>' : '') +
+        '<div class="field"><span class="label">' + esc(tt('tk.fSubtasks')) + '</span><ul class="subtasks" id="tf-subtasks"></ul>' +
+          '<div class="input-row"><input type="text" id="tf-sub-new" maxlength="300" placeholder="' + esc(tt('tk.subtaskPh')) + '" aria-label="' + esc(tt('tk.newSubtask')) + '"><button type="button" class="btn btn--sm" id="tf-sub-add">' + esc(tt('c.add')) + '</button></div></div>' +
+        '<div class="field"><label for="tf-notes">' + esc(tt('tk.fNotes')) + '</label><textarea id="tf-notes" name="notes" rows="3" placeholder="' + esc(tt('tk.fNotesPh')) + '">' + esc(t.notes) + '</textarea></div>' +
+        (existing ? '<p class="meta-line">' + esc(t.completedAt
+          ? tt('tk.createdCompleted', { created: U.fmtDateTime(t.createdAt), completed: U.fmtDateTime(t.completedAt) })
+          : tt('tk.created', { date: U.fmtDateTime(t.createdAt) })) + '</p>' : '') +
       '</form>';
 
     const footer =
-      (existing ? '<button type="button" class="btn btn--ghost btn--danger-text mr-auto" id="tf-delete">' + icon('trash') + 'Delete</button>' : '') +
-      '<button type="button" class="btn btn--ghost" data-action="modal-close">Cancel</button>' +
-      '<button type="submit" class="btn btn--primary" form="task-form">' + (isNew ? 'Create task' : 'Save changes') + ' <kbd>Ctrl ↵</kbd></button>';
+      (existing ? '<button type="button" class="btn btn--ghost btn--danger-text mr-auto" id="tf-delete">' + icon('trash') + esc(tt('c.delete')) + '</button>' : '') +
+      '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(tt('c.cancel')) + '</button>' +
+      '<button type="submit" class="btn btn--primary" form="task-form">' + esc(tt(isNew ? 'tk.createTask' : 'tk.saveChanges')) + ' <kbd>Ctrl ↵</kbd></button>';
 
     ui.openModal({
-      title: isNew ? 'New task' : 'Edit task',
+      title: tt(isNew ? 'tk.newTask' : 'tk.editTask'),
       body, footer, size: 'lg',
       onMount(m) {
         const form = m.querySelector('#task-form');
@@ -305,7 +305,7 @@ T4.tasks = (function () {
           subList.innerHTML = subtasks.map((s) =>
             '<li class="subtask' + (s.done ? ' is-done' : '') + '" data-sub="' + s.id + '">' +
               '<label class="checkbox"><input type="checkbox"' + (s.done ? ' checked' : '') + ' data-sub-toggle><span>' + esc(s.title) + '</span></label>' +
-              '<button type="button" class="icon-btn icon-btn--sm" data-sub-remove aria-label="Remove subtask">' + icon('x') + '</button></li>').join('');
+              '<button type="button" class="icon-btn icon-btn--sm" data-sub-remove aria-label="' + esc(tt('tk.removeSubtask')) + '">' + icon('x') + '</button></li>').join('');
         };
         renderSubs();
         const subInput = m.querySelector('#tf-sub-new');
@@ -348,7 +348,7 @@ T4.tasks = (function () {
           sel.value = res.category.id;
           ncName.value = '';
           ncWrap.hidden = true;
-          ui.toast('Category "' + res.category.name + '" created');
+          ui.toast(tt('tk.categoryCreated', { name: res.category.name }));
         };
         m.querySelector('#tf-newcat-add').addEventListener('click', addCat);
         ncName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } });
@@ -367,8 +367,8 @@ T4.tasks = (function () {
         const optHtml = (v, label) => '<option value="' + v + '">' + esc(label) + '</option>';
         const paintRecurOptions = (selected) => {
           presets = T4.recur.presets(recurDue());
-          recurSel.innerHTML = optHtml('', 'Does not repeat') + presets.map((p) => optHtml(p.id, p.label)).join('') +
-            '<option disabled>──────────</option>' + optHtml('custom', 'Custom…');
+          recurSel.innerHTML = optHtml('', tt('tk.noRepeat')) + presets.map((p) => optHtml(p.id, p.label)).join('') +
+            '<option disabled>──────────</option>' + optHtml('custom', tt('tk.custom'));
           recurSel.value = selected;
         };
         const defaultDraft = (rule) => {
@@ -457,8 +457,8 @@ T4.tasks = (function () {
           const date = m.querySelector('#tf-date').value, time = m.querySelector('#tf-time').value;
           if (rem == null) { remHint.textContent = ''; return; }
           const at = R.fireAt({ dueDate: date || U.today(), dueTime: date ? time || null : null, reminder: rem }, store.settings);
-          remHint.textContent = (date ? '' : 'Due today (no date set) · ') + 'Reminds you ' + U.fmtDateTime(at.toISOString()) +
-            (date && !time ? ' (default reminder time, see Settings)' : '') + (at < new Date() ? ' — already passed, so right away' : '');
+          remHint.textContent = (date ? '' : tt('tk.remNoDate') + ' · ') + tt('tk.remAt', { when: U.fmtDateTime(at.toISOString()) }) +
+            (date && !time ? ' ' + tt('tk.remDefaultTime') : '') + (at < new Date() ? ' — ' + tt('tk.remPassed') : '');
         };
         ['#tf-remind', '#tf-date', '#tf-time'].forEach((sel) => { const el = m.querySelector(sel); if (el) el.addEventListener('input', paintReminder); if (el) el.addEventListener('change', paintReminder); });
         paintReminder();
@@ -514,12 +514,12 @@ T4.tasks = (function () {
           if (isNew) {
             const created = store.addTask(Object.assign({}, defaults, fields));
             ui.closeModal(true);
-            ui.toast('Task created' + (created && created.dueDate ? ' for ' + U.relDate(created.dueDate) : ''));
+            ui.toast(created && created.dueDate ? tt('tk.taskCreatedFor', { date: U.relDate(created.dueDate) }) : tt('tk.taskCreated'));
           } else {
             const wasInbox = t.inbox;
             const updated = store.updateTask(t.id, fields);
             ui.closeModal(true);
-            ui.toast(wasInbox && updated && !updated.inbox ? 'Task organized and moved to My Tasks' : 'Task updated');
+            ui.toast(tt(wasInbox && updated && !updated.inbox ? 'tk.taskOrganized' : 'tk.taskUpdated'));
           }
         });
 
@@ -533,21 +533,21 @@ T4.tasks = (function () {
     const t = store.getTask(id);
     if (!t) return;
     const ok = await ui.confirm({
-      title: 'Delete task?',
-      message: '"' + t.title + '" will be permanently deleted.' + (t.subtasks.length ? ' Its ' + U.plural(t.subtasks.length, 'subtask') + ' will be deleted too.' : ''),
-      confirmText: 'Delete', danger: true,
+      title: tt('tk.deleteTitle'),
+      message: t.subtasks.length ? tt('tk.deleteMsgSubs', { title: t.title, count: t.subtasks.length }) : tt('tk.deleteMsg', { title: t.title }),
+      confirmText: tt('c.delete'), danger: true,
     });
     if (!ok) return;
     if (fromModal) ui.closeModal(true);
     const snapshot = JSON.parse(JSON.stringify(t));
     const plans = Object.keys(store.data.dailyPlans).filter((d) => store.data.dailyPlans[d].top3.includes(id));
     store.deleteTask(id);
-    ui.toast('Task deleted', 'success', 6000, {
-      label: 'Undo',
+    ui.toast(tt('tk.taskDeleted'), 'success', 6000, {
+      label: tt('c.undo'),
       fn() {
         store.addTask(snapshot);
         plans.forEach((d) => { const p = store.getPlan(d); if (p.top3.length < 3) store.updatePlan(d, { top3: p.top3.concat(id) }); });
-        ui.toast('Task restored');
+        ui.toast(tt('tk.taskRestored'));
       },
     });
   }
@@ -555,16 +555,16 @@ T4.tasks = (function () {
   /* ======================= Quick capture ======================= */
   function openQuickCapture() {
     ui.openModal({
-      title: 'Quick capture',
+      title: tt('tk.qcTitle'),
       size: 'sm',
       body: '<form id="qc-form" class="form">' +
-        '<p class="muted small">Jot it down now, organize it later. It goes to your Inbox.</p>' +
-        '<div class="field"><label for="qc-title" class="sr-only">Task</label>' +
-        '<input id="qc-title" type="text" maxlength="500" autocomplete="off" placeholder="e.g. Book dentist appointment" autofocus></div>' +
-        '<p class="muted small">Tip: add <code>!1</code>–<code>!4</code> for priority, <code>#category</code>, or <code>@tomorrow</code>.</p>' +
+        '<p class="muted small">' + esc(tt('tk.qcIntro')) + '</p>' +
+        '<div class="field"><label for="qc-title" class="sr-only">' + esc(tt('tk.qcTask')) + '</label>' +
+        '<input id="qc-title" type="text" maxlength="500" autocomplete="off" placeholder="' + esc(tt('tk.qcPh')) + '" autofocus></div>' +
+        '<p class="muted small">' + tt('tk.qcTip') + '</p>' + // trusted dictionary text (contains <code>)
         '</form>',
-      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">Close</button>' +
-        '<button type="submit" form="qc-form" class="btn btn--primary">Add to Inbox</button>',
+      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(tt('c.close')) + '</button>' +
+        '<button type="submit" form="qc-form" class="btn btn--primary">' + esc(tt('tk.addToInbox')) + '</button>',
       onMount(m) {
         m.querySelector('#qc-form').addEventListener('submit', (e) => {
           e.preventDefault();
@@ -582,7 +582,7 @@ T4.tasks = (function () {
   function captureText(text, defaults) {
     const parsed = parseQuickAdd(text);
     if (!parsed.title) {
-      ui.toast('Please enter a task title.', 'error');
+      ui.toast(tt('tk.enterTitle'), 'error');
       return null;
     }
     const fields = Object.assign({ priority: null }, defaults, stripUndefined(parsed));
@@ -590,8 +590,8 @@ T4.tasks = (function () {
     if (fields.inbox && (parsed.dueDate || parsed.priority || parsed.categoryId || parsed.recurrence)) fields.inbox = false;
     const task = store.addTask(fields);
     if (task) {
-      ui.toast(task.inbox ? 'Added to Inbox' : 'Task added' + (task.dueDate ? ' for ' + U.relDate(task.dueDate) : ''), 'success', 4000, {
-        label: 'Edit', fn: () => openEditor(store.getTask(task.id)),
+      ui.toast(task.inbox ? tt('tk.addedInbox') : task.dueDate ? tt('tk.taskAddedFor', { date: U.relDate(task.dueDate) }) : tt('tk.taskAdded'), 'success', 4000, {
+        label: tt('c.edit'), fn: () => openEditor(store.getTask(task.id)),
       });
     }
     return task;
@@ -613,11 +613,11 @@ T4.tasks = (function () {
       if (!res) return;
       if (res.status === 'done') {
         const next = res.nextOccurrenceId ? store.getTask(res.nextOccurrenceId) : null;
-        ui.toast(next ? 'Done! Next one scheduled for ' + U.relDate(next.dueDate) : 'Task completed', 'success', 5000, {
-          label: 'Undo', fn: () => store.setStatus(id, 'todo'),
+        ui.toast(next ? tt('tk.doneNext', { date: U.relDate(next.dueDate) }) : tt('tk.completed'), 'success', 5000, {
+          label: tt('c.undo'), fn: () => store.setStatus(id, 'todo'),
         });
       } else {
-        ui.toast('Task reopened', 'info');
+        ui.toast(tt('tk.reopened'), 'info');
       }
     };
     if (li && t.status !== 'done' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -640,8 +640,8 @@ T4.tasks = (function () {
   ui.on('toggle-top3', (el) => {
     const date = el.dataset.date || U.today();
     const res = store.toggleTop3(date, el.dataset.id);
-    if (res === 'full') ui.toast('Your Top 3 is full. Remove one first.', 'info');
-    else ui.toast(res === 'added' ? 'Added to Top 3' : 'Removed from Top 3', 'info');
+    if (res === 'full') ui.toast(tt('tk.top3Full'), 'info');
+    else ui.toast(tt(res === 'added' ? 'tk.top3Added' : 'tk.top3Removed'), 'info');
   });
   ui.on('focus-task', (el) => {
     T4.focus.select(el.dataset.id);
@@ -649,7 +649,7 @@ T4.tasks = (function () {
   });
   ui.on('set-status', (el) => {
     store.setStatus(el.dataset.id, el.dataset.status);
-    ui.toast('Marked as ' + STATUS[el.dataset.status].toLowerCase(), 'info');
+    ui.toast(tt('tk.marked' + el.dataset.status.charAt(0).toUpperCase() + el.dataset.status.slice(1)), 'info');
   });
   ui.on('submit:quick-add', (form) => {
     const input = form.querySelector('input[name="title"]');
@@ -673,22 +673,22 @@ T4.tasks = (function () {
     const when = el.dataset.when;
     const date = when === 'today' ? U.today() : U.addDays(U.today(), 1);
     store.updateTask(el.dataset.id, { dueDate: date, inbox: false });
-    ui.toast('Scheduled for ' + U.relDate(date));
+    ui.toast(tt('tk.scheduledFor', { date: U.relDate(date) }));
   });
   ui.on('inbox-move', (el) => {
     store.updateTask(el.dataset.id, { inbox: false });
-    ui.toast('Moved to My Tasks');
+    ui.toast(tt('tk.movedToTasks'));
   });
   ui.on('reschedule-overdue', async () => {
     const list = store.overdueTasks();
     if (!list.length) return;
-    const ok = await ui.confirm({ title: 'Move overdue tasks to today?', message: U.plural(list.length, 'overdue task') + ' will be rescheduled to today.', confirmText: 'Move to today' });
+    const ok = await ui.confirm({ title: tt('tk.moveOverdueTitle'), message: tt('tk.moveOverdueMsg', { count: list.length }), confirmText: tt('tk.moveToToday') });
     if (!ok) return;
     store.commit((d) => {
       const today = U.today(), now = new Date().toISOString();
       d.tasks.forEach((t) => { if (list.some((o) => o.id === t.id)) { t.dueDate = today; t.updatedAt = now; } });
     }, { type: 'bulk' });
-    ui.toast(U.plural(list.length, 'task') + ' moved to today');
+    ui.toast(tt('tk.movedToToday', { count: list.length }));
   });
 
   /* ======================= Views ======================= */
@@ -698,27 +698,27 @@ T4.tasks = (function () {
       (actionsHtml ? '<div class="page-actions">' + actionsHtml + '</div>' : '') + '</header>';
   }
   function newTaskBtn(date) {
-    return '<button type="button" class="btn btn--primary" data-action="new-task"' + (date ? ' data-date="' + date + '"' : '') + '>' + icon('plus') + 'New task <kbd>N</kbd></button>';
+    return '<button type="button" class="btn btn--primary" data-action="new-task"' + (date ? ' data-date="' + date + '"' : '') + '>' + icon('plus') + esc(tt('tk.newTask')) + ' <kbd>N</kbd></button>';
   }
 
   /* ---------- Inbox ---------- */
   T4.views.inbox = {
-    title: 'Inbox',
+    get title() { return tt('nav.inbox'); },
     render() {
       const items = store.inboxTasks().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       const rows = items.map((t) =>
         '<li class="inbox-item">' + row(t, { actions: false }).replace(/^<li/, '<div').replace(/<\/li>$/, '</div>') +
           '<div class="inbox-item__actions">' +
-            '<button type="button" class="btn btn--sm" data-action="inbox-schedule" data-when="today" data-id="' + t.id + '">' + icon('sun') + 'Today</button>' +
-            '<button type="button" class="btn btn--sm" data-action="inbox-schedule" data-when="tomorrow" data-id="' + t.id + '">' + icon('calendar') + 'Tomorrow</button>' +
-            '<button type="button" class="btn btn--sm" data-action="edit-task" data-id="' + t.id + '">' + icon('edit') + 'Organize</button>' +
-            '<button type="button" class="btn btn--sm btn--ghost" data-action="inbox-move" data-id="' + t.id + '" title="Move to My Tasks without a date">' + icon('arrow-right') + 'Move</button>' +
-            '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-task" data-id="' + t.id + '" aria-label="Delete task">' + icon('trash') + '</button>' +
+            '<button type="button" class="btn btn--sm" data-action="inbox-schedule" data-when="today" data-id="' + t.id + '">' + icon('sun') + esc(tt('tk.today')) + '</button>' +
+            '<button type="button" class="btn btn--sm" data-action="inbox-schedule" data-when="tomorrow" data-id="' + t.id + '">' + icon('calendar') + esc(tt('tk.tomorrow')) + '</button>' +
+            '<button type="button" class="btn btn--sm" data-action="edit-task" data-id="' + t.id + '">' + icon('edit') + esc(tt('tk.organize')) + '</button>' +
+            '<button type="button" class="btn btn--sm btn--ghost" data-action="inbox-move" data-id="' + t.id + '" title="' + esc(tt('tk.moveTip')) + '">' + icon('arrow-right') + esc(tt('tk.move')) + '</button>' +
+            '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-task" data-id="' + t.id + '" aria-label="' + esc(tt('tk.deleteTask')) + '">' + icon('trash') + '</button>' +
           '</div></li>').join('');
-      return pageHeader('Inbox', 'Capture now, organize later. ' + (items.length ? U.plural(items.length, 'item') + ' waiting.' : '')) +
-        '<section class="card">' + quickAddForm({ inbox: true }, 'Capture a task… (press Enter)', 'qa-inbox') + '</section>' +
+      return pageHeader(tt('nav.inbox'), esc(tt('tk.inboxSub') + (items.length ? ' ' + tt('tk.inboxWaiting', { count: items.length }) : ''))) +
+        '<section class="card">' + quickAddForm({ inbox: true }, tt('tk.inboxPh'), 'qa-inbox') + '</section>' +
         '<section class="mt">' + (items.length ? '<ul class="inbox-list" role="list">' + rows + '</ul>'
-          : ui.emptyState('inbox', 'Inbox zero', 'Everything is organized. Use Quick capture (Q) whenever something pops into your head.')) + '</section>';
+          : ui.emptyState('inbox', tt('tk.inboxZero'), tt('tk.inboxZeroText'))) + '</section>';
     },
   };
 
@@ -746,30 +746,30 @@ T4.tasks = (function () {
   function renderTaskResults() {
     const tasks = filteredTasks();
     const active = filters.q || filters.priority || filters.category || filters.tag || filters.when || (filters.status !== 'open');
-    return '<p class="result-count">' + U.plural(tasks.length, 'task') + (active ? ' match your filters · <button type="button" class="link" data-action="clear-filters">Clear filters</button>' : '') + '</p>' +
-      list(tasks, {}, ui.emptyState(active ? 'search' : 'list', active ? 'No matching tasks' : 'No tasks yet',
-        active ? 'Try a different search or clear the filters.' : 'Add your first task above, or press N.'));
+    return '<p class="result-count">' + esc(tt(active ? 'tk.resultsFiltered' : 'tk.results', { count: tasks.length })) + (active ? ' · <button type="button" class="link" data-action="clear-filters">' + esc(tt('tk.clearFilters')) + '</button>' : '') + '</p>' +
+      list(tasks, {}, ui.emptyState(active ? 'search' : 'list', tt(active ? 'tk.noMatch' : 'tk.noTasks'),
+        tt(active ? 'tk.noMatchText' : 'tk.noTasksText')));
   }
 
   const opt = (v, label, cur) => '<option value="' + esc(v) + '"' + (cur === v ? ' selected' : '') + '>' + esc(label) + '</option>';
 
   T4.views.tasks = {
-    title: 'My Tasks',
+    get title() { return tt('nav.tasks'); },
     render() {
       const sort = filters.sort || store.settings.defaultSort;
       const cats = store.data.categories;
-      return pageHeader('My Tasks', 'Everything you have planned, in one place.', newTaskBtn()) +
-        '<section class="card">' + quickAddForm({}, 'Add a task… (e.g. "Send report !2 #work @fri")', 'qa-tasks') + '</section>' +
-        '<section class="toolbar" aria-label="Search and filters">' +
-          '<label class="search">' + icon('search') + '<span class="sr-only">Search tasks</span>' +
-            '<input type="search" id="task-search" data-input="task-filter" data-key="q" value="' + esc(filters.q) + '" placeholder="Search tasks…  ( / )"></label>' +
+      return pageHeader(tt('nav.tasks'), esc(tt('tk.tasksSub')), newTaskBtn()) +
+        '<section class="card">' + quickAddForm({}, tt('tk.tasksPh'), 'qa-tasks') + '</section>' +
+        '<section class="toolbar" aria-label="' + esc(tt('tk.searchFilters')) + '">' +
+          '<label class="search">' + icon('search') + '<span class="sr-only">' + esc(tt('tk.searchTasks')) + '</span>' +
+            '<input type="search" id="task-search" data-input="task-filter" data-key="q" value="' + esc(filters.q) + '" placeholder="' + esc(tt('tk.searchPh')) + '"></label>' +
           '<div class="filters">' +
-            '<select data-change="task-filter" data-key="status" aria-label="Filter by status">' + opt('open', 'Open', filters.status) + opt('all', 'All statuses', filters.status) + opt('todo', 'To do', filters.status) + opt('in_progress', 'In progress', filters.status) + opt('done', 'Completed', filters.status) + '</select>' +
-            '<select data-change="task-filter" data-key="priority" aria-label="Filter by priority">' + opt('', 'Any priority', filters.priority) + ['critical', 'high', 'medium', 'low'].map((p) => opt(p, PRIORITY[p].label, filters.priority)).join('') + opt('none', 'No priority', filters.priority) + '</select>' +
-            '<select data-change="task-filter" data-key="category" aria-label="Filter by category">' + opt('', 'Any category', filters.category) + cats.map((c) => opt(c.id, c.name, filters.category)).join('') + opt('none', 'No category', filters.category) + '</select>' +
-            '<select data-change="task-filter" data-key="when" aria-label="Filter by due date">' + opt('', 'Any date', filters.when) + opt('today', 'Due today', filters.when) + opt('overdue', 'Overdue', filters.when) + opt('week', 'This week', filters.when) + opt('nodate', 'No date', filters.when) + '</select>' +
-            (store.allTags().length ? '<select data-change="task-filter" data-key="tag" aria-label="Filter by tag">' + opt('', 'Any tag', filters.tag) + store.allTags().map((g) => opt(g, '#' + g, filters.tag)).join('') + '</select>' : '') +
-            '<label class="sort">' + icon('sort') + '<span class="sr-only">Sort by</span><select data-change="task-filter" data-key="sort" aria-label="Sort by">' + Object.keys(SORT_LABELS).map((k) => opt(k, SORT_LABELS[k], sort)).join('') + '</select></label>' +
+            '<select data-change="task-filter" data-key="status" aria-label="' + esc(tt('tk.filterStatus')) + '">' + opt('open', tt('tk.fOpen'), filters.status) + opt('all', tt('tk.fAllStatuses'), filters.status) + opt('todo', STATUS.todo, filters.status) + opt('in_progress', STATUS.in_progress, filters.status) + opt('done', STATUS.done, filters.status) + '</select>' +
+            '<select data-change="task-filter" data-key="priority" aria-label="' + esc(tt('tk.filterPriority')) + '">' + opt('', tt('tk.fAnyPriority'), filters.priority) + ['critical', 'high', 'medium', 'low'].map((p) => opt(p, PRIORITY[p].label, filters.priority)).join('') + opt('none', tt('tk.fNoPriority'), filters.priority) + '</select>' +
+            '<select data-change="task-filter" data-key="category" aria-label="' + esc(tt('tk.filterCategory')) + '">' + opt('', tt('tk.fAnyCategory'), filters.category) + cats.map((c) => opt(c.id, c.name, filters.category)).join('') + opt('none', tt('tk.noCategory'), filters.category) + '</select>' +
+            '<select data-change="task-filter" data-key="when" aria-label="' + esc(tt('tk.filterDue')) + '">' + opt('', tt('tk.fAnyDate'), filters.when) + opt('today', tt('tk.fDueToday'), filters.when) + opt('overdue', tt('tk.fOverdue'), filters.when) + opt('week', tt('tk.fThisWeek'), filters.when) + opt('nodate', tt('tk.fNoDate'), filters.when) + '</select>' +
+            (store.allTags().length ? '<select data-change="task-filter" data-key="tag" aria-label="' + esc(tt('tk.filterTag')) + '">' + opt('', tt('tk.fAnyTag'), filters.tag) + store.allTags().map((g) => opt(g, '#' + g, filters.tag)).join('') + '</select>' : '') +
+            '<label class="sort">' + icon('sort') + '<span class="sr-only">' + esc(tt('tk.sortBy')) + '</span><select data-change="task-filter" data-key="sort" aria-label="' + esc(tt('tk.sortBy')) + '">' + Object.keys(SORT_LABELS).map((k) => opt(k, SORT_LABELS[k], sort)).join('') + '</select></label>' +
           '</div>' +
         '</section>' +
         '<section id="task-results" aria-live="polite">' + renderTaskResults() + '</section>';
@@ -793,7 +793,7 @@ T4.tasks = (function () {
 
   /* ---------- Today ---------- */
   T4.views.today = {
-    title: 'Today',
+    get title() { return tt('nav.today'); },
     render() {
       const today = U.today();
       const all = store.tasksOn(today);
@@ -802,22 +802,22 @@ T4.tasks = (function () {
       const overdue = store.sortTasks(store.overdueTasks());
       const pct = all.length ? done.length / all.length : 0;
       const estimate = open.reduce((s, t) => s + (t.estimate || 0), 0);
-      return pageHeader('Today', esc(U.fmt(today, { weekday: 'long', month: 'long', day: 'numeric' })) +
-          ' · ' + done.length + ' of ' + all.length + ' done' + (estimate ? ' · ~' + U.fmtMinutes(estimate) + ' remaining' : ''),
-          '<a class="btn" href="#/plan">' + icon('book') + 'Daily plan</a>' + newTaskBtn(today)) +
-        (all.length ? '<div class="mb">' + ui.progressBar(pct, 'Today\'s progress') + '</div>' : '') +
-        '<section class="card">' + quickAddForm({ dueDate: today, priority: 'medium' }, 'Add a task for today…', 'qa-today') + '</section>' +
-        (overdue.length ? '<section class="section"><div class="section__head"><h2 class="section__title text-danger">' + icon('alert') + 'Overdue <span class="count">' + overdue.length + '</span></h2>' +
-          '<button type="button" class="btn btn--sm" data-action="reschedule-overdue">Move all to today</button></div>' + list(overdue) + '</section>' : '') +
-        '<section class="section"><div class="section__head"><h2 class="section__title">' + icon('sun') + 'Today <span class="count">' + open.length + '</span></h2></div>' +
-          list(open, { hideDate: true }, ui.emptyState('sun', all.length ? 'All done for today!' : 'Nothing scheduled for today', all.length ? 'Great work. Take a break or plan tomorrow.' : 'Add a task above or pull something from your Inbox.')) + '</section>' +
-        (done.length ? '<details class="section done-section"><summary class="section__title">' + icon('check') + 'Completed <span class="count">' + done.length + '</span></summary>' + list(done, { hideDate: true }) + '</details>' : '');
+      return pageHeader(tt('nav.today'), esc(U.fmt(today, { weekday: 'long', month: 'long', day: 'numeric' })) +
+          ' · ' + esc(tt('tk.todayDone', { done: done.length, total: all.length })) + (estimate ? ' · ' + esc(tt('tk.todayRemaining', { time: U.fmtMinutes(estimate) })) : ''),
+          '<a class="btn" href="#/plan">' + icon('book') + esc(tt('tk.dailyPlan')) + '</a>' + newTaskBtn(today)) +
+        (all.length ? '<div class="mb">' + ui.progressBar(pct, tt('tk.todayProgress')) + '</div>' : '') +
+        '<section class="card">' + quickAddForm({ dueDate: today, priority: 'medium' }, tt('tk.todayPh'), 'qa-today') + '</section>' +
+        (overdue.length ? '<section class="section"><div class="section__head"><h2 class="section__title text-danger">' + icon('alert') + esc(tt('tk.overdue')) + ' <span class="count">' + overdue.length + '</span></h2>' +
+          '<button type="button" class="btn btn--sm" data-action="reschedule-overdue">' + esc(tt('tk.moveAllToday')) + '</button></div>' + list(overdue) + '</section>' : '') +
+        '<section class="section"><div class="section__head"><h2 class="section__title">' + icon('sun') + esc(tt('tk.today')) + ' <span class="count">' + open.length + '</span></h2></div>' +
+          list(open, { hideDate: true }, ui.emptyState('sun', tt(all.length ? 'tk.allDoneToday' : 'tk.nothingToday'), tt(all.length ? 'tk.allDoneText' : 'tk.nothingTodayText'))) + '</section>' +
+        (done.length ? '<details class="section done-section"><summary class="section__title">' + icon('check') + esc(tt('tk.completedHeading')) + ' <span class="count">' + done.length + '</span></summary>' + list(done, { hideDate: true }) + '</details>' : '');
     },
   };
 
   /* ---------- Upcoming ---------- */
   T4.views.upcoming = {
-    title: 'Upcoming',
+    get title() { return tt('nav.upcoming'); },
     render() {
       const today = U.today();
       const horizon = U.addDays(today, 14);
@@ -835,15 +835,15 @@ T4.tasks = (function () {
         if (!g) return;
         html += '<section class="section"><div class="section__head"><h2 class="section__title">' + esc(U.relDate(d)) +
           ' <span class="muted fw-normal">' + esc(U.fmt(d, { weekday: 'short', month: 'short', day: 'numeric' })) + '</span> <span class="count">' + g.length + '</span></h2>' +
-          '<button type="button" class="btn btn--sm btn--ghost" data-action="new-task" data-date="' + d + '">' + icon('plus') + 'Add</button></div>' +
+          '<button type="button" class="btn btn--sm btn--ghost" data-action="new-task" data-date="' + d + '">' + icon('plus') + esc(tt('c.add')) + '</button></div>' +
           list(store.sortTasks(g), { hideDate: true }) + '</section>';
       });
       if (groups.later) {
-        html += '<section class="section"><div class="section__head"><h2 class="section__title">Later <span class="count">' + groups.later.length + '</span></h2></div>' + list(groups.later) + '</section>';
+        html += '<section class="section"><div class="section__head"><h2 class="section__title">' + esc(tt('tk.later')) + ' <span class="count">' + groups.later.length + '</span></h2></div>' + list(groups.later) + '</section>';
       }
-      return pageHeader('Upcoming', 'What\'s coming up in the next two weeks and beyond.', newTaskBtn(U.addDays(today, 1))) +
-        '<section class="card">' + quickAddForm({ dueDate: U.addDays(today, 1), priority: 'medium' }, 'Add a task for tomorrow… (or use @fri)', 'qa-upcoming') + '</section>' +
-        (html || ui.emptyState('upcoming', 'Nothing upcoming', 'Tasks with future due dates will appear here.'));
+      return pageHeader(tt('nav.upcoming'), esc(tt('tk.upcomingSub')), newTaskBtn(U.addDays(today, 1))) +
+        '<section class="card">' + quickAddForm({ dueDate: U.addDays(today, 1), priority: 'medium' }, tt('tk.upcomingPh'), 'qa-upcoming') + '</section>' +
+        (html || ui.emptyState('upcoming', tt('tk.nothingUpcoming'), tt('tk.nothingUpcomingText')));
     },
   };
 

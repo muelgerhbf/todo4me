@@ -30,6 +30,8 @@
   'use strict';
 
   const DAY = 86400000;
+  // Translated message when the app's i18n is present (browser), English in plain Node (tests).
+  const msg = (key, fallback) => (root && root.T4 && root.T4.i18n ? root.T4.i18n.t(key) : fallback);
   const WD = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   const MAX = { title: 300, location: 300, description: 2000, uid: 200, events: 20000, occurrences: 5000 };
 
@@ -409,7 +411,7 @@
    */
   function parse(text) {
     const lines = unfold(text);
-    if (!lines.some((l) => /^BEGIN:VCALENDAR\s*$/i.test(l))) throw new Error('This is not an iCalendar (.ics) file.');
+    if (!lines.some((l) => /^BEGIN:VCALENDAR\s*$/i.test(l))) throw new Error(msg('ics.notIcs', 'This is not an iCalendar (.ics) file.'));
     const out = { name: '', events: [], zones: {}, stats: { events: 0, skipped: 0, cancelled: 0, partialRules: 0 } };
     const raws = [];
     const vtz = {};

@@ -15,6 +15,7 @@
 const { app, Tray, Menu, Notification, globalShortcut, nativeImage, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const T = (key, params) => require('./i18n').t(key, params);
 
 const HIDDEN_ARG = '--hidden';
 // Presets only: no AltGr characters on common European layouts (AltGr = Ctrl+Alt, e.g. AltGr+Q = @
@@ -26,7 +27,7 @@ const HOTKEYS = [
   { id: 'Control+Shift+Alt+T', label: 'Ctrl+Shift+Alt+T' },
 ];
 const DEFAULTS = Object.freeze({ closeToTray: true, openAtLogin: false, hotkeyEnabled: true, hotkey: HOTKEYS[0].id, trayHintShown: false });
-const SNOOZE_LABEL = 'Snooze 10 min';
+const snoozeLabel = () => T('notif.snooze');
 
 let ctx = null;          // { file, iconPath, showWindow(), send(action), notificationClick(id, action), quit() }
 let settings = Object.assign({}, DEFAULTS);
@@ -63,10 +64,10 @@ function save() {
 /* ---------- Start with Windows ---------- */
 function loginUnsupportedReason() {
   if (loginSupportOverride !== undefined) return loginSupportOverride;
-  if (process.platform !== 'win32' && process.platform !== 'darwin') return 'Not available on this system.';
-  if (process.env.TODO4ME_USER_DATA) return 'Not available in test runs.';
-  if (!app.isPackaged) return 'Only available in the installed app.';
-  if (process.env.PORTABLE_EXECUTABLE_DIR) return 'Not available in the portable version (it runs from a temporary folder). Use the installer version.';
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return T('bg.notThisSystem');
+  if (process.env.TODO4ME_USER_DATA) return T('bg.notInTests');
+  if (!app.isPackaged) return T('bg.installedOnly');
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return T('bg.notPortable');
   return null;
 }
 function applyLogin() {
@@ -89,11 +90,11 @@ function trayImage() {
 }
 function trayMenu() {
   return Menu.buildFromTemplate([
-    { label: 'Open Todo4Me', click: () => ctx.showWindow() },
-    { label: 'Quick capture', click: () => { ctx.showWindow(); ctx.send('quick-capture-global'); } },
-    { label: 'New task', click: () => { ctx.showWindow(); ctx.send('new-task-global'); } },
+    { label: T('tray.open'), click: () => ctx.showWindow() },
+    { label: T('menu.quickCapture'), click: () => { ctx.showWindow(); ctx.send('quick-capture-global'); } },
+    { label: T('menu.newTask'), click: () => { ctx.showWindow(); ctx.send('new-task-global'); } },
     { type: 'separator' },
-    { label: 'Quit Todo4Me', click: () => ctx.quit() },
+    { label: T('tray.quit'), click: () => ctx.quit() },
   ]);
 }
 function createTray() {
@@ -127,8 +128,8 @@ function onHidden() {
   if (settings.trayHintShown) return;
   settings.trayHintShown = true;
   save();
-  const title = 'Todo4Me keeps running in the tray';
-  const body = 'Reminders keep working. Click the Todo4Me icon in the notification area to open it again; right-click it → Quit to exit.';
+  const title = T('tray.hintTitle');
+  const body = T('tray.hintBody');
   notify({ id: 'tray-hint', title, body }).then((res) => {
     if (!res.ok && hasTray() && process.platform === 'win32') {
       try { tray.displayBalloon({ title, content: body, iconType: 'info' }); } catch (e) { /* ignore */ }
@@ -146,7 +147,7 @@ function applyHotkey() {
   let ok = false;
   try { ok = globalShortcut.register(settings.hotkey, onHotkey); } catch (e) { ok = false; }
   if (ok && globalShortcut.isRegistered(settings.hotkey)) hotkey.registered = settings.hotkey;
-  else hotkey.error = hotkeyLabel(settings.hotkey) + ' is already used by another program, so Todo4Me could not reserve it. Choose a different shortcut.';
+  else hotkey.error = true; // the text is built in state() so it follows the UI language
 }
 
 /* ---------- Notifications ---------- */
@@ -158,13 +159,13 @@ function notify(opts) {
     const id = typeof opts.id === 'string' && /^[\w:.-]{1,80}$/.test(opts.id) ? opts.id : null;
     const title = clean(opts.title, 120);
     if (!id || !title) { resolve({ ok: false, error: 'invalid notification' }); return; }
-    if (!Notification.isSupported()) { resolve({ ok: false, error: 'Notifications are not supported on this system.' }); return; }
+    if (!Notification.isSupported()) { resolve({ ok: false, error: T('notif.unsupported') }); return; }
     const body = clean(opts.body, 300);
     let n;
     try {
       n = new Notification({
         title, body, icon: ctx.iconPath, silent: false,
-        actions: opts.snooze ? [{ type: 'button', text: SNOOZE_LABEL }] : [],
+        actions: opts.snooze ? [{ type: 'button', text: snoozeLabel() }] : [],
       });
     } catch (e) { resolve({ ok: false, error: e.message }); return; }
     const key = id + '#' + Date.now() + Math.random().toString(36).slice(2, 6);
@@ -205,7 +206,7 @@ function state() {
     hotkeyLabel: hotkeyLabel(settings.hotkey),
     hotkeys: HOTKEYS.map((h) => Object.assign({}, h)),
     hotkeyRegistered: !!hotkey.registered,
-    hotkeyError: hotkey.error,
+    hotkeyError: hotkey.error ? T('bg.hotkeyTaken', { key: hotkeyLabel(settings.hotkey) }) : null,
     notifications: Notification.isSupported(),
   };
 }
@@ -258,8 +259,13 @@ function init(options) {
   });
 }
 
+/** The UI language changed: rebuild the tray menu. */
+function refreshLanguage() {
+  if (tray && !tray.isDestroyed()) { try { tray.setContextMenu(trayMenu()); } catch (e) { /* ignore */ } }
+}
+
 module.exports = {
-  HIDDEN_ARG, HOTKEYS, init, state, setSettings, shouldHideOnClose, startHidden, onHidden, notify,
+  refreshLanguage, HIDDEN_ARG, HOTKEYS, init, state, setSettings, shouldHideOnClose, startHidden, onHidden, notify,
   get tray() { return tray; },
   get settings() { return Object.assign({}, settings); },
   get shown() { return shown.slice(); },

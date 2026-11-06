@@ -1092,6 +1092,107 @@ export default async function (b) {
     I.setLanguage('en');
     ok($('.hero__title').textContent.startsWith('Good'), 'switch back to English');
   `);
+  // i18n phase 3: app texts in de / tr / es
+  await run('i18n-app', `
+    const I = T4.i18n, U = T4.util;
+    const LANGS = ['de', 'tr', 'es'];
+    const hasWord = (txt, w) => {
+      let i = -1;
+      while ((i = txt.indexOf(w, i + 1)) >= 0) {
+        const a = txt.charAt(i - 1), b = txt.charAt(i + w.length);
+        const isL = (c) => !!c && c.toLowerCase() !== c.toUpperCase();
+        if (!isL(a) && !isL(b)) return true;
+      }
+      return false;
+    };
+    // 1. dictionaries: same keys everywhere, nothing falls back to the key itself
+    const kEn = I.keys('en').filter(k => !k.startsWith('test.'));
+    ok(kEn.length > 900, 'app dictionaries are loaded: ' + kEn.length + ' keys');
+    ok(LANGS.every(l => I.keys(l).filter(k => !k.startsWith('test.')).sort().join('|') === kEn.slice().sort().join('|')), 'app-en/de/tr/es define exactly the same keys');
+    ok(['app.notSaved', 'tk.createTask', 'db.sumLeft', 'ed.Bold (Ctrl+B)', 'rc.daily', 'rem.atDue', 'cl.toSchedule', 'cf.title', 'sto.badJson', 'dk.checking'].every(k => LANGS.every(l => I.keys(l).includes(k))), 'sample keys from every package exist in all languages');
+    for (const l of LANGS) {
+      I.setLanguage(l);
+      const missing = kEn.filter((k) => I.t(k, { count: 3, n: 3 }) === k);
+      ok(missing.length === 0, l + ': every key resolves to text' + (missing.length ? ' (missing: ' + missing.slice(0, 3).join(', ') + ')' : ''));
+    }
+
+    // 2. no English UI words left in dashboard / tasks / planner and the task dialog
+    const ENG = {
+      dashboard: ['Tasks today', 'Remaining', 'Overdue', 'Coming up', 'View all', 'Weekly notes', 'Choose', 'This week', 'Quick capture', 'Add task for today'],
+      tasks: ['Search tasks', 'Any priority', 'Any category', 'All statuses', 'Sort by', 'Due today', 'Newest first', 'Alphabetical', 'Add a task'],
+      planner: ['scheduled', 'high priority', 'Notes for this week', 'Add note', 'Tip: drag', 'Weekly Planner', 'This week'],
+      dialog: ['Title', 'Description', 'Priority', 'Due date', 'Category', 'Repeat', 'Reminder', 'Subtasks', 'Create task', 'No category', 'Does not repeat', 'No reminder', 'Cancel'],
+    };
+    const labelText = (root) => Array.from(root.querySelectorAll('h1,h2,h3,.stat__label,.btn,.subhead,.page-sub,.empty__title,.empty__text,label,legend,option,summary,.week-summary__item,.hint-dnd,.card__head a'))
+      .map((e) => e.textContent).join(' | ');
+    const attrText = (root) => Array.from(root.querySelectorAll('[placeholder],[aria-label],[title]')).filter((e) => !e.closest('.task')).map((e) => (e.getAttribute('placeholder') || '') + ' ' + (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).join(' | ');
+    for (const l of LANGS) {
+      I.setLanguage(l);
+      for (const view of ['dashboard', 'tasks', 'planner']) {
+        await go(view);
+        const txt = labelText($('#main')) + ' || ' + attrText($('#main'));
+        const left = ENG[view].filter((w) => hasWord(txt, w));
+        ok(left.length === 0, l + ' ' + view + ': no untranslated English UI words' + (left.length ? ' (found: ' + left.join(', ') + ')' : ''));
+      }
+      await go('tasks');
+      T4.tasks.openEditor(null, {}); await wait(40);
+      const dlg = labelText($('#modal')) + ' || ' + attrText($('#modal'));
+      const leftD = ENG.dialog.filter((w) => hasWord(dlg, w));
+      ok(leftD.length === 0, l + ' task dialog: no untranslated English UI words' + (leftD.length ? ' (found: ' + leftD.join(', ') + ')' : ''));
+      click('#modal [data-action=modal-close]'); await wait(30);
+    }
+
+    // 3. editor toolbar (the editor shell is rebuilt when the language changes)
+    I.setLanguage('en');
+    await go('editor'); await wait(150);
+    ok($('#ed-toolbar [data-cmd=bold]').title === 'Bold (Ctrl+B)', 'editor toolbar en: ' + $('#ed-toolbar [data-cmd=bold]').title);
+    const TB = { de: ['Fett', 'Rückgängig', 'Tabelle einfügen'], tr: ['Kalın', 'Geri al', 'Tablo ekle'], es: ['Negrita', 'Deshacer', 'Insertar tabla'] };
+    const TB_EN = ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Strikethrough', 'Bulleted list', 'Numbered list', 'Insert image', 'Insert shape', 'Insert chart', 'More formatting', 'Text color', 'Paragraph style', 'Font size', 'Align left', 'Justify'];
+    for (const l of LANGS) {
+      I.setLanguage(l); await wait(200);
+      const tbTxt = Array.from($$('#ed-toolbar [title],#ed-toolbar [aria-label]')).map((e) => (e.title || '') + ' ' + (e.getAttribute('aria-label') || '')).join(' | ');
+      ok(TB[l].every((w) => tbTxt.includes(w)), l + ' editor toolbar translated (shell rebuilt): ' + tbTxt.slice(0, 70));
+      const engLeft = TB_EN.filter((w) => hasWord(tbTxt, w));
+      ok(engLeft.length === 0, l + ' editor toolbar: no English left' + (engLeft.length ? ' (' + engLeft.join(', ') + ')' : ''));
+      const home = $('#ed-home').textContent;
+      ok(!/Recent documents|Start with|Blank document|Meeting notes/.test(home), l + ' editor start page translated');
+    }
+    I.setLanguage('en');
+    await go('dashboard');
+
+    // 4. plural forms
+    const pl = (l, key, n) => { I.setLanguage(l); return I.t(key, { count: n }); };
+    ok(pl('de', 'tk.results', 1) === '1 Aufgabe' && pl('de', 'tk.results', 2) === '2 Aufgaben' && pl('de', 'tk.results', 0) === '0 Aufgaben', 'plural de: ' + pl('de', 'tk.results', 1) + ' / ' + pl('de', 'tk.results', 2));
+    ok(pl('tr', 'tk.results', 1) === '1 görev' && pl('tr', 'tk.results', 5) === '5 görev', 'plural tr (no plural suffix after numerals)');
+    ok(pl('es', 'tk.results', 1) === '1 tarea' && pl('es', 'tk.results', 2) === '2 tareas', 'plural es');
+    ok(pl('de', 'nav.overdueTasks', 1) === '1 überfällige Aufgabe' && pl('de', 'tk.resultsFiltered', 3) === '3 Aufgaben passen zu deinen Filtern', 'plural de sentences with verb agreement');
+    ok(pl('en', 'tk.resultsFiltered', 1) === '1 task matches your filters' && pl('en', 'tk.resultsFiltered', 2) === '2 tasks match your filters', 'plural en sentences with verb agreement');
+    ok(pl('de', 'ed.words', 1) === '1 Wort' && pl('de', 'ed.words', 12) === '12 Wörter' && pl('es', 'ed.chars', 1) === '1 carácter', 'plural editor counters');
+
+    // 5. a task date sentence
+    const tom = U.addDays(U.today(), 1);
+    const sent = {};
+    for (const l of ['en', 'de', 'tr', 'es']) { I.setLanguage(l); sent[l] = I.t('tk.taskAddedFor', { date: U.relDate(tom) }); }
+    ok(sent.en === 'Task added for Tomorrow' && sent.de === 'Aufgabe für Morgen hinzugefügt' && sent.tr === 'Görev Yarın için eklendi' && sent.es === 'Tarea añadida para Mañana', 'task date sentence per language: ' + JSON.stringify(sent));
+    I.setLanguage('de');
+    await go('tasks');
+    const created = T4.tasks.captureText('Probe @tomorrow !2', {});
+    await wait(60);
+    ok($$('.toast__msg').some((t) => t.textContent === 'Aufgabe für Morgen hinzugefügt'), 'real toast after quick-add in German: ' + ($$('.toast__msg').pop() || {}).textContent);
+    if (created) T4.store.deleteTask(created.id);
+
+    // 6. recurrence text and reminder labels
+    const rule = { unit: 'week', every: 2, weekdays: [1, 3], from: 'due' };
+    const rt = {};
+    for (const l of ['en', 'de', 'tr', 'es']) { I.setLanguage(l); rt[l] = T4.recur.describe(rule); }
+    ok(rt.en === 'Every 2 weeks on Mon, Wed' && rt.de.startsWith('Alle 2 Wochen: Mo') && rt.tr.startsWith('Her 2 haftada bir (') && rt.es.startsWith('Cada 2 semanas: '), 'recurrence description per language: ' + JSON.stringify(rt));
+    I.setLanguage('de');
+    ok(T4.reminders.label(15) === '15 Minuten vorher' && T4.reminders.label(1440) === '1 Tag vorher' && T4.reminders.label(0) === 'Zur Fälligkeit', 'reminder labels de');
+    ok(T4.recur.presets('2026-11-06')[0].label === 'Täglich' && T4.recur.presets('2026-11-06')[2].label.startsWith('Wöchentlich am '), 'recurrence presets de');
+    I.setLanguage('en');
+    ok(T4.recur.describe({ unit: 'month', every: 1, monthDay: 22, from: 'due' }) === 'Monthly on the 22nd' && T4.recur.describe({ unit: 'month', every: 1, monthDay: -1, from: 'done' }, { short: true }) === 'Monthly last (after done)', 'english ordinals and short forms unchanged');
+    await go('dashboard');
+  `);
   // Reset
   await run('reset', `
     await go('settings');

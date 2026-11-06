@@ -15,6 +15,7 @@
 'use strict';
 
 const { ipcMain, net, session } = require('electron');
+const T = (key, params) => require('./i18n').t(key, params);
 
 const PARTITION = 'todo4me-calendar'; // no "persist:" prefix → in memory only, nothing written to disk
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -26,34 +27,34 @@ let running = 0;
 
 /** Validate and normalize a calendar address. → { url } or { error } */
 function normalizeUrl(raw) {
-  if (typeof raw !== 'string') return { error: 'Please enter a calendar address.' };
+  if (typeof raw !== 'string') return { error: T('cal.enterAddress') };
   let s = raw.trim();
-  if (!s) return { error: 'Please enter a calendar address.' };
-  if (s.length > MAX_URL) return { error: 'This address is too long.' };
+  if (!s) return { error: T('cal.enterAddress') };
+  if (s.length > MAX_URL) return { error: T('cal.tooLong') };
   if (/^webcals?:\/\//i.test(s)) s = 'https://' + s.replace(/^webcals?:\/\//i, '');
   let u;
-  try { u = new URL(s); } catch (e) { return { error: 'This is not a valid web address.' }; }
-  if (u.protocol !== 'https:') return { error: 'Only secure calendar addresses (https:// or webcal://) are supported.' };
-  if (u.username || u.password) return { error: 'Addresses with a user name or password are not supported. Use the calendar\'s published (secret) ICS link.' };
-  if (!u.hostname) return { error: 'This is not a valid web address.' };
+  try { u = new URL(s); } catch (e) { return { error: T('cal.invalid') }; }
+  if (u.protocol !== 'https:') return { error: T('cal.httpsOnly') };
+  if (u.username || u.password) return { error: T('cal.noCredentials') };
+  if (!u.hostname) return { error: T('cal.invalid') };
   u.hash = '';
   return { url: u.href };
 }
 
 function statusError(code) {
-  if (code === 401 || code === 403) return 'The calendar server refused access (' + code + '). The link may have been reset or is not public.';
-  if (code === 404 || code === 410) return 'Calendar not found (' + code + '). The link may have been removed or reset.';
-  if (code === 429) return 'The calendar server is busy (429). Try again later.';
-  if (code >= 500) return 'The calendar server has a problem (' + code + '). Try again later.';
-  return 'The calendar server answered with an error (' + code + ').';
+  if (code === 401 || code === 403) return T('cal.refused', { code });
+  if (code === 404 || code === 410) return T('cal.notFound', { code });
+  if (code === 429) return T('cal.busy', { code: 429 });
+  if (code >= 500) return T('cal.serverProblem', { code });
+  return T('cal.serverError', { code });
 }
 function netError(e) {
   const m = /net::(ERR_[A-Z_]+)/.exec(String(e && e.message));
   const code = m ? m[1] : '';
   if (/INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|ADDRESS_UNREACHABLE|NETWORK_CHANGED|CONNECTION_(REFUSED|RESET|CLOSED|FAILED|TIMED_OUT)|PROXY|TUNNEL/.test(code)) return 'No connection to the calendar server. Are you offline?';
-  if (/CERT|SSL/.test(code)) return 'The calendar server\'s security certificate is not valid.';
-  if (/TIMED_OUT/.test(code)) return 'The calendar server did not answer in time.';
-  return 'The calendar could not be downloaded' + (code ? ' (' + code + ')' : '') + '.';
+  if (/CERT|SSL/.test(code)) return T('cal.certificate');
+  if (/TIMED_OUT/.test(code)) return T('cal.timeout');
+  return code ? T('cal.downloadFailedCode', { code }) : T('cal.downloadFailed');
 }
 
 /** Download a calendar. Resolves { ok: true, text } or { ok: false, error } — never rejects. */
@@ -72,18 +73,18 @@ function fetchCalendar(raw) {
       if (!res.ok) { try { req.abort(); } catch (e) { /* already finished */ } }
       resolve(res);
     };
-    const timer = setTimeout(() => finish({ ok: false, error: 'The calendar server did not answer in time.' }), timeoutMs);
+    const timer = setTimeout(() => finish({ ok: false, error: T('cal.timeout') }), timeoutMs);
     try {
       req = net.request({
         url: n.url, method: 'GET', session: session.fromPartition(PARTITION),
         redirect: 'manual', useSessionCookies: false, credentials: 'omit', cache: 'no-store',
       });
-    } catch (e) { finish({ ok: false, error: 'The calendar could not be downloaded.' }); return; }
+    } catch (e) { finish({ ok: false, error: T('cal.downloadFailed') }); return; }
     req.setHeader('Accept', 'text/calendar, text/plain;q=0.8, */*;q=0.5');
     req.on('redirect', (_status, _method, location) => {
       if (normalizeUrl(location).error) { finish({ ok: false, error: 'The calendar server redirected to an insecure (non-https) address.' }); return; }
-      if (++redirects > MAX_REDIRECTS) { finish({ ok: false, error: 'Too many redirects.' }); return; }
-      try { req.followRedirect(); } catch (e) { finish({ ok: false, error: 'The calendar could not be downloaded.' }); }
+      if (++redirects > MAX_REDIRECTS) { finish({ ok: false, error: T('cal.redirects') }); return; }
+      try { req.followRedirect(); } catch (e) { finish({ ok: false, error: T('cal.downloadFailed') }); }
     });
     req.on('login', (_info, callback) => {
       try { callback(); } catch (e) { /* cancels the authentication */ }
@@ -108,7 +109,7 @@ function fetchCalendar(raw) {
         finish({ ok: true, text });
       });
       res.on('error', (e) => finish({ ok: false, error: netError(e) }));
-      res.on('aborted', () => finish({ ok: false, error: 'The download was interrupted.' }));
+      res.on('aborted', () => finish({ ok: false, error: T('cal.interrupted') }));
     });
     req.on('error', (e) => finish({ ok: false, error: netError(e) }));
     req.end();
