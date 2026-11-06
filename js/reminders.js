@@ -21,9 +21,11 @@
 T4.reminders = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, store = T4.store;
+  const tt = (k, p) => T4.i18n.t(k, p);
   const bridge = window.todo4meDesktop && window.todo4meDesktop.isDesktop && typeof window.todo4meDesktop.notify === 'function' ? window.todo4meDesktop : null;
 
-  const OPTIONS = [[0, 'At due time'], [5, '5 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [60, '1 hour before'], [1440, '1 day before']];
+  // [minutes, label]; the label follows the active language when read.
+  const OPTIONS = [0, 5, 15, 30, 60, 1440].map((m) => { const o = [m]; Object.defineProperty(o, 1, { get: () => label(m), enumerable: true }); return o; });
   const SNOOZE_MIN = 10;
   const TICK_MS = 30 * 1000;  // safety net; the next reminder is also timed exactly
   const BURST = 3;            // more reminders than this at once → one summary notification
@@ -34,12 +36,11 @@ T4.reminders = (function () {
 
   /* ---------- Pure helpers ---------- */
   function label(min) {
-    if (min == null) return 'No reminder';
-    const o = OPTIONS.find((x) => x[0] === min);
-    if (o) return o[1];
-    if (min % 1440 === 0) return U.plural(min / 1440, 'day') + ' before';
-    if (min % 60 === 0) return U.plural(min / 60, 'hour') + ' before';
-    return U.plural(min, 'minute') + ' before';
+    if (min == null) return tt('tk.noReminder');
+    if (min === 0) return tt('rem.atDue');
+    if (min % 1440 === 0) return tt('rem.dayBefore', { count: min / 1440 });
+    if (min % 60 === 0) return tt('rem.hourBefore', { count: min / 60 });
+    return tt('rem.minBefore', { count: min });
   }
 
   /** When the reminder of this task fires (Date), or null if it has none. */
@@ -90,8 +91,9 @@ T4.reminders = (function () {
   function dueText(task) {
     if (!task.dueDate) return '';
     const rel = U.relDate(task.dueDate);
-    const day = rel === 'Today' || rel === 'Tomorrow' || rel === 'Yesterday' ? rel.toLowerCase() : rel;
-    return 'Due ' + day + (task.dueTime ? ' at ' + U.fmtTime(task.dueTime) : '');
+    const lang = T4.i18n.language();
+    const day = ['date.today', 'date.tomorrow', 'date.yesterday'].some((k) => tt(k) === rel) ? rel.toLocaleLowerCase(lang) : rel;
+    return task.dueTime ? tt('rem.dueAt', { day, time: U.fmtTime(task.dueTime) }) : tt('rem.due', { day });
   }
 
   /* ---------- Firing ---------- */
@@ -121,9 +123,12 @@ T4.reminders = (function () {
       const titles = due.map((r) => r.task.title);
       notes.push({
         id: 'summary',
-        title: opts.startup ? U.plural(due.length, 'reminder') + ' missed' : U.plural(due.length, 'reminder'),
-        body: titles.slice(0, 3).join(', ') + (titles.length > 3 ? ' and ' + (titles.length - 3) + ' more' : '') +
-          (opts.startup ? ' (while Todo4Me was closed)' : ''),
+        title: tt(opts.startup ? 'rem.summaryMissed' : 'rem.summary', { count: due.length }),
+        body: (() => {
+          const list = titles.slice(0, 3).join(', ');
+          const text = titles.length > 3 ? tt('rem.andMore', { list, count: titles.length - 3 }) : list;
+          return opts.startup ? tt('rem.whileClosed', { text }) : text;
+        })(),
         taskId: null,
       });
     } else {
@@ -132,7 +137,7 @@ T4.reminders = (function () {
         notes.push({
           id: 'task:' + r.task.id,
           title: r.task.title.slice(0, 120),
-          body: (missed ? 'Missed while Todo4Me was closed · ' : r.snoozed ? 'Snoozed reminder · ' : '') + dueText(r.task),
+          body: (missed ? tt('rem.missedPrefix') + ' · ' : r.snoozed ? tt('rem.snoozedPrefix') + ' · ' : '') + dueText(r.task),
           taskId: r.task.id,
         });
       });
@@ -144,9 +149,9 @@ T4.reminders = (function () {
   function deliver(n) {
     // In-app toast: always (works without any permission, offers Snooze).
     const actions = n.taskId
-      ? [{ label: 'Open', fn: () => openTask(n.taskId) }, { label: 'Snooze ' + SNOOZE_MIN + ' min', fn: () => snooze(n.taskId) }]
-      : n.id === 'summary' ? [{ label: 'Show', fn: () => { location.hash = '#/today'; } }] : null;
-    ui.toast((n.taskId ? 'Reminder: ' : '') + n.title + (n.body ? ' — ' + n.body : ''), 'reminder', n.taskId || n.id === 'summary' ? 60000 : 8000, actions);
+      ? [{ label: tt('c.open'), fn: () => openTask(n.taskId) }, { label: tt('rem.snooze', { n: SNOOZE_MIN }), fn: () => snooze(n.taskId) }]
+      : n.id === 'summary' ? [{ label: tt('c.show'), fn: () => { location.hash = '#/today'; } }] : null;
+    ui.toast((n.taskId ? tt('tk.reminderTip', { label: '' }) : '') + n.title + (n.body ? ' — ' + n.body : ''), 'reminder', n.taskId || n.id === 'summary' ? 60000 : 8000, actions);
     // System notification.
     if (notifier) { try { notifier(n); } catch (e) { /* test hook */ } return; }
     if (bridge) {
@@ -181,10 +186,10 @@ T4.reminders = (function () {
 
   function openTask(taskId) {
     const t = store.getTask(taskId);
-    if (!t) { ui.toast('This task no longer exists.', 'info'); return; }
+    if (!t) { ui.toast(tt('rem.gone'), 'info'); return; }
     if (ui.modalOpen || document.getElementById('confirm').open) {
       // Never throw away a dialog the user is working in.
-      ui.toast('Reminder: ' + t.title, 'reminder', 20000, { label: 'Open task', fn: () => T4.tasks.openEditor(store.getTask(taskId)) });
+      ui.toast(tt('tk.reminderTip', { label: t.title }), 'reminder', 20000, { label: tt('rem.openTask'), fn: () => T4.tasks.openEditor(store.getTask(taskId)) });
       return;
     }
     T4.tasks.openEditor(t);
@@ -198,7 +203,7 @@ T4.reminders = (function () {
       const x = d.tasks.find((y) => y.id === taskId);
       if (x) x.reminderSnooze = until;
     }, { type: 'reminders', silent: true });
-    ui.toast('Snoozed — reminding you again in ' + (minutes || SNOOZE_MIN) + ' minutes', 'info', 3000);
+    ui.toast(tt('rem.snoozed', { count: minutes || SNOOZE_MIN }), 'info', 3000);
     schedule();
     return true;
   }
@@ -232,11 +237,11 @@ T4.reminders = (function () {
 
   /* ---------- Permission / settings ---------- */
   function systemStatus() {
-    if (bridge) return { kind: 'desktop', text: 'Reminders appear as Windows notifications — also while Todo4Me runs in the tray.' };
-    if (!('Notification' in window)) return { kind: 'none', text: 'This browser cannot show system notifications; reminders appear inside Todo4Me while it is open.' };
-    if (Notification.permission === 'granted') return { kind: 'granted', text: 'Reminders appear as browser notifications while Todo4Me is open in a tab.' };
-    if (Notification.permission === 'denied') return { kind: 'denied', text: 'Notifications are blocked for this page in your browser settings; reminders appear inside Todo4Me only.' };
-    return { kind: 'ask', text: 'Allow notifications so reminders also show up while this tab is in the background.' };
+    if (bridge) return { kind: 'desktop', text: tt('rem.sysDesktop') };
+    if (!('Notification' in window)) return { kind: 'none', text: tt('rem.sysNone') };
+    if (Notification.permission === 'granted') return { kind: 'granted', text: tt('rem.sysGranted') };
+    if (Notification.permission === 'denied') return { kind: 'denied', text: tt('rem.sysDenied') };
+    return { kind: 'ask', text: tt('rem.sysAsk') };
   }
   function requestPermission() {
     if (bridge || !('Notification' in window) || Notification.permission !== 'default') return Promise.resolve(false);
@@ -247,11 +252,11 @@ T4.reminders = (function () {
   }
   ui.on('reminders-permission', () => {
     requestPermission().then((ok) => {
-      ui.toast(ok ? 'Notifications allowed' : 'Notifications were not allowed — reminders appear inside Todo4Me.', ok ? 'success' : 'info');
+      ui.toast(tt(ok ? 'rem.allowed' : 'rem.notAllowed'), ok ? 'success' : 'info');
       if (T4.app.route.name === 'settings') T4.app.render();
     });
   });
-  ui.on('reminders-test', () => deliver({ id: 'test', title: 'Todo4Me', body: 'This is how reminders will look.', taskId: null }));
+  ui.on('reminders-test', () => deliver({ id: 'test', title: 'Todo4Me', body: tt('rem.testBody'), taskId: null }));
 
   document.addEventListener('DOMContentLoaded', () => { setTimeout(start, 1000); });
 

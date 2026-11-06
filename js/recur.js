@@ -10,12 +10,12 @@
 T4.recur = (function () {
   'use strict';
   const U = T4.util;
+  const tt = (k, p) => T4.i18n.t(k, p);
 
   const UNITS = ['day', 'week', 'month', 'year'];
   const LEGACY = { daily: 'day', weekly: 'week', monthly: 'month' };
-  const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayShort = (d) => T4.i18n.fmtWeekday(d, 'short');
+  const dayLong = (d) => T4.i18n.fmtWeekday(d, 'long');
   const WEEKDAYS = [1, 2, 3, 4, 5];
   const MAX_STEPS = 5000;
 
@@ -136,15 +136,16 @@ T4.recur = (function () {
   }
 
   /* ---------- text ---------- */
+  /** Ordinal number in the active language (English 1st/2nd/3rd/4th via Intl ordinal rules, others "5." / "5"). */
   function ordinal(n) {
-    const v = n % 100;
-    if (v >= 11 && v <= 13) return n + 'th';
-    return n + (['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+    let cat = 'other';
+    try { cat = new Intl.PluralRules(T4.i18n.language(), { type: 'ordinal' }).select(n); } catch (e) { /* other */ }
+    return tt('rc.ord.' + (['one', 'two', 'few'].includes(cat) ? cat : 'other'), { n });
   }
   const mondayFirst = (days) => days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
   const isWeekdays = (r) => r.weekdays && r.weekdays.length === 5 && WEEKDAYS.every((d) => r.weekdays.includes(d));
 
-  /** English description; short: true gives compact text for chips. */
+  /** Description in the active language; short: true gives compact text for chips. */
   function describe(rule, opts) {
     const r = normalize(rule);
     if (!r) return '';
@@ -152,20 +153,26 @@ T4.recur = (function () {
     const n = r.every;
     let s;
     if (r.unit === 'day') {
-      s = n === 1 ? 'Daily' : 'Every ' + n + ' days';
+      s = n === 1 ? tt('rc.daily') : tt('rc.everyNDays', { count: n });
     } else if (r.unit === 'week') {
-      const days = r.weekdays ? mondayFirst(r.weekdays).map((d) => DAY_SHORT[d]).join(', ') : '';
-      if (n === 1 && isWeekdays(r)) s = short ? 'Weekdays' : 'Every weekday';
-      else if (short) s = (n === 1 ? (days || 'Weekly') : 'Every ' + n + ' wks' + (days ? ' ' + days : ''));
-      else s = (n === 1 ? 'Weekly' : 'Every ' + n + ' weeks') + (days ? ' on ' + days : '');
+      const days = r.weekdays ? mondayFirst(r.weekdays).map(dayShort).join(', ') : '';
+      if (n === 1 && isWeekdays(r)) s = tt(short ? 'rc.weekdaysShort' : 'rc.weekdaysLong');
+      else if (short) s = (n === 1 ? (days || tt('rc.weekly')) : tt('rc.everyNWeeksShort', { count: n }) + (days ? ' ' + days : ''));
+      else {
+        const base = n === 1 ? tt('rc.weekly') : tt('rc.everyNWeeks', { count: n });
+        s = days ? tt('rc.onDays', { base, days }) : base;
+      }
     } else if (r.unit === 'month') {
-      const md = r.monthDay == null ? '' : (r.monthDay === -1 ? (short ? 'last' : 'the last day') : (short ? ordinal(r.monthDay) : 'the ' + ordinal(r.monthDay)));
-      if (short) s = (n === 1 ? 'Monthly' : 'Every ' + n + ' mos') + (md ? ' ' + md : '');
-      else s = (n === 1 ? 'Monthly' : 'Every ' + n + ' months') + (md ? ' on ' + md : '');
+      const md = r.monthDay == null ? '' : (r.monthDay === -1 ? tt(short ? 'rc.lastShort' : 'rc.theLast') : (short ? ordinal(r.monthDay) : tt('rc.theOrd', { ord: ordinal(r.monthDay) })));
+      if (short) s = (n === 1 ? tt('rc.monthly') : tt('rc.everyNMonthsShort', { count: n })) + (md ? ' ' + md : '');
+      else {
+        const base = n === 1 ? tt('rc.monthly') : tt('rc.everyNMonths', { count: n });
+        s = md ? tt('rc.onDay', { base, day: md }) : base;
+      }
     } else {
-      s = n === 1 ? 'Yearly' : 'Every ' + n + (short ? ' yrs' : ' years');
+      s = n === 1 ? tt('rc.yearly') : tt(short ? 'rc.everyNYearsShort' : 'rc.everyNYears', { count: n });
     }
-    if (r.from === 'done') s += short ? ' (after done)' : ' after completion';
+    if (r.from === 'done') s = tt(short ? 'rc.afterDoneShort' : 'rc.afterDone', { text: s });
     return s;
   }
 
@@ -178,14 +185,14 @@ T4.recur = (function () {
     const day = d.getDate();
     const isLast = day === daysInMonth(d.getFullYear(), d.getMonth());
     const list = [
-      { id: 'daily', label: 'Daily', rule: { unit: 'day', every: 1, from: 'due' } },
-      { id: 'weekdays', label: 'Every weekday', rule: { unit: 'week', every: 1, weekdays: WEEKDAYS.slice(), from: 'due' } },
-      { id: 'weekly', label: 'Weekly on ' + DAY_LONG[dow], rule: { unit: 'week', every: 1, weekdays: [dow], from: 'due' } },
-      { id: 'biweekly', label: 'Every 2 weeks on ' + DAY_LONG[dow], rule: { unit: 'week', every: 2, weekdays: [dow], from: 'due' } },
-      { id: 'monthly', label: 'Monthly on the ' + ordinal(day), rule: { unit: 'month', every: 1, monthDay: day, from: 'due' } },
+      { id: 'daily', label: tt('rc.daily'), rule: { unit: 'day', every: 1, from: 'due' } },
+      { id: 'weekdays', label: tt('rc.weekdaysLong'), rule: { unit: 'week', every: 1, weekdays: WEEKDAYS.slice(), from: 'due' } },
+      { id: 'weekly', label: tt('rc.presetWeekly', { day: dayLong(dow) }), rule: { unit: 'week', every: 1, weekdays: [dow], from: 'due' } },
+      { id: 'biweekly', label: tt('rc.presetBiweekly', { day: dayLong(dow) }), rule: { unit: 'week', every: 2, weekdays: [dow], from: 'due' } },
+      { id: 'monthly', label: tt('rc.presetMonthly', { ord: ordinal(day) }), rule: { unit: 'month', every: 1, monthDay: day, from: 'due' } },
     ];
-    if (isLast) list.push({ id: 'monthly-last', label: 'Monthly on the last day', rule: { unit: 'month', every: 1, monthDay: -1, from: 'due' } });
-    list.push({ id: 'yearly', label: 'Yearly on ' + MONTH_SHORT[d.getMonth()] + ' ' + day, rule: { unit: 'year', every: 1, from: 'due' } });
+    if (isLast) list.push({ id: 'monthly-last', label: tt('rc.presetMonthlyLast'), rule: { unit: 'month', every: 1, monthDay: -1, from: 'due' } });
+    list.push({ id: 'yearly', label: tt('rc.presetYearly', { date: T4.i18n.fmtDate(due, { month: 'short', day: 'numeric' }) }), rule: { unit: 'year', every: 1, from: 'due' } });
     return list;
   }
 
