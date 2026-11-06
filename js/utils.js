@@ -64,21 +64,24 @@ T4.util = (function () {
   }
   function startOfMonth(str) { return str.slice(0, 8) + '01'; }
 
+  const tr = (key, fallback, params) => (T4.i18n && T4.i18n.has(key) ? T4.i18n.t(key, params) : fallback);
+  const loc = () => (T4.i18n ? T4.i18n.locale() : undefined); // js/i18n.js loads after utils.js; everything works without it
+
   const fmtCache = {};
   function fmt(str, opts) {
-    const key = JSON.stringify(opts);
-    if (!fmtCache[key]) fmtCache[key] = new Intl.DateTimeFormat(undefined, opts);
+    const key = loc() + '|' + JSON.stringify(opts);
+    if (!fmtCache[key]) fmtCache[key] = new Intl.DateTimeFormat(loc(), opts);
     const d = typeof str === 'string' ? parseDate(str) : str;
     return d ? fmtCache[key].format(d) : '';
   }
-  /** Friendly relative label: Today, Tomorrow, Yesterday, Mon, Nov 12 */
+  /** Friendly relative label: Today, Tomorrow, Yesterday, Mon, Nov 12 (in the active language) */
   function relDate(str) {
     if (!str) return '';
     const t = today();
     const diff = diffDays(t, str);
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Tomorrow';
-    if (diff === -1) return 'Yesterday';
+    if (diff === 0) return tr('date.today', 'Today');
+    if (diff === 1) return tr('date.tomorrow', 'Tomorrow');
+    if (diff === -1) return tr('date.yesterday', 'Yesterday');
     if (diff > 1 && diff < 7) return fmt(str, { weekday: 'long' });
     const sameYear = str.slice(0, 4) === t.slice(0, 4);
     return fmt(str, sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
@@ -86,16 +89,17 @@ T4.util = (function () {
   function fmtTime(hhmm) {
     if (!isTimeStr(hhmm)) return '';
     const [h, m] = hhmm.split(':').map(Number);
-    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, h, m));
+    return new Intl.DateTimeFormat(loc(), { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, h, m));
   }
   function fmtDateTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
     if (isNaN(d)) return '';
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+    return new Intl.DateTimeFormat(loc(), { dateStyle: 'medium', timeStyle: 'short' }).format(d);
   }
   function weekRangeLabel(startStr) {
     const end = addDays(startStr, 6);
+    if (T4.i18n) return T4.i18n.fmtRange(startStr, end); // locale-correct order and separators
     const sameMonth = startStr.slice(0, 7) === end.slice(0, 7);
     const a = fmt(startStr, { month: 'short', day: 'numeric' });
     const b = fmt(end, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
@@ -104,7 +108,8 @@ T4.util = (function () {
   function fmtMinutes(min) {
     if (!min) return '';
     const h = Math.floor(min / 60), m = min % 60;
-    return h ? (m ? h + 'h ' + m + 'm' : h + 'h') : m + 'm';
+    const H = (n) => tr('time.hoursShort', n + 'h', { n }), M = (n) => tr('time.minutesShort', n + 'm', { n });
+    return h ? (m ? H(h) + ' ' + M(m) : H(h)) : M(m);
   }
   function nowTime() {
     const d = new Date();
@@ -163,10 +168,10 @@ T4.util = (function () {
   }
   function greeting() {
     const h = new Date().getHours();
-    if (h < 5) return 'Good night';
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 5) return tr('greeting.night', 'Good night');
+    if (h < 12) return tr('greeting.morning', 'Good morning');
+    if (h < 18) return tr('greeting.afternoon', 'Good afternoon');
+    return tr('greeting.evening', 'Good evening');
   }
 
   return {

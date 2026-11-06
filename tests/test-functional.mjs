@@ -884,6 +884,53 @@ export default async function (b) {
     ok(Object.keys(localStorage).some(k => k.startsWith('todo4me.corrupt.')), 'corrupted payload quarantined');
     ok($$('.toast--error').some(t => /backup/.test(t.textContent)), 'user is told about the recovery');
   `);
+  // i18n engine + pilot
+  await run('i18n', `
+    const I = T4.i18n;
+    ok(I.languages().map(l => l.id + ':' + l.name).join() === 'en:English,de:Deutsch,tr:Türkçe,es:Español', 'languages() lists native names');
+    I.setLanguage('en');
+    ok(I.t('nav.today') === 'Today' && I.has('nav.today') && !I.has('nope.key'), 't/has basics');
+    ok(I.t('time.hoursShort', { n: 3 }) === '3h' && I.t('time.hoursShort') === '{n}h', 'interpolation (unknown placeholder stays)');
+    ok(I.t('nav.overdueTasks', { count: 1 }) === '1 overdue task' && I.t('nav.overdueTasks', { count: 2 }) === '2 overdue tasks', 'plural en');
+    ok(I.t('totally.missing.key') === 'totally.missing.key', 'missing key → key');
+    I.add('de', { 'test.onlyDe': 'nur Deutsch', 'test.pl': { '=0': 'keine', one: '{count} Ding', other: '{count} Dinge' } });
+    I.add('en', { 'test.pl': { '=0': 'none', one: '{count} thing', other: '{count} things' } });
+    I.setLanguage('de');
+    ok(I.t('test.onlyDe') === 'nur Deutsch' && I.t('nav.today') === 'Heute', 'de active');
+    ok(I.t('test.pl', { count: 0 }) === 'keine' && I.t('test.pl', { count: 1 }) === '1 Ding' && I.t('test.pl', { count: 5 }) === '5 Dinge', 'plural de incl. =0');
+    I.setLanguage('tr');
+    ok(I.t('test.onlyDe') === 'test.onlyDe', 'fallback: key missing in tr and en → key');
+    ok(I.t('test.pl', { count: 2 }) === '2 things', 'fallback: tr → en');
+    ok(I.detect('de-AT') === 'de' && I.detect('tr-TR') === 'tr' && I.detect('es_MX') === 'es' && I.detect('fr-FR') === 'en' && I.detect('EN-gb') === 'en', 'auto detection maps tags, unknown → en');
+    ok(['en','de','tr','es'].includes(I.detect()), 'detect() from navigator');
+    I.setLanguage('de');
+    ok(document.documentElement.lang === 'de' && T4.store.settings.language === 'de' && I.locale().startsWith('de'), 'setLanguage → <html lang>, settings, locale');
+    ok($('#sidebar').getAttribute('aria-label') === 'Hauptnavigation' && $('.skip-link').textContent === 'Zum Inhalt springen' && $('meta[name=description]').content.includes('Aufgaben'), 'data-i18n static texts (text, aria-label, meta content)');
+    ok($('.sidebar__capture span').textContent === 'Schnell erfassen', 'sidebar capture button translated');
+    const t0 = T4.util.today();
+    ok(T4.util.relDate(t0) === 'Heute' && T4.util.relDate(T4.util.addDays(t0, 1)) === 'Morgen' && T4.util.relDate(T4.util.addDays(t0, -1)) === 'Gestern', 'relDate de');
+    ok(T4.util.fmtMinutes(90) === '1 Std. 30 Min.', 'fmtMinutes de');
+    ok(I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }) === '6. November 2026', 'fmtDate de: ' + I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }));
+    ok(I.fmtWeekday(1) === 'Montag' && I.fmtMonth(2) === 'März' && I.fmtTime('14:05') === '14:05', 'weekday/month/time de');
+    I.setLanguage('tr');
+    ok(document.documentElement.lang === 'tr' && I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }) === '6 Kasım 2026', 'fmtDate tr: ' + I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }));
+    ok(I.fmtWeekday(0) === 'Pazar' && I.fmtWeekday(2) === 'Salı' && I.fmtMonth(0) === 'Ocak' && T4.util.relDate(t0) === 'Bugün', 'weekday/month/relDate tr');
+    I.setLanguage('es');
+    ok(I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }) === '6 de noviembre de 2026' && I.fmtWeekday(6) === 'sábado' && I.fmtMonth(4) === 'mayo', 'fmtDate/weekday/month es: ' + I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }));
+    ok(T4.util.relDate(T4.util.addDays(t0, 1)) === 'Mañana' && T4.util.greeting().startsWith('Buen'), 'relDate/greeting es');
+    I.setLanguage('en');
+    ok(I.fmtWeekday(3) === 'Wednesday' && I.fmtDate('2026-11-06', { day: 'numeric', month: 'long', year: 'numeric' }) === 'November 6, 2026', 'fmtDate en');
+    const base = I.keys('en').sort().join('|');
+    ok(['de', 'tr', 'es'].every((l) => I.keys(l).filter(k => !k.startsWith('test.')).sort().join('|') === I.keys('en').filter(k => !k.startsWith('test.')).sort().join('|')), 'all 4 dictionaries have the same keys');
+    ok(['nav.dashboard','nav.inbox','nav.tasks','nav.today','nav.upcoming','nav.planner','nav.plan','nav.notes','nav.editor','nav.focus','nav.stats','nav.settings','nav.section.plan','nav.section.write','nav.section.do'].every(k => ['en','de','tr','es'].every(l => I.keys(l).includes(k))), 'nav keys exist in all languages');
+    // language change re-renders the current view
+    await go('dashboard');
+    const h1 = $('.hero__title').textContent;
+    I.setLanguage('de');
+    ok($('.hero__title').textContent !== h1 && /^(Gute|Guten)/.test($('.hero__title').textContent), 'language switch re-renders the view: ' + $('.hero__title').textContent);
+    I.setLanguage('en');
+    ok($('.hero__title').textContent.startsWith('Good'), 'switch back to English');
+  `);
   // Reset
   await run('reset', `
     await go('settings');

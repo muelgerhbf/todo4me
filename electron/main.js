@@ -26,6 +26,10 @@ const INDEX_URL = pathToFileURL(INDEX).href;
 const isDev = process.argv.includes('--dev');
 const WINDOW_BG = '#f6f6f8';
 
+/* UI language reported by the renderer (menu, tray and notifications can read it; translations follow in a later step). */
+const UI_LANGUAGES = ['en', 'de', 'tr', 'es'];
+let uiLanguage = 'en';
+
 /* ---------- Stable data location ----------
  * All LocalStorage data lives in <userData>/Local Storage. Pin userData to
  * %APPDATA%\Todo4Me so that renaming, updating, or switching between the
@@ -237,6 +241,11 @@ function hardenSession() {
 
 /* ---------- IPC (only what the renderer strictly needs) ---------- */
 function registerIpc() {
+  ipcMain.handle('i18n:set-language', (_e, lang) => {
+    if (UI_LANGUAGES.includes(lang)) uiLanguage = lang;
+    return { ok: UI_LANGUAGES.includes(lang), language: uiLanguage };
+  });
+
   ipcMain.handle('app:info', () => ({
     version: app.getVersion(),
     userData: app.getPath('userData'),

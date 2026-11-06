@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Todo4Me — a personal productivity dashboard for tasks, weekly planning and notes.">
+  <meta name="description" data-i18n-content="app.description" content="Todo4Me — a personal productivity dashboard for tasks, weekly planning and notes.">
   <meta name="color-scheme" content="light dark">
   <!-- Content Security Policy: only local files; the inline theme script below is allowed by its hash
        (if you edit that script, update the hash). Inline style attributes are used for dynamic colors. -->
@@ -131,21 +131,21 @@
     </defs>
   </svg>
 
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main" data-i18n="app.skipToContent">Skip to content</a>
 
   <div class="app" id="app">
-    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation" data-i18n-aria-label="app.mainNavigation">
       <div class="sidebar__brand">
         <span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span>
         <span class="brand-name">Todo4Me</span>
-        <button class="icon-btn sidebar__close" data-action="close-sidebar" aria-label="Close menu"><svg class="icon"><use href="#i-x"/></svg></button>
+        <button class="icon-btn sidebar__close" data-action="close-sidebar" aria-label="Close menu" data-i18n-aria-label="app.closeMenu"><svg class="icon"><use href="#i-x"/></svg></button>
       </div>
       <button class="btn btn--primary btn--block sidebar__capture" data-action="quick-capture">
-        <svg class="icon"><use href="#i-plus"/></svg><span>Quick capture</span><kbd>Q</kbd>
+        <svg class="icon"><use href="#i-plus"/></svg><span data-i18n="app.quickCapture">Quick capture</span><kbd>Q</kbd>
       </button>
       <nav id="nav" class="nav"></nav>
       <div class="sidebar__footer">
-        <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle light/dark mode" title="Toggle light/dark mode">
+        <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle light/dark mode" title="Toggle light/dark mode" data-i18n-aria-label="app.toggleTheme" data-i18n-title="app.toggleTheme">
           <svg class="icon"><use href="#i-moon"/></svg>
         </button>
         <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
@@ -155,14 +155,14 @@
 
     <div class="main-wrap">
       <header class="topbar">
-        <button class="icon-btn" data-action="open-sidebar" aria-label="Open menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+        <button class="icon-btn" data-action="open-sidebar" aria-label="Open menu" data-i18n-aria-label="app.openMenu"><svg class="icon"><use href="#i-menu"/></svg></button>
         <span class="topbar__title" id="topbar-title">Todo4Me</span>
-        <button class="icon-btn" data-action="new-task" aria-label="New task"><svg class="icon"><use href="#i-plus"/></svg></button>
+        <button class="icon-btn" data-action="new-task" aria-label="New task" data-i18n-aria-label="app.newTask"><svg class="icon"><use href="#i-plus"/></svg></button>
       </header>
       <main id="main" class="main" tabindex="-1"></main>
     </div>
 
-    <nav class="bottom-nav" id="bottom-nav" aria-label="Mobile navigation"></nav>
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Mobile navigation" data-i18n-aria-label="app.mobileNavigation"></nav>
   </div>
 
   <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
@@ -171,6 +171,11 @@
   <input type="file" id="import-file" accept="application/json,.json" hidden>
 
   <script src="js/utils.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/i18n/en.js"></script>
+  <script src="js/i18n/de.js"></script>
+  <script src="js/i18n/tr.js"></script>
+  <script src="js/i18n/es.js"></script>
   <script src="js/recur.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/store.js"></script>
