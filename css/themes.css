@@ -16,17 +16,188 @@
                 --toast-bg --toast-fg --toast-success --toast-error --toast-info --toast-reminder
      Typography --mono (engine sets --font/--heading-font from the design definition)
      Always also set color-scheme: light|dark in the block.
+   A design may add a few scoped rules after its blocks ("aura": glow, markers) — keep them to colors/shadows/decoration.
    ========================================================================== */
 
-/* ---------- demo (dark only) ---------- */
-[data-design="demo"][data-theme="dark"] {
-  --bg: #0b1316; --surface: #122026; --surface-2: #17292f; --surface-3: #1e343b;
-  --border: #223a42; --border-strong: #2f4e58;
-  --text: #e6f4f1; --text-2: #b4cdc8; --muted: #86a39d;
-  --accent-fg: #04201c;
-  --sidebar-bg: #07100f; --sidebar-border: #12221f; --sidebar-hover: #102321;
-  --sidebar-text: #a9c7c1; --sidebar-text-strong: #e6f4f1; --sidebar-muted: #7f9c96;
-  --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent); --sidebar-active-text: #5eead4;
-  --editor-desk: #070d0f;
+/* ==================== Tokio — neon night city (dark only) ==================== */
+[data-design="tokio"][data-theme="dark"] {
+  --bg: #0a0920; --surface: #131135; --surface-2: #1a1745; --surface-3: #25205a;
+  --border: #2d2866; --border-strong: #433b94;
+  --text: #eeecff; --text-2: #bdb8ee; --muted: #968fd0;
+  --shadow-sm: 0 0 0 1px rgba(124, 92, 255, .10), 0 1px 3px rgba(0, 0, 0, .5);
+  --shadow: 0 0 0 1px rgba(124, 92, 255, .14), 0 6px 26px rgba(98, 62, 255, .20);
+  --shadow-lg: 0 0 0 1px rgba(255, 79, 195, .30), 0 18px 60px rgba(0, 0, 0, .65), 0 0 46px rgba(255, 79, 195, .16);
+  --accent-fg: #19001f; --accent-text: #ff8ad8;
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent); --accent-softer: color-mix(in srgb, var(--accent) 10%, transparent);
+  --p-critical: #ff4d6d; --p-high: #ffa23f; --p-medium: #3fd8ff; --p-low: #a58cff;
+  --good: #34f0a0; --danger: #ff4d6d; --warn: #ffd23f; --on-color: #14002a;
+  --focus-ring: #27e6ff; --backdrop: rgba(5, 4, 20, .66); --scrim: rgba(5, 4, 20, .55); --editor-desk: #060515;
+  --sidebar-bg: #070618; --sidebar-border: #1d1948; --sidebar-hover: #14113a;
+  --sidebar-text: #bdb8ee; --sidebar-text-strong: #f4f2ff; --sidebar-muted: #8f88cc;
+  --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent); --sidebar-active-text: #ff9be0;
+  --toast-bg: #1d1950; --toast-fg: #f4f2ff; --toast-success: #34f0a0; --toast-error: #ff6b86; --toast-info: #27e6ff; --toast-reminder: #ffd23f;
   color-scheme: dark;
 }
+[data-design="tokio"] .btn--primary { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent); }
+[data-design="tokio"] .nav__link.is-active { box-shadow: inset 2px 0 0 var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 22%, transparent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
+[data-design="tokio"] .card { border-color: color-mix(in srgb, var(--border-strong) 70%, transparent); }
+[data-design="tokio"] .page-title { text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent); }
+[data-design="tokio"] .brand-mark { box-shadow: 0 0 16px var(--accent); }
+
+/* ==================== Development — code editor (dark + light) ==================== */
+[data-design="development"][data-theme="dark"] {
+  --bg: #16181c; --surface: #1d2025; --surface-2: #242830; --surface-3: #2d323c;
+  --border: #30353f; --border-strong: #454c59;
+  --text: #d7dce4; --text-2: #aeb6c3; --muted: #8b95a5;
+  --shadow-sm: none; --shadow: 0 1px 0 rgba(0, 0, 0, .35); --shadow-lg: 0 10px 30px rgba(0, 0, 0, .55);
+  --accent-fg: #0a1422; --accent-text: #8cc4f7;
+  --p-critical: #ff5c6c; --p-high: #ff9e3d; --p-medium: #e6d35a; --p-low: #6fa8e6;
+  --good: #98c379; --danger: #ff6b7a; --warn: #e5c07b; --on-color: #101319;
+  --focus-ring: #61afef; --editor-desk: #101216;
+  --sidebar-bg: #111317; --sidebar-border: #262a32; --sidebar-hover: #1b1e24;
+  --sidebar-text: #a9b2c0; --sidebar-text-strong: #e6eaf0; --sidebar-muted: #838e9f;
+  --sidebar-active: color-mix(in srgb, var(--accent) 20%, transparent); --sidebar-active-text: #8cc4f7;
+  --toast-bg: #2b303a; --toast-fg: #e6eaf0; --toast-success: #98c379; --toast-error: #ff7f8c; --toast-info: #61afef; --toast-reminder: #e5c07b;
+  color-scheme: dark;
+}
+[data-design="development"][data-theme="light"] {
+  --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #e8eaee;
+  --border: #dcdfe5; --border-strong: #bfc4cd;
+  --text: #1f2430; --text-2: #424a5a; --muted: #5d6677;
+  --shadow-sm: none; --shadow: 0 1px 0 rgba(30, 36, 48, .08); --shadow-lg: 0 10px 30px rgba(30, 36, 48, .20);
+  --accent-fg: #ffffff; --accent-text: #1355a8;
+  --p-critical: #c62a3c; --p-high: #d0600a; --p-medium: #7a6a00; --p-low: #2c6cb0;
+  --good: #2a7d3a; --danger: #c62a3c; --warn: #8a6a00; --on-color: #ffffff;
+  --editor-desk: #e6e8ec;
+  --sidebar-bg: #eceef2; --sidebar-border: #d6d9e0; --sidebar-hover: #e0e3e9;
+  --sidebar-text: #424a5a; --sidebar-text-strong: #1f2430; --sidebar-muted: #5d6677;
+  --sidebar-active: color-mix(in srgb, var(--accent) 16%, transparent); --sidebar-active-text: #1355a8;
+  --toast-bg: #1f2430; --toast-fg: #f3f4f6; --toast-success: #7fd18f; --toast-error: #ff8f9b; --toast-info: #7ab8f5; --toast-reminder: #e5c07b;
+  color-scheme: light;
+}
+[data-design="development"][data-density="comfortable"] { --space: .86; }
+[data-design="development"] .page-title, [data-design="development"] .card__title, [data-design="development"] .section__title,
+[data-design="development"] .modal__title, [data-design="development"] .brand-name { letter-spacing: 0; }
+[data-design="development"] .page-title::before { content: "// "; color: var(--muted); font-weight: 400; }
+[data-design="development"] .card__title::before { content: "#"; color: var(--accent); font-weight: 700; }
+
+/* ==================== Office — crisp corporate (light + dark) ==================== */
+[data-design="office"][data-theme="light"] {
+  --bg: #eef1f5; --surface: #ffffff; --surface-2: #f5f7fa; --surface-3: #e6eaf0;
+  --border: #d3d9e2; --border-strong: #aab4c3;
+  --text: #0f1724; --text-2: #34404f; --muted: #556171;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 36, .08); --shadow: 0 1px 3px rgba(15, 23, 36, .10), 0 2px 8px rgba(15, 23, 36, .05); --shadow-lg: 0 12px 40px rgba(15, 23, 36, .22);
+  --accent-fg: #ffffff; --accent-text: #0a4cb0;
+  --p-critical: #c9252d; --p-high: #c55a00; --p-medium: #0b63ce; --p-low: #647285;
+  --good: #1a7f43; --danger: #c9252d; --warn: #a86400;
+  --focus-ring: #0b63ce; --editor-desk: #e0e5ec;
+  --sidebar-bg: #ffffff; --sidebar-border: #d3d9e2; --sidebar-hover: #eef1f5;
+  --sidebar-text: #34404f; --sidebar-text-strong: #0f1724; --sidebar-muted: #556171;
+  --sidebar-active: #e3edfb; --sidebar-active-text: #0a4cb0;
+  --toast-bg: #0f1724; --toast-fg: #f5f7fa; --toast-success: #5fd48c; --toast-error: #ff8a8f; --toast-info: #7db4f7; --toast-reminder: #f5b041;
+  color-scheme: light;
+}
+[data-design="office"][data-theme="dark"] {
+  --bg: #0f141b; --surface: #171e28; --surface-2: #1d2531; --surface-3: #27313f;
+  --border: #2b3544; --border-strong: #46546a;
+  --text: #f0f4f9; --text-2: #c0cada; --muted: #96a3b6;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4); --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .25); --shadow-lg: 0 16px 48px rgba(0, 0, 0, .6);
+  --accent-fg: #04122b; --accent-text: #8ebdfa;
+  --p-critical: #ff6b73; --p-high: #ff9a4a; --p-medium: #5aa2ff; --p-low: #93a1b5;
+  --good: #4cc882; --danger: #ff6b73; --warn: #f0b04a; --on-color: #0a0f16;
+  --focus-ring: #5aa2ff; --editor-desk: #0a0e14;
+  --sidebar-bg: #0b1017; --sidebar-border: #232d3b; --sidebar-hover: #151c26;
+  --sidebar-text: #c0cada; --sidebar-text-strong: #f0f4f9; --sidebar-muted: #8f9db0;
+  --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent); --sidebar-active-text: #8ebdfa;
+  --toast-bg: #27313f; --toast-fg: #f0f4f9; --toast-success: #4cc882; --toast-error: #ff8a8f; --toast-info: #7db4f7; --toast-reminder: #f5b041;
+  color-scheme: dark;
+}
+[data-design="office"] .page-title { letter-spacing: -.01em; }
+[data-design="office"] .card { border-color: var(--border-strong); }
+
+/* ==================== Aubergine — workspace app (light, dark sidebar) ==================== */
+[data-design="aubergine"][data-theme="light"] {
+  --bg: #faf6f0; --surface: #fffdf9; --surface-2: #f6efe5; --surface-3: #ece1d3;
+  --border: #e8dccd; --border-strong: #cfbfab;
+  --text: #2a1a2e; --text-2: #4d3a52; --muted: #6c5a70;
+  --shadow-sm: 0 1px 2px rgba(62, 14, 64, .07); --shadow: 0 1px 3px rgba(62, 14, 64, .07), 0 4px 14px rgba(62, 14, 64, .06); --shadow-lg: 0 14px 44px rgba(62, 14, 64, .26);
+  --accent-fg: #ffffff; --accent-text: #a8350a;
+  --p-critical: #d6293e; --p-high: #dc6a0a; --p-medium: #7b4bd1; --p-low: #7d8a99;
+  --good: #1f8a4c; --danger: #d6293e; --warn: #b8780a;
+  --focus-ring: #1d74c9; --editor-desk: #efe4d6; --backdrop: rgba(42, 10, 44, .5);
+  --sidebar-bg: #3f0e40; --sidebar-border: #50205a; --sidebar-hover: #5a2a5c;
+  --sidebar-text: #e8d6ea; --sidebar-text-strong: #ffffff; --sidebar-muted: #c9aacd;
+  --sidebar-active: var(--accent); --sidebar-active-text: var(--accent-fg);
+  --toast-bg: #3f0e40; --toast-fg: #ffffff; --toast-success: #6fdc9b; --toast-error: #ff9aa6; --toast-info: #8cc8ff; --toast-reminder: #ffc46b;
+  color-scheme: light;
+}
+[data-design="aubergine"] .nav__link.is-active { font-weight: 650; }
+[data-design="aubergine"] .sidebar kbd { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .22); color: var(--sidebar-text); }
+
+/* ==================== Fjord — Nordic calm (light + dark) ==================== */
+[data-design="fjord"][data-theme="light"] {
+  --bg: #eaf1f6; --surface: #f9fcfd; --surface-2: #eef4f8; --surface-3: #dfe9f0;
+  --border: #d3e0e9; --border-strong: #b3c6d4;
+  --text: #1d2c3a; --text-2: #3f5568; --muted: #587084;
+  --shadow-sm: 0 1px 2px rgba(40, 70, 100, .07); --shadow: 0 2px 10px rgba(40, 70, 100, .08); --shadow-lg: 0 14px 44px rgba(40, 70, 100, .20);
+  --accent-fg: #ffffff; --accent-text: #2b6585;
+  --p-critical: #b3303f; --p-high: #c9702a; --p-medium: #3f72a8; --p-low: #7a8b99;
+  --good: #3d8561; --danger: #b8434e; --warn: #a77a1f;
+  --focus-ring: #2f7aa6; --editor-desk: #dbe6ee;
+  --sidebar-bg: #dfeaf2; --sidebar-border: #cbdae6; --sidebar-hover: #d1e1ec;
+  --sidebar-text: #3f5568; --sidebar-text-strong: #1d2c3a; --sidebar-muted: #4d667a;
+  --sidebar-active: #f9fcfd; --sidebar-active-text: #1f5878;
+  --toast-bg: #26384a; --toast-fg: #eef4f8; --toast-success: #8fd1ae; --toast-error: #f0a0a8; --toast-info: #9fd0e6; --toast-reminder: #efc27a;
+  color-scheme: light;
+}
+[data-design="fjord"][data-theme="dark"] {
+  --bg: #19222d; --surface: #212c39; --surface-2: #283546; --surface-3: #324358;
+  --border: #33445a; --border-strong: #4d6480;
+  --text: #e6eef5; --text-2: #b9c9d8; --muted: #93a8bc;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .25); --shadow: 0 2px 12px rgba(0, 0, 0, .25); --shadow-lg: 0 16px 48px rgba(0, 0, 0, .5);
+  --accent-fg: #11202b; --accent-text: #a5d4e2;
+  --p-critical: #f0707f; --p-high: #f0a550; --p-medium: #6fa3e6; --p-low: #9aa8b5;
+  --good: #8fcdaa; --danger: #e0808a; --warn: #e5c27a; --on-color: #11202b;
+  --focus-ring: #88c0d0; --editor-desk: #141c25;
+  --sidebar-bg: #151d27; --sidebar-border: #26354a; --sidebar-hover: #1e2a38;
+  --sidebar-text: #b9c9d8; --sidebar-text-strong: #e6eef5; --sidebar-muted: #8da2b6;
+  --sidebar-active: color-mix(in srgb, var(--accent) 20%, transparent); --sidebar-active-text: #a5d4e2;
+  --toast-bg: #324358; --toast-fg: #e6eef5; --toast-success: #8fcdaa; --toast-error: #f0a0a8; --toast-info: #88c0d0; --toast-reminder: #e5c27a;
+  color-scheme: dark;
+}
+[data-design="fjord"] .card { box-shadow: var(--shadow); border-color: transparent; }
+[data-design="fjord"] .page-title { font-weight: 600; letter-spacing: -.01em; }
+
+/* ==================== Paper — e-ink / sepia (light + night reading) ==================== */
+[data-design="paper"][data-theme="light"] {
+  --bg: #efe5d0; --surface: #f9f3e5; --surface-2: #f2e9d6; --surface-3: #e7dbc2;
+  --border: #dccfb2; --border-strong: #bfae88;
+  --text: #33291d; --text-2: #55462f; --muted: #6f5f47;
+  --shadow-sm: none; --shadow: none; --shadow-lg: 0 8px 28px rgba(70, 50, 20, .18);
+  --accent-fg: #fffaf0; --accent-text: #7c3a12;
+  --p-critical: #a8261c; --p-high: #c0680a; --p-medium: #2f5f93; --p-low: #766b58;
+  --good: #3c6e3a; --danger: #a8261c; --warn: #8f6208; --on-color: #fffaf0;
+  --focus-ring: #7c3a12; --editor-desk: #e4d8bf; --backdrop: rgba(50, 36, 16, .4);
+  --sidebar-bg: #e9dec6; --sidebar-border: #d6c8a8; --sidebar-hover: #dfd2b6;
+  --sidebar-text: #55462f; --sidebar-text-strong: #33291d; --sidebar-muted: #6f5f47;
+  --sidebar-active: #f9f3e5; --sidebar-active-text: #7c3a12;
+  --toast-bg: #3a2f20; --toast-fg: #f7efdc; --toast-success: #a8d49c; --toast-error: #f0a898; --toast-info: #a9c8ea; --toast-reminder: #f0c070;
+  color-scheme: light;
+}
+[data-design="paper"][data-theme="dark"] {
+  --bg: #1b1610; --surface: #241e15; --surface-2: #2c2519; --surface-3: #3a3123;
+  --border: #3d3426; --border-strong: #5a4d38;
+  --text: #e8dcc2; --text-2: #c6b797; --muted: #a09070;
+  --shadow-sm: none; --shadow: none; --shadow-lg: 0 10px 34px rgba(0, 0, 0, .55);
+  --accent-fg: #1f1409; --accent-text: #e6b777;
+  --p-critical: #ee6a5a; --p-high: #e8a43c; --p-medium: #7ea6d6; --p-low: #a39880;
+  --good: #9cc58f; --danger: #e57b6c; --warn: #e0b560; --on-color: #1f1409;
+  --focus-ring: #d9a05b; --editor-desk: #130f0a;
+  --sidebar-bg: #15110c; --sidebar-border: #2e261b; --sidebar-hover: #211b13;
+  --sidebar-text: #c6b797; --sidebar-text-strong: #e8dcc2; --sidebar-muted: #9a8a6b;
+  --sidebar-active: color-mix(in srgb, var(--accent) 18%, transparent); --sidebar-active-text: #e6b777;
+  --toast-bg: #3a3123; --toast-fg: #f0e6cc; --toast-success: #9cc58f; --toast-error: #f0a898; --toast-info: #9ec0e6; --toast-reminder: #e0b560;
+  color-scheme: dark;
+}
+[data-design="paper"] .btn--primary, [data-design="paper"] .card { box-shadow: none; }
+[data-design="paper"] .page-title { font-weight: 600; font-style: italic; letter-spacing: 0; }
