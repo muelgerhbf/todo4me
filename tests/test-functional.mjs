@@ -1106,7 +1106,6 @@ export default async function (b) {
   await run('settings-appearance', `
     const TH = T4.themes, R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
     const st = () => T4.store.settings;
-    TH.register({ id: 'nightonly', name: 'Night Only', tagline: 'Test design', modes: ['dark'], accent: '#ff8800', preview: { bg: '#000', surface: '#111', sidebar: '#050505', text: '#eee', accent: '#ff8800' } });
     T4.store.updateSettings({ design: 'classic', theme: 'light', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100, nav: { hidden: [], order: [] } });
     T4.i18n.setLanguage('en');
     T4.settings.applyAppearance();
@@ -1119,13 +1118,13 @@ export default async function (b) {
     ok($('.dgallery').getAttribute('role') === 'radiogroup' && cards().length === TH.list().length && cards().length >= 3, 'appearance: gallery lists every registered design (' + cards().length + ')');
     ok(cards().every(c => c.querySelector('.dcard__pv') && c.querySelector('.dcard__name').textContent.trim() && c.querySelector('.badge-mode')), 'appearance: cards have preview, name, mode badges');
     ok(cards().filter(c => c.getAttribute('aria-checked') === 'true').length === 1 && $('.dcard[data-value=classic]').classList.contains('is-on'), 'appearance: exactly one selected card (classic)');
-    click('.dcard[data-value=demo]'); await wait(60);
-    ok(st().design === 'demo' && R.dataset.design === 'demo' && cs('--bg') === '#0b1316', 'appearance: click on a card applies the design live');
-    ok($('.dcard[data-value=demo]').getAttribute('aria-checked') === 'true' && $('.dcard[data-value=classic]').getAttribute('aria-checked') === 'false', 'appearance: selection moves to the clicked card');
-    $('.dcard[data-value=demo]').focus();
-    $('.dcard[data-value=demo]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(60);
+    click('.dcard[data-value=tokio]'); await wait(60);
+    ok(st().design === 'tokio' && R.dataset.design === 'tokio' && cs('--bg') === '#0a0920', 'appearance: click on a card applies the design live');
+    ok($('.dcard[data-value=tokio]').getAttribute('aria-checked') === 'true' && $('.dcard[data-value=classic]').getAttribute('aria-checked') === 'false', 'appearance: selection moves to the clicked card');
+    $('.dcard[data-value=tokio]').focus();
+    $('.dcard[data-value=tokio]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(60);
     ok(st().design === 'classic' && document.activeElement === $('.dcard[data-value=classic]'), 'appearance: arrow key selects the neighbouring design and keeps focus');
-    ok($('.dcard[data-value=classic]').tabIndex === 0 && $('.dcard[data-value=demo]').tabIndex === -1, 'appearance: roving tabindex');
+    ok($('.dcard[data-value=classic]').tabIndex === 0 && $('.dcard[data-value=tokio]').tabIndex === -1, 'appearance: roving tabindex');
     // --- mode
     const modeBtn = (v) => $('[data-action=set-theme][data-value=' + v + ']');
     ok(!modeBtn('light').disabled && !modeBtn('dark').disabled && !modeBtn('system').disabled && !$('#mode-hint'), 'appearance: classic supports every mode');
@@ -1135,9 +1134,9 @@ export default async function (b) {
     ok(st().theme === 'system', 'appearance: mode system');
     click(modeBtn('light')); await wait(40);
     ok(st().theme === 'light' && R.dataset.theme === 'light', 'appearance: mode light');
-    click('.dcard[data-value=nightonly]'); await wait(60);
+    click('.dcard[data-value=tokio]'); await wait(60);
     ok(modeBtn('light').disabled && modeBtn('system').disabled && !modeBtn('dark').disabled && modeBtn('dark').getAttribute('aria-checked') === 'true', 'appearance: single-mode design disables unsupported modes');
-    ok(/Night Only is dark only/.test($('#mode-hint').textContent) && R.dataset.theme === 'dark', 'appearance: hint explains the single mode: ' + ($('#mode-hint') || {}).textContent);
+    ok(/Tokio is dark only/.test($('#mode-hint').textContent) && R.dataset.theme === 'dark', 'appearance: hint explains the single mode: ' + ($('#mode-hint') || {}).textContent);
     modeBtn('light').click(); await wait(40);
     ok(st().theme === 'light' && R.dataset.theme === 'dark', 'appearance: clicking a disabled mode does nothing (theme still forced dark)');
     click('.dcard[data-value=classic]'); await wait(60);
@@ -1145,9 +1144,9 @@ export default async function (b) {
     // --- accent
     click('[data-action=set-accent][data-value="#d6409f"]'); await wait(40);
     ok(st().accent === '#d6409f' && st().accentSource === 'custom' && cs('--accent') === '#d6409f' && $('[data-action=set-accent][data-value="#d6409f"]').getAttribute('aria-checked') === 'true', 'appearance: swatch sets a custom accent');
-    click('.dcard[data-value=demo]'); await wait(60);
+    click('.dcard[data-value=tokio]'); await wait(60);
     click('[data-action=set-accent-design]'); await wait(40);
-    ok(st().accentSource === 'design' && cs('--accent') === '#2dd4bf' && $('[data-action=set-accent-design]').getAttribute('aria-pressed') === 'true', 'appearance: "use design accent" follows the design');
+    ok(st().accentSource === 'design' && cs('--accent') === '#ff4fc3' && $('[data-action=set-accent-design]').getAttribute('aria-pressed') === 'true', 'appearance: "use design accent" follows the design');
     ok($$('.swatch.is-on').length === 0, 'appearance: no swatch selected while the design accent is used');
     const cc = $('#set-accent-custom'); cc.value = '#123456'; cc.dispatchEvent(new Event('input', { bubbles: true })); await wait(30);
     ok(cs('--accent') === '#123456' && st().accentSource === 'design', 'appearance: custom color previews live without saving');
@@ -1215,30 +1214,30 @@ export default async function (b) {
     T4.i18n.setLanguage('en'); await wait(60);
     ok($('#set-appearance h2').textContent.trim() === 'Appearance & customization', 'appearance: back to English');
     // --- reset + undo
-    click('.dcard[data-value=demo]'); await wait(40);
+    click('.dcard[data-value=tokio]'); await wait(40);
     click('[data-action=set-font][data-value=mono]'); click('[data-action=set-density][data-value=compact]'); await wait(40);
     click('[data-action=set-accent][data-value="#0e7c86"]'); await wait(40);
     const snap = JSON.stringify(['design', 'theme', 'accentSource', 'accent', 'font', 'radius', 'density', 'fontScale'].map(k => st()[k]));
     click('[data-action=reset-appearance]'); await wait(40);
     click('#confirm [data-confirm=no]'); await wait(60);
-    ok(st().design === 'demo', 'appearance: cancelling the confirmation keeps everything');
+    ok(st().design === 'tokio', 'appearance: cancelling the confirmation keeps everything');
     click('[data-action=reset-appearance]'); await confirmYes();
     ok(st().design === 'classic' && st().theme === 'system' && st().accentSource === 'custom' && st().accent === '#5b5bd6' && st().font === 'design' && st().radius === 'design' && st().density === 'comfortable' && st().fontScale === 100 && R.dataset.design === 'classic', 'appearance: reset restores the defaults');
     const undo = $$('.toast__action').find(b => b.textContent === 'Undo');
     ok(!!undo, 'appearance: reset offers an Undo toast');
     undo.click(); await wait(60);
-    ok(JSON.stringify(['design', 'theme', 'accentSource', 'accent', 'font', 'radius', 'density', 'fontScale'].map(k => st()[k])) === snap && R.dataset.design === 'demo', 'appearance: undo restores the previous appearance');
+    ok(JSON.stringify(['design', 'theme', 'accentSource', 'accent', 'font', 'radius', 'density', 'fontScale'].map(k => st()[k])) === snap && R.dataset.design === 'tokio', 'appearance: undo restores the previous appearance');
     // state for the reload check
-    T4.store.updateSettings({ design: 'demo', accentSource: 'design', font: 'serif', radius: 'round', density: 'compact', fontScale: 110, nav: { hidden: ['focus'], order: [] } }); T4.settings.applyAppearance();
+    T4.store.updateSettings({ design: 'tokio', accentSource: 'design', font: 'serif', radius: 'round', density: 'compact', fontScale: 110, nav: { hidden: ['focus'], order: [] } }); T4.settings.applyAppearance();
   `);
   const resA = await b.evaluate('window.__r'); // collect before the reload, which clears window.__r
   await b.reload();
   await run('settings-appearance-persist', `
     const R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
-    ok(R.dataset.design === 'demo' && R.dataset.density === 'compact' && cs('--radius') === '16px' && cs('--font-scale') === '1.1' && cs('--accent') === '#2dd4bf', 'appearance: design, density, corners, text size and accent persist across reload');
+    ok(R.dataset.design === 'tokio' && R.dataset.density === 'compact' && cs('--radius') === '16px' && cs('--font-scale') === '1.1' && cs('--accent') === '#ff4fc3', 'appearance: design, density, corners, text size and accent persist across reload');
     ok(T4.nav.isHidden('focus') && !$('#nav a[href="#/focus"]'), 'appearance: sidebar customization persists');
     await go('settings');
-    ok($('.dcard[data-value=demo]').getAttribute('aria-checked') === 'true' && $('#set-scale').value === '110' && $('[data-action=set-font][data-value=serif]').getAttribute('aria-checked') === 'true', 'appearance: settings page reflects the persisted choices');
+    ok($('.dcard[data-value=tokio]').getAttribute('aria-checked') === 'true' && $('#set-scale').value === '110' && $('[data-action=set-font][data-value=serif]').getAttribute('aria-checked') === 'true', 'appearance: settings page reflects the persisted choices');
     T4.store.updateSettings({ design: 'classic', accentSource: 'custom', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100, nav: { hidden: [], order: [] } }); T4.settings.applyAppearance();
   `);
   const resB = await b.evaluate('window.__r');
