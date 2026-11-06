@@ -4,6 +4,17 @@ All notable changes to Todo4Me (Windows desktop app and web app) are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `windows-v`.
 
+## [2.3.0] - 2026-11-06
+
+### Added
+- **Designs:** 6 new looks besides Classic, each with its own character – Tokio, Development, Office, Aubergine, Fjord and Paper (palette, font, corners, sidebar style; all text pairs at least 4.5:1 contrast).
+- **Settings → Appearance & customization:** design gallery with previews, mode, accent (design, presets or any color), font, corners, density, text size 85–125 %, sidebar editor, language, and reset with Undo.
+- **Customizable sidebar:** hide views and change their order within each group; Dashboard and Settings always stay. Hidden views remain reachable by link and shortcut.
+- **Languages:** Deutsch, Türkçe and Español besides English, including dates, plurals, the document editor and the desktop menu, tray and notifications. *Automatic* follows the system language.
+
+### Changed
+- Colors, fonts, corners and spacing are design tokens now; the Classic look is unchanged.
+
 ## [2.2.0] - 2026-11-06
 
 ### Added
@@ -82,6 +93,7 @@ Release tags use the prefix `windows-v`.
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.3.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.3.0
 [2.2.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.2.0
 [2.1.2]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.2
 [2.1.1]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.1

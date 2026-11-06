@@ -4,7 +4,7 @@
 weekly notes, reminders, and a document editor with PDF export. Everything runs **offline on your computer**, with no account and no cloud.
 There is a Windows desktop app (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.2.0-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.3.0-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -13,9 +13,9 @@ There is a Windows desktop app (Electron) and a browser version.
 
 ## Download & install
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.2.0](https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.2.0)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.2.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.2.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.3.0](https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.3.0)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.3.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.3.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -50,9 +50,30 @@ You can also use Todo4Me in the browser without installing anything (see [Using 
 
 ## Features at a glance
 
+### Make it yours: designs, sidebar, language
+
+Everything about the look lives in *Settings → Appearance & customization* and applies instantly:
+
+- **7 designs**, each with its own character: **Classic** (the original), **Tokio** (neon night city), **Development** (code-editor dark, monospace headings), **Office** (crisp and businesslike), **Aubergine** (dark aubergine sidebar, warm workspace), **Fjord** (Nordic calm, light and dark) and **Paper** (sepia and serif, with a night-reading variant).
+- **Mode** Light / Dark / System (single-mode designs say so), **accent color** from the design, 8 presets or any color you pick.
+- **Font** (Inter, System, Serif, Monospace, Rounded), **corners** (sharp, soft, round), **density** (comfortable or compact) and **text size** (85–125 %).
+- **Sidebar:** hide views you don't use (e.g. *Daily Plan*) and change their order. Hidden views stay reachable by link and keyboard shortcut. Dashboard and Settings always stay.
+- **Language:** English, Deutsch, Türkçe, Español – or *Automatic* to follow your system. The desktop menu, tray and notifications switch too.
+- **Reset appearance** brings back Classic with one click (with Undo); your tasks and notes are not touched.
+
+| Tokio | Paper |
+|---|---|
+| ![Tokio design](docs/screenshots/designs/tokio-dark-dashboard.png) | ![Paper design](docs/screenshots/designs/paper-light-planner.png) |
+| **Development** | **Aubergine** |
+| ![Development design](docs/screenshots/designs/development-dark-editor.png) | ![Aubergine design](docs/screenshots/designs/aubergine-light-planner.png) |
+| **Fjord** (dark) | **Office** |
+| ![Fjord design, dark](docs/screenshots/designs/fjord-dark-dashboard.png) | ![Office design](docs/screenshots/designs/office-light-dashboard.png) |
+| **Türkçe** | **Settings → Appearance & customization** |
+| ![Todo4Me in Turkish](docs/screenshots/dashboard-turkish.png) | ![Appearance settings](docs/screenshots/settings-appearance-light.png) |
+
 ### Light and dark
 
-The theme switches between **Light**, **Dark** and **System** under *Settings → Appearance → Theme*.
+The theme switches between **Light**, **Dark** and **System** under *Settings → Appearance & customization → Mode* (Classic design shown).
 
 | Light | Dark |
 |---|---|
@@ -149,7 +170,7 @@ Without internet nothing disruptive happens: automatic checks fail silently, a m
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
 > **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
-> Install `Todo4Me-Setup-2.2.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> Install `Todo4Me-Setup-2.3.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
