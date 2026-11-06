@@ -32,6 +32,10 @@ You can also use Todo4Me in the browser without installing anything (see [Using 
    ![My Tasks](docs/screenshots/tasks-light.png)
 
 3. **Flesh out a task.** Clicking a task opens the editor: priority, due date and optional time, estimate, category, tags, subtasks, repeat and **Reminder**. *Today* shows what is due today, *Upcoming* the next 14 days.
+   **Repeat** offers presets that follow the due date (*Daily*, *Every weekday*, *Weekly on Friday*, *Every 2 weeks on …*, *Monthly on the 15th*, *Yearly*). *Custom…* lets you combine an interval, weekdays or a day of the month, and *Count from completion date* (e.g. water the plants 3 days after the last time); the line below shows what you set.
+
+   ![Repeat: Custom… with Every 2 weeks on Mon, Wed](docs/screenshots/repeat-editor-light.png)
+
 4. **Focus on your day.** The dashboard shows your daily overview. With **Choose** you pick your **top 3 for today**; *Focus Mode* (`G` then `F`) hides everything except one task and comes with a Pomodoro timer.
 5. **Plan the week.** In the *Weekly Planner* you drag tasks between days (**Days**). The **Calendar** view shows an hourly grid: tasks with a time are blocks that you can move, resize by dragging, or create by clicking an empty slot.
 
