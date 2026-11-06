@@ -898,6 +898,66 @@ export default async function (b) {
     ok(T4.store.data.tasks.filter(t => t.title.startsWith('Twice')).length === 2, 'blank quick-add adds nothing');
   `);
 
+  await run('nav-custom', `
+    const links = () => $$('#nav .nav__link').map(a => a.getAttribute('href').slice(2));
+    const seps = () => $$('#nav .nav__sep').map(e => e.textContent);
+    const key = async (k) => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await wait(20); };
+    await go('dashboard');
+    ok(T4.nav.items().length === 12 && T4.nav.visible().length === 12, 'nav: 12 items, all visible by default');
+    ok(T4.nav.items().find(i => i.id === 'dashboard').locked && T4.nav.items().find(i => i.id === 'settings').locked, 'nav: dashboard and settings are locked');
+    ok(T4.nav.setHidden('plan', true) === true, 'nav: setHidden returns true');
+    await wait(60);
+    ok(!links().includes('plan') && links().length === 11, 'nav: Daily Plan gone from sidebar');
+    ok(!T4.nav.visible().some(i => i.id === 'plan') && T4.nav.items().some(i => i.id === 'plan' && i.hidden), 'nav: visible() omits, items() flags hidden');
+    await go('plan');
+    ok(T4.app.route.name === 'plan' && !!$('.view--plan'), 'nav: hidden view still reachable by URL');
+    await go('dashboard');
+    await key('g'); await key('p'); await wait(80);
+    ok(location.hash === '#/plan', 'nav: G then P shortcut still works for hidden view');
+    ok(T4.nav.setHidden('dashboard', true) === false && T4.nav.setHidden('settings', true) === false && T4.nav.setHidden('nope', true) === false, 'nav: locked/unknown cannot be hidden');
+    ok(links().includes('dashboard') && links().includes('settings'), 'nav: dashboard/settings still shown');
+    T4.nav.setHidden('planner', true); T4.nav.setHidden('notes', true); await wait(60);
+    ok(!seps().some(t => /plan/i.test(t)) && seps().length === 2, 'nav: empty Plan heading disappears: ' + seps().join(','));
+    T4.nav.setHidden('editor', true); await wait(60);
+    ok(!seps().some(t => /write/i.test(t)), 'nav: empty Write heading disappears');
+    T4.nav.reset(); await wait(60);
+    ok(links().length === 12 && seps().length === 3, 'nav: reset restores everything');
+    ok(T4.nav.move('today', -1) === true, 'nav: move up');
+    await wait(60);
+    ok(links().slice(0, 5).join() === 'dashboard,inbox,today,tasks,upcoming', 'nav: Today moved above My Tasks: ' + links().join());
+    ok(T4.nav.move('dashboard', -1) === false, 'nav: cannot move past section start');
+    T4.nav.move('planner', 1); T4.nav.move('planner', 1); await wait(60);
+    ok(links().indexOf('planner') > links().indexOf('notes'), 'nav: reorder inside Plan section');
+    ok(T4.nav.move('stats', -1) && links().indexOf('stats') < links().indexOf('focus'), 'nav: reorder inside Do section');
+    T4.nav.move('stats', 1); T4.nav.move('stats', 1); T4.nav.move('stats', 1);
+    ok(links().indexOf('inbox') < links().indexOf('planner') && links().indexOf('planner') < links().indexOf('editor') && links().indexOf('editor') < links().indexOf('focus') && links().indexOf('stats') < links().indexOf('settings'), 'nav: sections stay fixed');
+    T4.nav.setOrder(['upcoming', 'inbox', 'bogus', 'inbox']); await wait(60);
+    ok(links().slice(0, 5).join() === 'dashboard,upcoming,inbox,tasks,today', 'nav: setOrder partial list, rest keeps default order: ' + links().slice(0, 5).join());
+    T4.nav.reset(); await wait(60);
+    T4.store.updateSettings({ nav: { hidden: ['ghost', 'dashboard', 'focus'], order: ['ghost', 'stats'] } }); await wait(60);
+    ok(links().includes('dashboard') && !links().includes('focus') && links().length === 11, 'nav: invalid/locked ids in settings ignored');
+    ok(links().indexOf('stats') < links().indexOf('settings'), 'nav: unknown order id ignored');
+    await go('stats');
+    ok($('#nav .nav__link.is-active')?.getAttribute('href') === '#/stats', 'nav: active view highlighted');
+    await go('focus'); await wait(30);
+    ok(!$('#nav .nav__link.is-active'), 'nav: hidden active view has no sidebar highlight, no crash');
+    await go('dashboard');
+    T4.nav.setHidden('plan', true); await wait(60);
+    ok(JSON.stringify(S().settings.nav.hidden.slice().sort()) === '["focus","plan"]', 'nav: saved in settings');
+  `);
+  const res0 = await b.evaluate('window.__r'); // collect before the reload, which clears window.__r
+  await b.reload();
+  await run('nav-custom-persist', `
+    const links = $$('#nav .nav__link').map(a => a.getAttribute('href').slice(2));
+    ok(!links.includes('plan') && !links.includes('focus') && links.length === 10, 'nav: hidden items persist across reload');
+    ok($$('#bottom-nav .bnav__link').length === 5, 'nav: bottom nav has 4 views + More');
+    T4.nav.setHidden('notes', true); await wait(60);
+    const bl = $$('#bottom-nav a').map(a => a.getAttribute('href').slice(2));
+    ok(bl.join() === 'dashboard,today,planner' && !!$('#bottom-nav [data-action=open-sidebar]'), 'nav: hidden view removed from bottom nav, More stays: ' + bl.join());
+    T4.nav.reset(); await wait(60);
+    ok($$('#bottom-nav .bnav__link').length === 5 && $$('#nav .nav__link').length === 12, 'nav: reset after reload');
+  `);
+
   const res1 = await b.evaluate('window.__r');
   // Persistence across reload
   const countBefore = await b.evaluate('T4.store.data.tasks.length');
@@ -926,7 +986,7 @@ export default async function (b) {
     ok(T4.store.data.tasks.length >= 10 && T4.store.data.notes.length === 3, 'sample data loads');
   `);
   const res2 = await b.evaluate('window.__r');
-  const all = res1.concat(res2);
+  const all = res0.concat(res1, res2);
   all.forEach((r) => console.log(r));
   console.log('\n' + all.filter((r) => r.startsWith('PASS')).length + ' passed, ' + all.filter((r) => r.startsWith('FAIL')).length + ' failed');
 }
