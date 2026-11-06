@@ -21,6 +21,12 @@ T4.storage = (function () {
   const STATUSES = ['todo', 'in_progress', 'done'];
   const THEMES = ['light', 'dark', 'system'];
   const SORTS = ['priority', 'due', 'created', 'alpha', 'status'];
+  // Customization (2.3.0): design = look preset (js/themes.js); 'design' values follow the chosen design.
+  const ACCENT_SOURCES = ['design', 'custom'];
+  const FONTS = ['design', 'system', 'inter', 'serif', 'mono', 'rounded'];
+  const RADII = ['design', 'sharp', 'soft', 'round'];
+  const DENSITIES = ['comfortable', 'compact'];
+  const LANGUAGES = ['auto', 'en', 'de', 'tr', 'es'];
   const ACCENTS = ['#5b5bd6', '#0e7c86', '#2f6fed', '#d6409f', '#e5603c', '#3e9b4f', '#8e4ec6', '#5f6b7a'];
 
   const DEFAULT_CATEGORIES = [
@@ -43,6 +49,14 @@ T4.storage = (function () {
       pomodoroFocus: 25,
       pomodoroBreak: 5,
       reminderTime: '09:00', // when to remind for tasks that have a due date but no time
+      design: 'classic',       // look preset id (js/themes.js); unknown ids fall back to classic
+      accentSource: 'custom',  // 'design' = use the design's accent, 'custom' = settings.accent
+      font: 'design',
+      radius: 'design',
+      density: 'comfortable',
+      fontScale: 100,          // percent, 85..125
+      nav: { hidden: [], order: [] }, // sidebar: hidden view ids, custom order of view ids
+      language: 'auto',        // 'auto' = from the system/browser language
     };
   }
 
@@ -169,7 +183,22 @@ T4.storage = (function () {
       pomodoroFocus: intIn(s.pomodoroFocus, 1, 120, d.pomodoroFocus),
       pomodoroBreak: intIn(s.pomodoroBreak, 1, 60, d.pomodoroBreak),
       reminderTime: U.isTimeStr(s.reminderTime) ? s.reminderTime : d.reminderTime,
+      design: typeof s.design === 'string' && /^[a-z0-9-]{1,32}$/.test(s.design) ? s.design : d.design,
+      accentSource: oneOf(s.accentSource, ACCENT_SOURCES, d.accentSource),
+      font: oneOf(s.font, FONTS, d.font),
+      radius: oneOf(s.radius, RADII, d.radius),
+      density: oneOf(s.density, DENSITIES, d.density),
+      fontScale: intIn(s.fontScale, 85, 125, d.fontScale),
+      nav: sanitizeNav(s.nav),
+      language: oneOf(s.language, LANGUAGES, d.language),
     };
+  }
+
+  /** Sidebar customization: hidden view ids and a custom order (unknown ids are ignored by the app). */
+  function sanitizeNav(n) {
+    const ids = (a) => Array.from(new Set((Array.isArray(a) ? a : []).filter((x) => typeof x === 'string' && /^[a-z-]{1,24}$/.test(x)))).slice(0, 30);
+    n = n && typeof n === 'object' ? n : {};
+    return { hidden: ids(n.hidden), order: ids(n.order) };
   }
 
   function sanitizeCounterMap(m) {
@@ -395,7 +424,7 @@ T4.storage = (function () {
   }
 
   return {
-    KEY, SCHEMA_VERSION, REMINDER_MAX, PRIORITIES, STATUSES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
+    KEY, SCHEMA_VERSION, REMINDER_MAX, ACCENT_SOURCES, FONTS, RADII, DENSITIES, LANGUAGES, PRIORITIES, STATUSES, SORTS, ACCENTS, DEFAULT_CATEGORIES,
     defaultData, defaultSettings, sanitize, sanitizeTask, sanitizeNote, sanitizeSettings, load, save, loadBackup,
     backupInfo, usageBytes, clearAll, exportJSON, parseImport, merge,
     get isAvailable() { return available; },
