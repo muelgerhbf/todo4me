@@ -21,7 +21,6 @@ T4.i18n.add('tr', {
   'nav.section.do': 'Yap',
   'nav.more': 'Daha fazla',
   'nav.moreSections': 'Diğer bölümler',
-  'nav.items': ' öğe',
   'nav.overdueTasks': { one: '{count} gecikmiş görev', other: '{count} gecikmiş görev' },
 
   'app.description': 'Todo4Me — görevler, haftalık planlama ve notlar için kişisel üretkenlik panelin.',

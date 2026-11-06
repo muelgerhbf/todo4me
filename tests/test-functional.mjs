@@ -1142,6 +1142,22 @@ export default async function (b) {
       click('#modal [data-action=modal-close]'); await wait(30);
     }
 
+    // 2b. settings page (appearance section was translated separately)
+    const SET_ENG = ['Profile', 'Your name', 'Tasks & planning', 'Default task sorting', 'Start of the week', 'Break length', 'Reminder time', 'Categories', 'Data & backup', 'Export JSON', 'Import JSON', 'Restore auto-backup', 'Add sample data', 'Reset all data', 'Reset application', 'Keyboard shortcuts', 'Changes are saved automatically', 'Calendars', 'Subscribe', 'Import .ics file', 'Documents (Editor)', 'Export all documents', 'Open editor'];
+    for (const l of LANGS) {
+      I.setLanguage(l);
+      await go('settings');
+      const txt = $('#main').textContent + ' || ' + attrText($('#main'));
+      const left = SET_ENG.filter((w) => hasWord(txt, w));
+      ok(left.length === 0, l + ' settings page: no untranslated English UI words' + (left.length ? ' (found: ' + left.join(', ') + ')' : ''));
+      ok($('#main h1').textContent === I.t('nav.settings'), l + ' settings title: ' + $('#main h1').textContent);
+    }
+    I.setLanguage('de');
+    click('[data-action=delete-category]'); await wait(40);
+    ok(/Kategorie/.test($('#confirm').textContent) && !/Delete category/.test($('#confirm').textContent), 'de: delete-category confirm translated');
+    click('#confirm [data-confirm=no]'); await wait(40);
+    I.setLanguage('en');
+
     // 3. editor toolbar (the editor shell is rebuilt when the language changes)
     I.setLanguage('en');
     await go('editor'); await wait(150);

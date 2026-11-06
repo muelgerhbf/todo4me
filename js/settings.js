@@ -26,7 +26,7 @@ T4.settings = (function () {
     if (key === 'weekStart' || key === 'pomodoroFocus' || key === 'pomodoroBreak') value = Number(value);
     store.updateSettings({ [key]: value });
     applyAppearance();
-    ui.toast('Settings saved', 'success', 1800);
+    ui.toast(T4.i18n.t('dk.settingsSaved'), 'success', 1800);
   });
   /* ---------- Appearance & customization (2.3.0) ---------- */
   const tr = (k, p) => T4.i18n.t(k, p);
@@ -99,27 +99,27 @@ T4.settings = (function () {
   ui.on('change:category', (el) => {
     const id = el.dataset.id;
     const res = store.updateCategory(id, el.dataset.field === 'color' ? { color: el.value } : { name: el.value });
-    if (res.error) { ui.toast(res.error, 'error'); T4.app.render(); } else ui.toast('Category updated', 'success', 1800);
+    if (res.error) { ui.toast(res.error, 'error'); T4.app.render(); } else ui.toast(tr('set.catUpdated'), 'success', 1800);
   });
   ui.on('delete-category', async (el) => {
     const c = store.category(el.dataset.id);
     if (!c) return;
     const n = store.data.tasks.filter((t) => t.categoryId === c.id).length;
-    const ok = await ui.confirm({ title: 'Delete category "' + c.name + '"?', message: n ? U.plural(n, 'task') + ' in this category will be kept, but without a category.' : 'No tasks use this category.', confirmText: 'Delete category', danger: true });
+    const ok = await ui.confirm({ title: tr('set.delCatTitle', { name: c.name }), message: n ? tr('set.delCatMsg', { count: n }) : tr('set.delCatNone'), confirmText: tr('set.delCatConfirm'), danger: true });
     if (!ok) return;
     store.deleteCategory(c.id);
-    ui.toast('Category deleted');
+    ui.toast(tr('set.catDeleted'));
   });
   ui.on('submit:add-category', (form) => {
     const res = store.addCategory(form.querySelector('[name="name"]').value, form.querySelector('[name="color"]').value);
     if (res.error) { ui.toast(res.error, 'error'); return; }
-    ui.toast('Category "' + res.category.name + '" added');
+    ui.toast(tr('set.catAdded', { name: res.category.name }));
   });
 
   /* ---------- Export / import ---------- */
   function exportData() {
     U.download('todo4me-backup-' + U.today() + '.json', S.exportJSON(store.data));
-    ui.toast('Backup downloaded');
+    ui.toast(tr('set.backupDownloaded'));
   }
   ui.on('export-data', exportData);
 
@@ -128,9 +128,9 @@ T4.settings = (function () {
   fileInput.addEventListener('change', () => {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { ui.toast('That file is too large to be a Todo4Me backup.', 'error'); return; }
+    if (file.size > 20 * 1024 * 1024) { ui.toast(tr('set.fileTooLarge'), 'error'); return; }
     const reader = new FileReader();
-    reader.onerror = () => ui.toast('Could not read the file.', 'error');
+    reader.onerror = () => ui.toast(tr('cf.fileReadFailed'), 'error');
     reader.onload = () => {
       let result;
       try { result = S.parseImport(String(reader.result)); } catch (e) { ui.toast(e.message, 'error', 6000); return; }
@@ -141,31 +141,31 @@ T4.settings = (function () {
 
   function openImportDialog(name, data, issues) {
     ui.openModal({
-      title: 'Import data',
-      body: '<p>File: <strong>' + esc(name) + '</strong></p>' +
+      title: tr('set.importTitle'),
+      body: '<p>' + esc(tr('set.file')) + ' <strong>' + esc(name) + '</strong></p>' +
         '<ul class="import-summary">' +
-          '<li><strong>' + data.tasks.length + '</strong> tasks</li><li><strong>' + data.notes.length + '</strong> notes</li>' +
-          '<li><strong>' + data.categories.length + '</strong> categories</li><li><strong>' + Object.keys(data.dailyPlans).length + '</strong> daily plans</li></ul>' +
+          '<li>' + tr('set.impTasks', { count: data.tasks.length }) + '</li><li>' + tr('set.impNotes', { count: data.notes.length }) + '</li>' +
+          '<li>' + tr('set.impCats', { count: data.categories.length }) + '</li><li>' + tr('set.impPlans', { count: Object.keys(data.dailyPlans).length }) + '</li></ul>' + // dictionary HTML with numbers only
+
         (issues.length ? '<p class="callout callout--warn">' + icon('alert') + esc(issues.join(' · ')) + '</p>' : '') +
-        '<p class="muted small"><strong>Merge</strong> keeps your current data and adds the imported items (for items that exist in both, the most recently updated version wins). ' +
-        '<strong>Replace</strong> deletes everything currently in the app and uses the file instead, including its settings.</p>',
-      footer: '<button type="button" class="btn btn--ghost mr-auto" data-action="modal-close">Cancel</button>' +
-        '<button type="button" class="btn" id="imp-merge">Merge</button>' +
-        '<button type="button" class="btn btn--danger" id="imp-replace">Replace all</button>',
+        '<p class="muted small">' + tr('set.importHelp') + '</p>',
+      footer: '<button type="button" class="btn btn--ghost mr-auto" data-action="modal-close">' + esc(tr('c.cancel')) + '</button>' +
+        '<button type="button" class="btn" id="imp-merge">' + esc(tr('set.merge')) + '</button>' +
+        '<button type="button" class="btn btn--danger" id="imp-replace">' + esc(tr('set.replaceAll')) + '</button>',
       onMount(m) {
         m.querySelector('#imp-merge').addEventListener('click', () => {
           store.mergeData(data);
           ui.closeModal(true);
           applyAppearance();
-          ui.toast('Data merged: ' + U.plural(data.tasks.length, 'task') + ', ' + U.plural(data.notes.length, 'note') + ' imported');
+          ui.toast(tr('set.merged', { tasks: tr('tk.results', { count: data.tasks.length }), notes: tr('set.notesN', { count: data.notes.length }) }));
         });
         m.querySelector('#imp-replace').addEventListener('click', async () => {
-          const ok = await ui.confirm({ title: 'Replace all data?', message: 'Your current tasks, notes, plans and settings will be overwritten by the imported file. Consider exporting a backup first.', confirmText: 'Replace all', danger: true });
+          const ok = await ui.confirm({ title: tr('set.replaceTitle'), message: tr('set.replaceMsg'), confirmText: tr('set.replaceAll'), danger: true });
           if (!ok) return;
           store.replaceData(data);
           ui.closeModal(true);
           applyAppearance();
-          ui.toast('Data imported');
+          ui.toast(tr('set.dataImported'));
         });
       },
     });
@@ -173,30 +173,30 @@ T4.settings = (function () {
 
   ui.on('restore-backup', async () => {
     const b = S.loadBackup();
-    if (!b) { ui.toast('No automatic backup available yet.', 'info'); return; }
-    const ok = await ui.confirm({ title: 'Restore automatic backup?', message: 'Your current data will be replaced with the backup from ' + U.fmtDateTime(b.at) + ' (' + U.plural(b.data.tasks.length, 'task') + ', ' + U.plural(b.data.notes.length, 'note') + ').', confirmText: 'Restore backup', danger: true });
+    if (!b) { ui.toast(tr('set.noBackupYet'), 'info'); return; }
+    const ok = await ui.confirm({ title: tr('set.restoreTitle'), message: tr('set.restoreMsg', { date: U.fmtDateTime(b.at), tasks: tr('tk.results', { count: b.data.tasks.length }), notes: tr('set.notesN', { count: b.data.notes.length }) }), confirmText: tr('set.restoreConfirm'), danger: true });
     if (!ok) return;
     store.replaceData(b.data);
     applyAppearance();
-    ui.toast('Backup restored');
+    ui.toast(tr('set.restored'));
   });
 
   ui.on('reset-data', async () => {
-    const ok = await ui.confirm({ title: 'Reset all data?', message: 'This permanently deletes all tasks, notes, plans, categories, calendar subscriptions and settings stored in this browser. This cannot be undone — export a backup first if you might need it.', confirmText: 'Delete everything', danger: true });
+    const ok = await ui.confirm({ title: tr('set.resetTitle'), message: tr('set.resetMsg'), confirmText: tr('set.resetConfirm'), danger: true });
     if (!ok) return;
     store.resetAll();
     try { localStorage.removeItem('todo4me.focus.v1'); } catch (e) { /* ignore */ }
     if (T4.calfeeds) T4.calfeeds.clearAll(); // calendar subscriptions (secret links) and their cache
     applyAppearance();
-    ui.toast('All data has been reset');
+    ui.toast(tr('set.resetDone'));
     location.hash = '#/dashboard';
   });
 
   ui.on('load-sample', async () => {
-    const ok = await ui.confirm({ title: 'Add sample data?', message: 'A handful of example tasks, notes and a daily plan will be added to your existing data. You can delete them anytime.', confirmText: 'Add sample data' });
+    const ok = await ui.confirm({ title: tr('set.sampleTitle'), message: tr('set.sampleMsg'), confirmText: tr('set.addSample') });
     if (!ok) return;
     store.mergeData(S.sanitize(sampleData()).data);
-    ui.toast('Sample data added');
+    ui.toast(tr('set.sampleDone'));
   });
 
   function sampleData() {
@@ -238,10 +238,10 @@ T4.settings = (function () {
   function reminderStatusRow() {
     if (!T4.reminders) return '';
     const st = T4.reminders.systemStatus();
-    return '<div class="setting" id="set-notify"><span class="label">Reminder notifications<span class="setting__help">' + esc(st.text) + '</span></span>' +
+    return '<div class="setting" id="set-notify"><span class="label">' + esc(tr('set.reminderNotif')) + '<span class="setting__help">' + esc(st.text) + '</span></span>' +
       '<div class="btn-row">' +
-        (st.kind === 'ask' ? '<button type="button" class="btn btn--sm btn--primary" data-action="reminders-permission">Allow notifications</button>' : '') +
-        '<button type="button" class="btn btn--sm" data-action="reminders-test">' + icon('bell') + 'Test</button>' +
+        (st.kind === 'ask' ? '<button type="button" class="btn btn--sm btn--primary" data-action="reminders-permission">' + esc(tr('set.allowNotif')) + '</button>' : '') +
+        '<button type="button" class="btn btn--sm" data-action="reminders-test">' + icon('bell') + esc(tr('set.test')) + '</button>' +
       '</div></div>';
   }
 
@@ -352,64 +352,64 @@ T4.settings = (function () {
   }
 
   T4.views.settings = {
-    title: 'Settings',
+    get title() { return tr('nav.settings'); },
     render() {
       const s = store.settings;
       const backupAt = S.backupInfo();
       const kb = (S.usageBytes() / 1024).toFixed(1);
-      return '<header class="page-head"><div><h1 class="page-title">Settings</h1><p class="page-sub">Changes are saved automatically.</p></div></header>' +
+      return '<header class="page-head"><div><h1 class="page-title">' + esc(tr('nav.settings')) + '</h1><p class="page-sub">' + esc(tr('set.sub')) + '</p></div></header>' +
         '<div class="settings">' +
-        '<section class="card settings__section"><h2 class="card__title">Profile</h2>' +
-          '<div class="setting"><label for="set-name">Your name<span class="setting__help">Used in the dashboard greeting.</span></label>' +
-          '<input id="set-name" type="text" maxlength="60" value="' + esc(s.userName) + '" data-change="setting" data-key="userName" placeholder="Optional"></div></section>' +
+        '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.profile')) + '</h2>' +
+          '<div class="setting"><label for="set-name">' + esc(tr('set.yourName')) + '<span class="setting__help">' + esc(tr('set.yourNameHelp')) + '</span></label>' +
+          '<input id="set-name" type="text" maxlength="60" value="' + esc(s.userName) + '" data-change="setting" data-key="userName" placeholder="' + esc(tr('ed.Optional')) + '"></div></section>' +
 
         appearanceSection() +
 
-        '<section class="card settings__section"><h2 class="card__title">Tasks & planning</h2>' +
-          '<div class="setting"><label for="set-sort">Default task sorting</label><select id="set-sort" data-change="setting" data-key="defaultSort">' +
-            [['priority', 'Priority'], ['due', 'Due date'], ['created', 'Creation date (newest)'], ['alpha', 'Alphabetical'], ['status', 'Status']].map(([v, l]) => '<option value="' + v + '"' + (s.defaultSort === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
-          '<div class="setting"><label for="set-week">Start of the week</label><select id="set-week" data-change="setting" data-key="weekStart">' +
-            '<option value="1"' + (s.weekStart === 1 ? ' selected' : '') + '>Monday</option><option value="0"' + (s.weekStart === 0 ? ' selected' : '') + '>Sunday</option></select></div>' +
-          '<div class="setting"><label for="set-pf">Focus session length<span class="setting__help">Minutes</span></label><input id="set-pf" type="number" min="1" max="120" value="' + s.pomodoroFocus + '" data-change="setting" data-key="pomodoroFocus"></div>' +
-          '<div class="setting"><label for="set-pb">Break length<span class="setting__help">Minutes</span></label><input id="set-pb" type="number" min="1" max="60" value="' + s.pomodoroBreak + '" data-change="setting" data-key="pomodoroBreak"></div>' +
-          '<div class="setting"><label for="set-remtime">Reminder time<span class="setting__help">Used for reminders on tasks that have a due date but no time.</span></label><input id="set-remtime" type="time" value="' + esc(s.reminderTime) + '" data-change="setting" data-key="reminderTime"></div>' +
+        '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.tasksPlanning')) + '</h2>' +
+          '<div class="setting"><label for="set-sort">' + esc(tr('set.defaultSort')) + '</label><select id="set-sort" data-change="setting" data-key="defaultSort">' +
+            [['priority', tr('sort.priority')], ['due', tr('sort.due')], ['created', tr('set.sortCreated')], ['alpha', tr('sort.alpha')], ['status', tr('sort.status')]].map(([v, l]) => '<option value="' + v + '"' + (s.defaultSort === v ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select></div>' +
+          '<div class="setting"><label for="set-week">' + esc(tr('set.weekStart')) + '</label><select id="set-week" data-change="setting" data-key="weekStart">' +
+            '<option value="1"' + (s.weekStart === 1 ? ' selected' : '') + '>' + esc(T4.i18n.fmtWeekday(1, 'long')) + '</option><option value="0"' + (s.weekStart === 0 ? ' selected' : '') + '>' + esc(T4.i18n.fmtWeekday(0, 'long')) + '</option></select></div>' +
+          '<div class="setting"><label for="set-pf">' + esc(tr('set.focusLength')) + '<span class="setting__help">' + esc(tr('set.minutes')) + '</span></label><input id="set-pf" type="number" min="1" max="120" value="' + s.pomodoroFocus + '" data-change="setting" data-key="pomodoroFocus"></div>' +
+          '<div class="setting"><label for="set-pb">' + esc(tr('set.breakLength')) + '<span class="setting__help">' + esc(tr('set.minutes')) + '</span></label><input id="set-pb" type="number" min="1" max="60" value="' + s.pomodoroBreak + '" data-change="setting" data-key="pomodoroBreak"></div>' +
+          '<div class="setting"><label for="set-remtime">' + esc(tr('set.reminderTime')) + '<span class="setting__help">' + esc(tr('set.reminderTimeHelp')) + '</span></label><input id="set-remtime" type="time" value="' + esc(s.reminderTime) + '" data-change="setting" data-key="reminderTime"></div>' +
           reminderStatusRow() +
         '</section>' +
 
         (T4.calfeeds ? T4.calfeeds.settingsCard() : '') +
 
-        '<section class="card settings__section"><h2 class="card__title">Categories</h2>' +
+        '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.categories')) + '</h2>' +
           '<ul class="cat-list" role="list">' + store.data.categories.map((c) => {
             const n = store.data.tasks.filter((t) => t.categoryId === c.id).length;
-            return '<li class="cat-row"><input type="color" value="' + esc(c.color) + '" data-change="category" data-field="color" data-id="' + c.id + '" aria-label="Color for ' + esc(c.name) + '">' +
-              '<input type="text" maxlength="40" value="' + esc(c.name) + '" data-change="category" data-field="name" data-id="' + c.id + '" aria-label="Category name">' +
-              '<span class="muted small nowrap">' + U.plural(n, 'task') + '</span>' +
-              '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-category" data-id="' + c.id + '" aria-label="Delete category ' + esc(c.name) + '">' + icon('trash') + '</button></li>';
+            return '<li class="cat-row"><input type="color" value="' + esc(c.color) + '" data-change="category" data-field="color" data-id="' + c.id + '" aria-label="' + esc(tr('cf.colorFor', { name: c.name })) + '">' +
+              '<input type="text" maxlength="40" value="' + esc(c.name) + '" data-change="category" data-field="name" data-id="' + c.id + '" aria-label="' + esc(tr('tk.categoryName')) + '">' +
+              '<span class="muted small nowrap">' + esc(tr('tk.results', { count: n })) + '</span>' +
+              '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="delete-category" data-id="' + c.id + '" aria-label="' + esc(tr('set.delCatLabel', { name: c.name })) + '">' + icon('trash') + '</button></li>';
           }).join('') + '</ul>' +
-          '<form class="cat-row cat-row--add" data-form="add-category"><input type="color" name="color" value="#0e7c86" aria-label="New category color">' +
-            '<input type="text" name="name" maxlength="40" placeholder="New category name" aria-label="New category name" required>' +
-            '<button type="submit" class="btn btn--sm">' + icon('plus') + 'Add</button></form>' +
+          '<form class="cat-row cat-row--add" data-form="add-category"><input type="color" name="color" value="#0e7c86" aria-label="' + esc(tr('set.newCatColor')) + '">' +
+            '<input type="text" name="name" maxlength="40" placeholder="' + esc(tr('tk.newCategoryName')) + '" aria-label="' + esc(tr('tk.newCategoryName')) + '" required>' +
+            '<button type="submit" class="btn btn--sm">' + icon('plus') + esc(tr('c.add')) + '</button></form>' +
         '</section>' +
 
-        '<section class="card settings__section"><h2 class="card__title">Data & backup</h2>' +
-          '<p class="muted small">Your data lives only in this browser (' + esc(S.adapterName) + ', ~' + kb + ' KB). Export regularly to keep a safe copy or move it to another device.</p>' +
-          (S.isAvailable ? '' : '<p class="callout callout--warn">' + icon('alert') + 'Browser storage is unavailable — changes will be lost when you close this tab. Export your data!</p>') +
+        '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.dataBackup')) + '</h2>' +
+          '<p class="muted small">' + esc(tr('set.dataInfo', { adapter: S.adapterName, kb })) + '</p>' +
+          (S.isAvailable ? '' : '<p class="callout callout--warn">' + icon('alert') + esc(tr('set.storageOff')) + '</p>') +
           '<div class="btn-row">' +
-            '<button type="button" class="btn" data-action="export-data">' + icon('download') + 'Export JSON</button>' +
-            '<button type="button" class="btn" data-action="import-data">' + icon('upload') + 'Import JSON</button>' +
-            '<button type="button" class="btn" data-action="restore-backup"' + (backupAt ? '' : ' disabled') + '>' + icon('reset') + 'Restore auto-backup</button>' +
-            '<button type="button" class="btn btn--ghost" data-action="load-sample">' + icon('sparkle') + 'Add sample data</button>' +
+            '<button type="button" class="btn" data-action="export-data">' + icon('download') + esc(tr('set.exportJson')) + '</button>' +
+            '<button type="button" class="btn" data-action="import-data">' + icon('upload') + esc(tr('set.importJson')) + '</button>' +
+            '<button type="button" class="btn" data-action="restore-backup"' + (backupAt ? '' : ' disabled') + '>' + icon('reset') + esc(tr('set.restoreBackup')) + '</button>' +
+            '<button type="button" class="btn btn--ghost" data-action="load-sample">' + icon('sparkle') + esc(tr('set.addSample')) + '</button>' +
           '</div>' +
-          '<p class="muted small">' + (backupAt ? 'Automatic backup: ' + esc(U.fmtDateTime(backupAt)) + ' (refreshed daily).' : 'An automatic backup is created after your first change.') + '</p>' +
-          '<div class="danger-zone"><div><strong>Reset application</strong><p class="muted small">Delete all tasks, notes, plans and settings from this browser.</p></div>' +
-            '<button type="button" class="btn btn--danger" data-action="reset-data">' + icon('trash') + 'Reset all data</button></div>' +
+          '<p class="muted small">' + esc(backupAt ? tr('set.autoBackup', { date: U.fmtDateTime(backupAt) }) : tr('set.noAutoBackup')) + '</p>' +
+          '<div class="danger-zone"><div><strong>' + esc(tr('set.resetApp')) + '</strong><p class="muted small">' + esc(tr('set.resetAppHelp')) + '</p></div>' +
+            '<button type="button" class="btn btn--danger" data-action="reset-data">' + icon('trash') + esc(tr('set.resetAll')) + '</button></div>' +
         '</section>' +
 
-        '<section class="card settings__section"><h2 class="card__title">Keyboard shortcuts</h2>' +
-          '<dl class="shortcuts"><dt><kbd>N</kbd></dt><dd>New task</dd><dt><kbd>Q</kbd></dt><dd>Quick capture to Inbox</dd><dt><kbd>/</kbd></dt><dd>Search (Tasks & Notes)</dd>' +
-          '<dt><kbd>G</kbd> then <kbd>D</kbd>/<kbd>I</kbd>/<kbd>T</kbd>/<kbd>W</kbd>/<kbd>O</kbd></dt><dd>Go to Dashboard / Inbox / Today / Week planner / nOtes</dd>' +
-          '<dt><kbd>Ctrl</kbd> + <kbd>Enter</kbd></dt><dd>Save the open form</dd><dt><kbd>Esc</kbd></dt><dd>Close dialog / exit focus mode</dd></dl>' +
-          '<p class="muted small">Quick-add syntax: <code>!1</code>–<code>!4</code> priority (critical → low), <code>#work</code> category (or tag if no category matches), <code>@today</code>, <code>@tomorrow</code>, <code>@fri</code>, <code>@2026-12-24</code> due date.</p>' +
+        '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.shortcuts')) + '</h2>' +
+          '<dl class="shortcuts"><dt><kbd>N</kbd></dt><dd>' + esc(tr('set.scNew')) + '</dd><dt><kbd>Q</kbd></dt><dd>' + esc(tr('set.scQuick')) + '</dd><dt><kbd>/</kbd></dt><dd>' + esc(tr('set.scSearch')) + '</dd>' +
+          '<dt><kbd>G</kbd> ' + esc(tr('set.then')) + ' <kbd>D</kbd>/<kbd>I</kbd>/<kbd>T</kbd>/<kbd>W</kbd>/<kbd>O</kbd></dt><dd>' + esc(tr('set.scGo')) + '</dd>' +
+          '<dt><kbd>Ctrl</kbd> + <kbd>Enter</kbd></dt><dd>' + esc(tr('set.scSave')) + '</dd><dt><kbd>Esc</kbd></dt><dd>' + esc(tr('set.scClose')) + '</dd></dl>' +
+          '<p class="muted small">' + tr('set.syntax') + '</p>' +
         '</section>' +
         '</div>';
     },

@@ -21,7 +21,6 @@ T4.i18n.add('de', {
   'nav.section.do': 'Erledigen',
   'nav.more': 'Mehr',
   'nav.moreSections': 'Weitere Bereiche',
-  'nav.items': ' Einträge',
   'nav.overdueTasks': { one: '{count} überfällige Aufgabe', other: '{count} überfällige Aufgaben' },
 
   'app.description': 'Todo4Me – dein persönliches Dashboard für Aufgaben, Wochenplanung und Notizen.',

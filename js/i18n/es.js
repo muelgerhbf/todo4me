@@ -21,7 +21,6 @@ T4.i18n.add('es', {
   'nav.section.do': 'Hacer',
   'nav.more': 'Más',
   'nav.moreSections': 'Más secciones',
-  'nav.items': ' elementos',
   'nav.overdueTasks': { one: '{count} tarea vencida', other: '{count} tareas vencidas' },
 
   'app.description': 'Todo4Me: tu panel personal de productividad para tareas, planificación semanal y notas.',

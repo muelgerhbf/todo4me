@@ -22,7 +22,6 @@ T4.i18n.add('en', {
   'nav.section.do': 'Do',
   'nav.more': 'More',
   'nav.moreSections': 'More sections',
-  'nav.items': ' items',
   'nav.overdueTasks': { one: '{count} overdue task', other: '{count} overdue tasks' },
 
   // Static texts of index.html
