@@ -4,7 +4,7 @@
   "version": "2.1.1",
   "description": "Personal productivity dashboard: tasks, priorities, weekly planner, weekly notes and a document editor.",
   "author": "Todo4Me",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
