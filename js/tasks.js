@@ -655,8 +655,13 @@ T4.tasks = (function () {
     const input = form.querySelector('input[name="title"]');
     let defaults = {};
     try { defaults = JSON.parse(form.dataset.defaults || '{}'); } catch (e) { /* ignore */ }
-    if (captureText(input.value, defaults)) {
-      input.value = '';
+    // Clear the field BEFORE adding: adding re-renders the view synchronously, and the re-render keeps
+    // half-typed quick-add text as a draft – the submitted text would otherwise stay in the new field.
+    const text = input.value;
+    input.value = '';
+    if (!captureText(text, defaults)) {
+      input.value = text; // nothing added (e.g. empty title): keep what was typed
+    } else {
       // Re-focus the same quick-add after re-render.
       requestAnimationFrame(() => {
         const again = form.id ? document.getElementById(form.id) : null;

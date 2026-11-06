@@ -848,6 +848,24 @@ export default async function (b) {
     }
   `);
 
+  await run('quick-add-twice', `
+    // Regression (found in 2.2.0 manual testing, existed since 1.0.0): the field kept the submitted text,
+    // so a second task was appended to the first one.
+    location.hash = '#/tasks'; await new Promise(r => setTimeout(r, 300));
+    const add = async (text) => {
+      const input = $('#qa-tasks input[name=title]'); input.focus(); input.value = text;
+      $('#qa-tasks').requestSubmit(); await new Promise(r => setTimeout(r, 120));
+    };
+    await add('Twice A every monday');
+    ok($('#qa-tasks input[name=title]').value === '', 'quick-add field is empty after adding');
+    ok(document.activeElement === $('#qa-tasks input[name=title]'), 'quick-add field keeps focus after adding');
+    await add('Twice B');
+    const titles = T4.store.data.tasks.map(t => t.title);
+    ok(titles.includes('Twice A') && titles.includes('Twice B'), 'two quick-adds in a row create two separate tasks: ' + titles.filter(t => t.startsWith('Twice')).join(' / '));
+    const input = $('#qa-tasks input[name=title]'); input.value = '   '; $('#qa-tasks').requestSubmit(); await new Promise(r => setTimeout(r, 80));
+    ok(T4.store.data.tasks.filter(t => t.title.startsWith('Twice')).length === 2, 'blank quick-add adds nothing');
+  `);
+
   const res1 = await b.evaluate('window.__r');
   // Persistence across reload
   const countBefore = await b.evaluate('T4.store.data.tasks.length');
