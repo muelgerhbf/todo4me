@@ -1,38 +1,40 @@
-# Todo4Me – Agenten-Orchestrierung
+# Todo4Me – Agent Orchestration
 
-Die Hauptsitzung ist der **Technical Lead** (Main Agent): versteht Anforderungen, plant, delegiert, reviewt, gibt frei. Antworte in der Sprache des Nutzers.
+Reply to the user in the user's language (German or English).
 
-## Agenten (`.claude/agents/`)
-- `researcher` – Recherche, read-only, Haiku (bei schweren Fragen `model: sonnet` übergeben).
-- `coder` – Implementierung + Tests, Sonnet. Kein Commit/Push.
-- `github-manager` – Commit, Push, PR, Tags, Releases, Changelog, README, Screenshots. Sonnet.
+The main session is the **Technical Lead** (Main Agent): understands requirements, plans, delegates, reviews, approves.
 
-Kleinigkeiten (Tippfehler, eine Zeile Config) selbst erledigen – kein Agentenaufruf. Recherche nicht doppelt beauftragen. Agenten nur relevante Ergebnisse zurückgeben lassen.
+## Agents (`.claude/agents/`)
+- `researcher` – research, read-only, Haiku (for hard questions pass `model: sonnet`).
+- `coder` – implementation + tests, Sonnet. No commit/push.
+- `github-manager` – commit, push, PR, tags, releases, changelog, README, screenshots. Sonnet.
 
-## Verbindlicher Ablauf
-1. Auftrag analysieren → 2. Researcher bei Bedarf → 3. Umsetzungsplan → 4. Coder implementiert auf eigenem Branch (`feature/*`, `fix/*`, `chore/*`)
-5. **Main Agent prüft den vollständigen Diff** (`git diff`), Qualität, Sicherheit, Architektur. Nichts ungeprüft akzeptieren.
-6. Relevante Tests laufen (siehe unten) → 7. Fehler/Befunde → zurück an den Coder
-8. Erst nach bestandenem Review + Tests: `github-manager` committet und pusht auf den Feature-Branch (automatisch, ohne Rückfrage)
-9. README/Screenshots bei nutzersichtbaren Änderungen aktualisieren → 10. Ergebnis berichten
+Handle small things (typos, one line of config) yourself – no agent call. Do not commission research twice. Have agents return only relevant results.
 
-## Harte Regeln
-- `main` ist geschützt: Push/Merge auf `main` nur mit Freigabe des Nutzers.
-- Releases, Tags pushen, Repo-Sichtbarkeit ändern: nur auf ausdrücklichen Auftrag.
-- Keine Force-Pushes, kein `reset --hard`, keine destruktiven Aktionen ohne Freigabe. `.claude/hooks/git-guard.mjs` erzwingt das.
-- Keine Secrets/Zugangsdaten committen oder ausgeben. Vor Veröffentlichung Diff auf Secrets prüfen.
-- Bei fehlgeschlagenen Tests nicht pushen.
-- Bestehende Konfiguration vor Änderung sichern; vorhandene Funktionen nicht unnötig überschreiben.
+## Mandatory workflow
+1. Analyze the task → 2. Researcher if needed → 3. Implementation plan → 4. Coder implements on its own branch (`feature/*`, `fix/*`, `chore/*`)
+5. **Main Agent reviews the complete diff** (`git diff`), quality, security, architecture. Accept nothing unreviewed.
+6. Run the relevant tests (see below) → 7. Errors/findings → back to the Coder
+8. Only after a passed review + tests: `github-manager` commits and pushes to the feature branch (automatically, without asking)
+9. Update README/screenshots for user-visible changes → 10. Report the result
 
-## Projektregeln (Todo4Me)
-- **Echte Nutzerdaten in `%APPDATA%\Todo4Me` (installierte 1.0.0) niemals anfassen.** Test-Builds mit eigenem Datenordner/appId (PROJECT_LOG Step 21).
-- Vor Electron-Start `ELECTRON_RUN_AS_NODE` entfernen. Builds nur über `scripts/build.js`.
-- Tests (alle 4 vor Merge/Release):
+## Hard rules
+- `main` is protected: push/merge to `main` only with the user's approval.
+- Releases, pushing tags, changing repo visibility: only on explicit request.
+- No force pushes, no `reset --hard`, no destructive actions without approval. `.claude/hooks/git-guard.mjs` enforces this.
+- Never commit or output secrets/credentials. Check the diff for secrets before publishing.
+- Do not push if tests failed.
+- Back up existing configuration before changing it; do not needlessly overwrite existing functionality.
+
+## Project rules (Todo4Me)
+- **Never touch real user data in `%APPDATA%\Todo4Me` (installed 1.0.0).** Test builds with their own data folder/appId (PROJECT_LOG Step 21).
+- Remove `ELECTRON_RUN_AS_NODE` before starting Electron. Builds only via `scripts/build.js`.
+- Tests (all 4 before merge/release):
   - `node tests/cdp.mjs tests/test-functional.mjs`
-  - `node tests/test-ics.mjs` (reiner Node-Test, ohne CDP)
+  - `node tests/test-ics.mjs` (pure Node test, no CDP)
   - `node tests/cdp.mjs tests/test-editor.mjs`
-  - `TODO4ME_PDF_DIR=<scratch-dir> node tests/cdp-electron.mjs tests/test-electron.mjs` (ohne die Variable schlägt der PDF-Check fehl)
-  - Alle nutzen Port 9333 → nie parallel ausführen.
-- Screenshots nur aus der laufenden App: `tests/test-shots.mjs` (Browser, Beispieldaten), `tests/test-desktop-shots.mjs` (Electron). README-Bilder liegen in `docs/screenshots/`.
-- `PROJECT_LOG.md` dokumentiert jeden Schritt; `CHANGELOG.md` pro Version.
-- Skills: `/ship` (Review→Tests→Commit/Push), `/readme-screenshots`.
+  - `TODO4ME_PDF_DIR=<scratch-dir> node tests/cdp-electron.mjs tests/test-electron.mjs` (without the variable the PDF check fails)
+  - All use port 9333 → never run in parallel.
+- Screenshots only from the running app: `tests/test-shots.mjs` (browser, sample data), `tests/test-desktop-shots.mjs` (Electron). README images are in `docs/screenshots/`.
+- `PROJECT_LOG.md` documents every step; `CHANGELOG.md` per version.
+- Skills: `/ship` (review→tests→commit/push), `/readme-screenshots`.

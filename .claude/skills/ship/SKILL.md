@@ -2,8 +2,8 @@
 name: ship
 description: Ship a finished change - review the full diff, run the test suites, then let the github-manager commit and push to the working branch.
 ---
-1. `git status` + `git diff` (komplett) lesen. Qualität, Sicherheit, Architektur prüfen; Secrets suchen. Befunde → zurück an `coder`, Abbruch.
-2. Relevante Test-Suiten aus CLAUDE.md ausführen (vor Merge/Release alle 4). Fehler → zurück an `coder`, Abbruch.
-3. Nutzersichtbare Änderung? → README-Abschnitt + ggf. `/readme-screenshots`.
-4. `github-manager` beauftragen: gezielt stagen, Commit, Push auf den Arbeitsbranch (nicht `main`). Hashes + URL zurückmelden.
-5. Ergebnis kurz berichten: was geändert, Tests, Commit, Push.
+1. Read `git status` + `git diff` (complete). Check quality, security, architecture; search for secrets. Findings → back to `coder`, abort.
+2. Run the relevant test suites from CLAUDE.md (all 4 before merge/release). Failures → back to `coder`, abort.
+3. User-visible change? → README section + `/readme-screenshots` if needed.
+4. Commission `github-manager`: targeted staging, commit, push to the working branch (not `main`). Report back hashes + URL.
+5. Briefly report the result: what changed, tests, commit, push.

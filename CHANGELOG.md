@@ -1,60 +1,60 @@
 # Changelog
 
-Alle nennenswerten Änderungen an Todo4Me (Windows-Desktop-App und Web-App) stehen in dieser Datei.
-Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
-Release-Tags tragen das Präfix `windows-v`.
+All notable changes to Todo4Me (Windows desktop app and web app) are documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
+Release tags use the prefix `windows-v`.
 
 ## [2.1.1] - 2026-11-06
 
-### Behoben
-- Monatlich wiederkehrende Aufgaben rutschen nicht mehr auf den 28. (z. B. fällig am 31. Januar): Die nächste Fälligkeit wird jetzt ab dem ursprünglichen Datum berechnet.
-- Quick-Add: Tags und Kategorien mit Umlauten (`#büro`, `#einkäufe`) bleiben nicht mehr im Titel stehen.
-- Quick-Add: `@month` oder `@satire` werden nicht mehr als Montag bzw. Samstag gedeutet; `@fri`, `@thurs` und `@friday` funktionieren weiterhin.
-- Updates werden auch installiert, wenn Todo4Me im Infobereich (Tray) läuft: Ist ein Update bereit und das Fenster versteckt, erscheint eine Windows-Benachrichtigung; ein Klick speichert alles und startet neu.
-- Tägliche Backups werden auch erstellt, wenn Todo4Me tagelang im Tray läuft (Prüfung alle 15 Minuten auf einen neuen Tag).
+### Fixed
+- Monthly recurring tasks no longer drift to the 28th (e.g. due on January 31): the next due date is now calculated from the original date.
+- Quick-add: tags and categories with umlauts (`#büro`, `#einkäufe`) no longer remain in the title.
+- Quick-add: `@month` or `@satire` are no longer interpreted as Monday or Saturday; `@fri`, `@thurs` and `@friday` still work.
+- Updates are also installed while Todo4Me runs in the notification area (tray): if an update is ready and the window is hidden, a Windows notification appears; one click saves everything and restarts.
+- Daily backups are also created when Todo4Me runs in the tray for days (checked every 15 minutes for a new day).
 
-### Bekannte Einschränkung
-- Wird eine monatliche Aufgabe in einem kurzen Monat am letzten Tag erledigt (28. Februar), zählt die nächste Fälligkeit ab diesem Datum (28. März) und nicht ab dem ursprünglichen 31.
+### Known limitation
+- If a monthly task is completed on the last day of a short month (February 28), the next due date is counted from that date (March 28) and not from the original 31st.
 
 ## [2.1.0] - 2026-11-04
 
-### Hinzugefügt
-- Erinnerungen: neues Aufgabenfeld "Erinnerung" (zur Fälligkeit, 5/15/30 Minuten, 1 Stunde oder 1 Tag vorher), Glocken-Symbol an der Aufgabe, Standard-Uhrzeit für Aufgaben ohne Uhrzeit in den Einstellungen. Windows-Benachrichtigung mit "10 Min. später"; im Browser Web-Benachrichtigung, zusätzlich immer ein Hinweis in der App.
-- Tray-Symbol mit Menü (Öffnen, Schnellerfassung, Neue Aufgabe, Beenden) und "Im Tray weiterlaufen" beim Schließen des Fensters.
-- Optionaler Autostart mit Windows (startet versteckt im Tray).
-- Globaler Schnellerfassungs-Shortcut `Strg+Alt+Leertaste` (abschaltbar, vier Vorgaben wählbar).
-- Kalenderansicht im Wochenplaner (Umschalter Tage | Kalender, Tag oder Woche): Aufgaben als Zeitblöcke, Verschieben und Größe ändern per Maus, Tastatur und Touch, jeweils mit "Rückgängig".
-- Kalender-Abos (nur lesen): Outlook- und Google-Kalender über ICS-Link oder lokale `.ics`-Datei, eigener ICS-Parser ohne Abhängigkeiten, Karte "Kalender heute" im Dashboard.
+### Added
+- Reminders: new task field "Reminder" (at the due time, 5/15/30 minutes, 1 hour or 1 day before), bell icon on the task, default time for tasks without a time in the settings. Windows notification with "10 min later"; in the browser a web notification, plus always an in-app notice.
+- Tray icon with menu (Open, Quick capture, New task, Quit) and "Keep running in tray" when closing the window.
+- Optional autostart with Windows (starts hidden in the tray).
+- Global quick-capture shortcut `Ctrl+Alt+Space` (can be turned off, four presets to choose from).
+- Calendar view in the weekly planner (Days | Calendar toggle, day or week): tasks as time blocks, move and resize by mouse, keyboard and touch, each with "Undo".
+- Calendar subscriptions (read-only): Outlook and Google calendars via ICS link or local `.ics` file, own dependency-free ICS parser, "Calendar today" card on the dashboard.
 
-### Geändert
-- Installer-Dateinamen und Doku auf Version 2.1.0 angepasst; die Desktop-Tests finden das Hintergrundmodul unabhängig vom Installationspfad.
+### Changed
+- Installer file names and docs updated to version 2.1.0; the desktop tests find the background module regardless of the install path.
 
 ## [2.0.1] - 2026-11-03
 
-### Behoben
-- PDF-Export: Seitenränder waren in der Fensterhintergrundfarbe gemalt; das PDF wird jetzt auf weißem Papier ohne Textcursor erzeugt, Kopf- und Fußzeile sitzen wie auf der Editor-Seite in der Mitte des Randes.
-- Formen im Editor: Der Schieberegler für die Linienstärke ließ sich nicht ziehen. Außerdem gibt es jetzt -/+-Knöpfe und eine px-Anzeige (0 bis 20 px).
+### Fixed
+- PDF export: page margins were painted in the window background color; the PDF is now generated on white paper without a text cursor, and header and footer sit in the middle of the margin as on the editor page.
+- Shapes in the editor: the line width slider could not be dragged. There are now also -/+ buttons and a px display (0 to 20 px).
 
-### Hinzugefügt
-- Editor: Zoom mit Strg + Mausrad bzw. Touchpad-Pinch um den Mauszeiger (25 bis 300 %).
+### Added
+- Editor: zoom with Ctrl + mouse wheel or touchpad pinch around the mouse pointer (25 to 300 %).
 
 ## [2.0.0] - 2026-11-03
 
-### Hinzugefügt
-- Dokumenteditor mit eigener Engine: Formatierung, Schriften, Tabellen, Bilder, Formen, Diagramme, Formeln (KaTeX), Code-Blöcke mit Syntaxhervorhebung (Prism, u. a. C#), Rückgängig/Wiederholen für alle Änderungen.
-- Markdown-Import und -Export sowie PDF-Export (aus derselben Seite gedruckt, mit Kopf-/Fußzeile und Seitenzahlen).
-- Dokumente liegen getrennt von den Aufgaben in IndexedDB; täglich eine eigene Sicherung (`documents-JJJJ-MM-TT.json`, 14 Tage).
-- Automatische Updates über `electron-updater` und das öffentliche Repository `todo4me-releases` (Download im Hintergrund, "Jetzt neu starten").
-- Mitgelieferte Schriften Fira Code und Carlito (SIL OFL).
+### Added
+- Document editor with its own engine: formatting, fonts, tables, images, shapes, charts, formulas (KaTeX), code blocks with syntax highlighting (Prism, incl. C#), undo/redo for all changes.
+- Markdown import and export as well as PDF export (printed from the same page, with header/footer and page numbers).
+- Documents are stored separately from tasks in IndexedDB; a separate daily backup (`documents-YYYY-MM-DD.json`, 14 days).
+- Automatic updates via `electron-updater` and the public repository `todo4me-releases` (background download, "Restart now").
+- Bundled fonts Fira Code and Carlito (SIL OFL).
 
 ## [1.0.0] - 2026-11-02
 
-### Hinzugefügt
-- Erste Version: Web-App und Windows-Desktop-App (Installer und portable Version, Electron).
-- Dashboard, Eingang, Meine Aufgaben, Heute, Demnächst, Wochenplaner, Tagesplan, Wochennotizen, Fokus-Modus mit Pomodoro, Statistiken, Einstellungen.
-- Aufgaben mit Unteraufgaben, Wiederholung und Rückgängig; Quick-Add (`!1`, `#work`, `@fri`).
-- Hell/Dunkel-Modus, Akzentfarben, responsives Layout, Tastenkürzel.
-- Datensicherheit: Prüfung beim Laden, tägliches Backup (14 Tage), beschädigte Daten werden isoliert und aus dem Backup wiederhergestellt; Daten liegen fest in `%APPDATA%\Todo4Me`.
+### Added
+- First version: web app and Windows desktop app (installer and portable version, Electron).
+- Dashboard, Inbox, My Tasks, Today, Upcoming, Weekly planner, Daily plan, Weekly notes, Focus mode with Pomodoro, Statistics, Settings.
+- Tasks with subtasks, recurrence and undo; quick-add (`!1`, `#work`, `@fri`).
+- Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
+- Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
 [2.1.1]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.1
 [2.1.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.0

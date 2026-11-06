@@ -140,7 +140,7 @@ Goal: a real Windows 11 app with an installer and a portable version. **Rules:**
 | `scripts/build.js` | `npm run build` (see step 12) |
 | `package.json`, `.gitignore`, `build/icon.png`, `assets/icons/icon.png` | Config and icons |
 
-The only edits to existing files were in `index.html`: one `<script src="js/desktop.js">` tag and a Content-Security-Policy meta tag. The README also got a German "Desktop-App für Windows" section.
+The only edits to existing files were in `index.html`: one `<script src="js/desktop.js">` tag and a Content-Security-Policy meta tag. The README also got a "Desktop app for Windows" section.
 
 ### Step 10: Security configuration
 
@@ -346,7 +346,7 @@ Todo4Me once by hand after an update. To verify on a normal desktop session with
 
 ### Step 22: Releasing 2.0.0 to colleagues
 
-1. One-time: create the public repo `todo4me-releases`, create the token, set `GH_TOKEN` (README → *Ein Update veröffentlichen*).
+1. One-time: create the public repo `todo4me-releases`, create the token, set `GH_TOKEN` (README → *Publishing an update*).
 2. Colleagues on 1.0.0 install `Todo4Me-Setup-2.0.0.exe` once (over the old version; data is kept).
 3. From then on: raise the version, `npm run release`, publish the draft on GitHub.
 

@@ -94,7 +94,7 @@ The screenshots are taken from the running app with sample data.
 
 **Updates.** The installed version checks for new versions by itself and asks before restarting (*Restart now*). Manually: *Help → Check for updates*. Details: [Updates](#updates).
 
-More: [Changelog (German)](CHANGELOG.md) · [Guide for AI agents (German)](docs/AGENTEN-ANLEITUNG.md)
+More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 
 ## Contents
 
@@ -144,7 +144,7 @@ The portable `.exe` and the developer version (`npm start`) do not update themse
 > **One-time step for existing users of version 1.0.0:** 1.0.0 had no update feature yet.
 > Install `Todo4Me-Setup-2.1.1.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
-What changed in each version is listed in the [CHANGELOG](CHANGELOG.md) (German).
+What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
 ## Using it in the browser
 
@@ -392,8 +392,8 @@ Everything that enters a document (loading, pasting, import, undo) passes throug
 
 ## For developers
 
-Source code: <https://github.com/muelgerhbf/todo4me> (public). Ready-made installers are in the releases of `muelgerhbf/todo4me-releases`.
-Working guide for AI agents: [docs/AGENTEN-ANLEITUNG.md](docs/AGENTEN-ANLEITUNG.md) (German). Changes per version: [CHANGELOG.md](CHANGELOG.md) (German).
+Source code: <https://github.com/muelgerhbf/todo4me> (public). Ready-made installers are in the [Releases](https://github.com/muelgerhbf/todo4me/releases) of this repository.
+Working guide for AI agents: [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 <details>
 <summary><strong>Development and build</strong></summary>
@@ -430,22 +430,21 @@ Reason: if the project is open in VS Code, VS Code (itself an Electron app) lock
 <details>
 <summary><strong>Publishing an update (release process)</strong></summary>
 
-Updates are published as *Releases* in a **public** GitHub repository `muelgerhbf/todo4me-releases` (only the finished installers, no source code),
-configured in `package.json → build.publish`.
+Updates are published as *Releases* of this repository (`muelgerhbf/todo4me`), configured in `package.json → build.publish`.
+The app checks the latest published release anonymously, so the repository must stay **public**. (Versions 2.0.0–2.1.1 still look in the former repository `todo4me-releases`; users of those versions install 2.1.2 once manually.)
 
 **One-time setup**
 
-1. On GitHub, create a **public** repository `todo4me-releases` (a README is enough).
-2. GitHub → *Settings → Developer settings → Personal access tokens → Fine-grained tokens* → **Generate new token**:
-   Repository access *Only select repositories → todo4me-releases*, permission *Contents: Read and write*.
-3. Store the token as an environment variable (PowerShell, once; then reopen the terminal):
+1. GitHub → *Settings → Developer settings → Personal access tokens → Fine-grained tokens* → **Generate new token**:
+   Repository access *Only select repositories → todo4me*, permission *Contents: Read and write*.
+2. Store the token as an environment variable (PowerShell, once; then reopen the terminal):
    `[Environment]::SetEnvironmentVariable('GH_TOKEN', '<token>', 'User')`
 
 **For every update**
 
 1. Increase the version number in `package.json`. It must **always be greater** than the last one.
 2. `npm run release`. Builds installer + portable and uploads them with `latest.yml` to GitHub as a **draft**.
-3. On GitHub under *todo4me-releases → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
+3. On GitHub under *todo4me → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
 
 Never delete files from the latest release: the app reads `latest.yml` there. You fix a faulty update with a new, higher version.
 `npm run build` (without upload) also puts `latest.yml` and `*.blockmap` into `dist/`, for testing or for your own web server.
@@ -502,7 +501,7 @@ todo4me/
 ├── scripts/              start.js, build.js, vendor.js
 ├── build/icon.png        App icon for electron-builder
 ├── assets/icons/         favicon.svg, icon.png (window icon)
-├── docs/                 AGENTEN-ANLEITUNG.md, screenshots/
+├── docs/                 AGENT-GUIDE.md, screenshots/
 ├── vendor/               Offline files for the editor (MIT / SIL OFL, licenses included)
 │   ├── katex/            Formula rendering + fonts
 │   ├── prism/prism.js    Syntax highlighting (11 languages)
