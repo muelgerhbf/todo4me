@@ -4,6 +4,16 @@ All notable changes to Todo4Me (Windows desktop app and web app) are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `windows-v`.
 
+## [2.2.0] - 2026-11-06
+
+### Added
+- **Flexible recurrence:** every n days, weeks, months or years; every weekday; specific weekdays (e.g. Mon, Wed, Fri); a day of the month or the last day; optionally counted from the completion date instead of the due date.
+- Task editor: the *Repeat* field offers presets matched to the due date (Daily, Every weekday, Weekly on …, Every 2 weeks on …, Monthly on the …, Yearly on …) and a *Custom…* panel with a live preview.
+- Quick-add: `every monday`, `every mon,wed,fri`, `every 2 weeks`, `every other friday`, `every 15th`, `every last day`, `every 3 days after done`, and the shorthands `*daily`, `*weekly`, `*monthly`, `*yearly`, `*weekdays`. Without an `@date`, the due date becomes the first matching day.
+
+### Changed
+- Existing Daily/Weekly/Monthly tasks and older backups are converted automatically; nothing is lost.
+
 ## [2.1.2] - 2026-11-06
 
 ### Added
@@ -69,6 +79,7 @@ Release tags use the prefix `windows-v`.
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.2.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.2.0
 [2.1.2]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.2
 [2.1.1]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.1
 [2.1.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.0
