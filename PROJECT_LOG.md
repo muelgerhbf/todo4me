@@ -11,7 +11,7 @@ Written at the end of day 1 (2026-11-02) as the starting point for day 2: **buil
 |---|---|
 | Project folder | `C:\dev\todo4me` |
 | Web app | Done. Runs in any browser by opening `index.html` |
-| Windows desktop app | Done. Version **2.1.0** (day 3: reminders, tray, calendar): `dist\Todo4Me-Setup-2.1.0.exe` (installer, auto-updates) and `dist\Todo4Me-2.1.0-portable.exe` |
+| Windows desktop app | Done. Version **2.1.1** (day 3: reminders, tray, calendar; 2.1.1 = bug fixes): `dist\Todo4Me-Setup-2.1.1.exe` (installer, auto-updates) and `dist\Todo4Me-2.1.1-portable.exe` |
 | Document editor | Done on day 2 (see Part 4) |
 | Automatic updates | Built in on day 2 (see Part 4). Needs the public repo `todo4me-releases` + a token once before the first `npm run release` |
 | Reminders, tray, global hotkey | Built on `feature/reminders-calendar` (Step 24), committed there, not yet released |
