@@ -29,6 +29,8 @@ const WINDOW_BG = '#f6f6f8';
 /* UI language reported by the renderer (menu, tray and notifications can read it; translations follow in a later step). */
 const UI_LANGUAGES = ['en', 'de', 'tr', 'es'];
 let uiLanguage = 'en';
+const i18n = require('./i18n');
+const T = (key, params) => i18n.t(key, params);
 
 /* ---------- Stable data location ----------
  * All LocalStorage data lives in <userData>/Local Storage. Pin userData to
@@ -85,7 +87,7 @@ function onReady() {
     onReady: (version) => {
       const win = mainWindow;
       if (win && !win.isDestroyed() && win.isVisible()) return;
-      background.notify({ id: 'update', title: 'Todo4Me ' + (version || '') + ' is ready', body: 'Click to restart and update now. Your data is kept.' });
+      background.notify({ id: 'update', title: T('notif.updateTitle', { version: version || '' }), body: T('notif.updateBody') });
     },
   });
   Menu.setApplicationMenu(buildMenu());
@@ -232,7 +234,7 @@ function hardenSession() {
   ses.on('will-download', (_event, item) => {
     const ext = path.extname(item.getFilename()).slice(1).toLowerCase();
     item.setSaveDialogOptions({
-      title: ext === 'md' ? 'Save Markdown file' : 'Save Todo4Me backup',
+      title: ext === 'md' ? T('dlg.saveMarkdown') : T('dlg.saveBackup'),
       defaultPath: path.join(app.getPath('documents'), item.getFilename()),
       filters: ext === 'md' ? [{ name: 'Markdown', extensions: ['md'] }] : [{ name: 'JSON', extensions: ['json'] }],
     });
@@ -242,7 +244,12 @@ function hardenSession() {
 /* ---------- IPC (only what the renderer strictly needs) ---------- */
 function registerIpc() {
   ipcMain.handle('i18n:set-language', (_e, lang) => {
-    if (UI_LANGUAGES.includes(lang)) uiLanguage = lang;
+    if (UI_LANGUAGES.includes(lang) && lang !== uiLanguage) {
+      uiLanguage = lang;
+      i18n.setLanguage(lang);
+      try { Menu.setApplicationMenu(buildMenu()); } catch (e) { /* keep the old menu */ }
+      try { background.refreshLanguage(); } catch (e) { /* tray menu keeps the old texts */ }
+    }
     return { ok: UI_LANGUAGES.includes(lang), language: uiLanguage };
   });
 
@@ -279,7 +286,7 @@ function registerIpc() {
       filePath = path.join(process.env.TODO4ME_PDF_DIR, name);
     } else {
       const res = await dialog.showSaveDialog(win, {
-        title: 'Export as PDF',
+        title: T('dlg.exportPdf'),
         defaultPath: path.join(lastPdfDir || app.getPath('documents'), name),
         filters: [{ name: 'PDF', extensions: ['pdf'] }],
       });
@@ -349,70 +356,83 @@ function send(action, meta) {
 const viaKey = (e) => ({ accel: !!(e && e.triggeredByAccelerator) });
 
 function buildMenu() {
+  const viewRole = (role, key) => (uiLanguage === 'en' ? { role } : { role, label: T(key) });
   const go = (label, route, accelerator) => ({ label, accelerator, click: (_i, _w, e) => send('go:' + route, viaKey(e)) });
   return Menu.buildFromTemplate([
     {
-      label: '&File',
+      label: T('menu.file'),
       submenu: [
-        { label: 'New task', accelerator: 'CmdOrCtrl+N', click: (_i, _w, e) => send('new-task', viaKey(e)) },
-        { label: 'Quick capture', accelerator: 'CmdOrCtrl+Shift+Space', click: (_i, _w, e) => send('quick-capture', viaKey(e)) },
-        { label: 'New weekly note', accelerator: 'CmdOrCtrl+Shift+N', click: (_i, _w, e) => send('new-note', viaKey(e)) },
-        { label: 'New document', accelerator: 'CmdOrCtrl+Alt+N', click: (_i, _w, e) => send('new-document', viaKey(e)) },
+        { label: T('menu.newTask'), accelerator: 'CmdOrCtrl+N', click: (_i, _w, e) => send('new-task', viaKey(e)) },
+        { label: T('menu.quickCapture'), accelerator: 'CmdOrCtrl+Shift+Space', click: (_i, _w, e) => send('quick-capture', viaKey(e)) },
+        { label: T('menu.newNote'), accelerator: 'CmdOrCtrl+Shift+N', click: (_i, _w, e) => send('new-note', viaKey(e)) },
+        { label: T('menu.newDoc'), accelerator: 'CmdOrCtrl+Alt+N', click: (_i, _w, e) => send('new-document', viaKey(e)) },
         { type: 'separator' },
-        { label: 'Export document as PDF…', accelerator: 'CmdOrCtrl+P', click: (_i, _w, e) => send('export-pdf', viaKey(e)) },
-        { label: 'Export data (JSON)…', accelerator: 'CmdOrCtrl+E', click: (_i, _w, e) => send('export-data', viaKey(e)) },
-        { label: 'Import data (JSON)…', accelerator: 'CmdOrCtrl+I', click: (_i, _w, e) => send('import-data', viaKey(e)) },
+        { label: T('menu.exportPdf'), accelerator: 'CmdOrCtrl+P', click: (_i, _w, e) => send('export-pdf', viaKey(e)) },
+        { label: T('menu.exportData'), accelerator: 'CmdOrCtrl+E', click: (_i, _w, e) => send('export-data', viaKey(e)) },
+        { label: T('menu.importData'), accelerator: 'CmdOrCtrl+I', click: (_i, _w, e) => send('import-data', viaKey(e)) },
         { type: 'separator' },
-        { label: 'Open backups folder', click: () => { fs.mkdirSync(BACKUP_DIR, { recursive: true }); shell.openPath(BACKUP_DIR); } },
-        { label: 'Open data folder', click: () => shell.openPath(app.getPath('userData')) },
+        { label: T('menu.openBackups'), click: () => { fs.mkdirSync(BACKUP_DIR, { recursive: true }); shell.openPath(BACKUP_DIR); } },
+        { label: T('menu.openData'), click: () => shell.openPath(app.getPath('userData')) },
         { type: 'separator' },
-        { role: 'quit', label: 'Exit' },
+        { role: 'quit', label: T('menu.exit') },
       ],
     },
-    { role: 'editMenu' },
-    {
-      label: '&Go',
+    // English keeps Electron's own Edit menu; the other languages get the same entries with translated labels.
+    uiLanguage === 'en' ? { role: 'editMenu' } : {
+      label: T('menu.edit'),
       submenu: [
-        go('Dashboard', 'dashboard', 'CmdOrCtrl+1'),
-        go('Inbox', 'inbox', 'CmdOrCtrl+2'),
-        go('My Tasks', 'tasks', 'CmdOrCtrl+3'),
-        go('Today', 'today', 'CmdOrCtrl+4'),
-        go('Upcoming', 'upcoming', 'CmdOrCtrl+5'),
-        go('Weekly Planner', 'planner', 'CmdOrCtrl+6'),
-        go('Daily Plan', 'plan', 'CmdOrCtrl+7'),
-        go('Weekly Notes', 'notes', 'CmdOrCtrl+8'),
-        go('Editor', 'editor', 'CmdOrCtrl+Shift+D'),
-        go('Focus Mode', 'focus', 'CmdOrCtrl+9'),
-        go('Statistics', 'stats'),
-        go('Settings', 'settings', 'CmdOrCtrl+,'),
+        { role: 'undo', label: T('menu.undo') },
+        { role: 'redo', label: T('menu.redo') },
+        { type: 'separator' },
+        { role: 'cut', label: T('menu.cut') },
+        { role: 'copy', label: T('menu.copy') },
+        { role: 'paste', label: T('menu.paste') },
+        { role: 'selectAll', label: T('menu.selectAll') },
       ],
     },
     {
-      label: '&View',
+      label: T('menu.go'),
       submenu: [
-        { role: 'reload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
+        go(T('menu.dashboard'), 'dashboard', 'CmdOrCtrl+1'),
+        go(T('menu.inbox'), 'inbox', 'CmdOrCtrl+2'),
+        go(T('menu.tasks'), 'tasks', 'CmdOrCtrl+3'),
+        go(T('menu.today'), 'today', 'CmdOrCtrl+4'),
+        go(T('menu.upcoming'), 'upcoming', 'CmdOrCtrl+5'),
+        go(T('menu.planner'), 'planner', 'CmdOrCtrl+6'),
+        go(T('menu.plan'), 'plan', 'CmdOrCtrl+7'),
+        go(T('menu.notes'), 'notes', 'CmdOrCtrl+8'),
+        go(T('menu.editor'), 'editor', 'CmdOrCtrl+Shift+D'),
+        go(T('menu.focus'), 'focus', 'CmdOrCtrl+9'),
+        go(T('menu.stats'), 'stats'),
+        go(T('menu.settings'), 'settings', 'CmdOrCtrl+,'),
       ],
     },
     {
-      label: '&Help',
+      label: T('menu.view'),
       submenu: [
-        { label: 'Check for updates…', click: () => updater.check(true) },
+        viewRole('reload', 'menu.reload'),
+        viewRole('toggleDevTools', 'menu.devTools'),
+        { type: 'separator' },
+        viewRole('resetZoom', 'menu.resetZoom'),
+        viewRole('zoomIn', 'menu.zoomIn'),
+        viewRole('zoomOut', 'menu.zoomOut'),
+        { type: 'separator' },
+        viewRole('togglefullscreen', 'menu.fullscreen'),
+      ],
+    },
+    {
+      label: T('menu.help'),
+      submenu: [
+        { label: T('menu.checkUpdates'), click: () => updater.check(true) },
         { type: 'separator' },
         {
-          label: 'About Todo4Me',
+          label: T('menu.about'),
           click: () => dialog.showMessageBox(mainWindow, {
             type: 'info',
-            title: 'About Todo4Me',
+            title: T('menu.about'),
             message: 'Todo4Me ' + app.getVersion(),
-            detail: 'Your data is stored locally on this computer:\n' + app.getPath('userData') +
-              '\n\nDaily backup files:\n' + BACKUP_DIR +
+            detail: T('about.dataDir') + '\n' + app.getPath('userData') +
+              '\n\n' + T('about.backupDir') + '\n' + BACKUP_DIR +
               '\n\nElectron ' + process.versions.electron + ' · Chromium ' + process.versions.chrome,
           }),
         },

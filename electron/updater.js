@@ -16,6 +16,7 @@
 
 const { app, ipcMain, BrowserWindow } = require('electron');
 const { spawn } = require('node:child_process');
+const T = (key, params) => require('./i18n').t(key, params);
 
 let autoUpdater = null;
 try { ({ autoUpdater } = require('electron-updater')); } catch (e) { autoUpdater = null; }
@@ -37,10 +38,10 @@ let beforeInstall = () => {};
 let onReady = () => {};
 
 function supported() {
-  if (!autoUpdater) return 'The update module is missing.';
-  if (process.env.PORTABLE_EXECUTABLE_DIR) return 'The portable version cannot update itself. Download the new portable .exe or use the installer version.';
-  if (!app.isPackaged && !process.env.TODO4ME_UPDATE_URL) return 'Updates are only available in the installed app.';
-  if (process.platform !== 'win32' && process.platform !== 'darwin') return 'Automatic updates are not available on this system.';
+  if (!autoUpdater) return T('upd.missing');
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return T('upd.portable');
+  if (!app.isPackaged && !process.env.TODO4ME_UPDATE_URL) return T('upd.installedOnly');
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return T('upd.noAuto');
   return null;
 }
 
@@ -53,13 +54,13 @@ function set(patch) { Object.assign(state, patch); broadcast(); }
 function friendlyError(err) {
   const msg = String((err && (err.message || err)) || '');
   if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENETUNREACH|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK|ERR_CONNECTION|socket hang up|net::/i.test(msg)) {
-    return 'No connection to the update server. Check your internet connection — Todo4Me will try again later.';
+    return T('upd.offline');
   }
-  if (/404|Cannot find latest|No published versions|latest\.yml/i.test(msg)) return 'No update information was found on the server yet.';
-  if (/sha512|checksum|signature|not signed/i.test(msg)) return 'The downloaded update could not be verified and was discarded. Please try again later.';
-  if (/ENOSPC/i.test(msg)) return 'Not enough disk space to download the update.';
-  if (/EPERM|EACCES|operation not permitted/i.test(msg)) return 'The update could not be installed (no permission). Close Todo4Me and run the latest setup file manually.';
-  return 'The update failed: ' + msg.split('\n')[0].slice(0, 200);
+  if (/404|Cannot find latest|No published versions|latest\.yml/i.test(msg)) return T('upd.noInfo');
+  if (/sha512|checksum|signature|not signed/i.test(msg)) return T('upd.unverified');
+  if (/ENOSPC/i.test(msg)) return T('upd.disk');
+  if (/EPERM|EACCES|operation not permitted/i.test(msg)) return T('upd.permission');
+  return T('upd.failed', { msg: msg.split('\n')[0].slice(0, 200) });
 }
 
 async function check(manual) {
@@ -131,7 +132,7 @@ function spawnRelaunchWatcher() {
 
 /** Restart into the new version. Data is flushed first (see main.js beforeInstall). */
 async function install() {
-  if (state.status !== 'ready' || !autoUpdater) return { ok: false, error: 'No update is ready to install.' };
+  if (state.status !== 'ready' || !autoUpdater) return { ok: false, error: T('upd.noneReady') };
   try {
     await beforeInstall();
     spawnRelaunchWatcher();

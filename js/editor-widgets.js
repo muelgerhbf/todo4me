@@ -8,6 +8,12 @@ T4.edw = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui;
   const { esc, icon } = U;
+  // English text as dictionary key part ('ed.<text>'), falls back to the text itself (see editor.js).
+  const E = (s, p) => {
+    const k = 'ed.' + s;
+    if (T4.i18n.has(k)) return T4.i18n.t(k, p);
+    return p ? String(s).replace(/\{(\w+)\}/g, (m, n) => (p[n] != null ? p[n] : m)) : s;
+  };
 
   /* ====================== Lazy-loaded libraries ====================== */
   let libsPromise = null;
@@ -181,12 +187,12 @@ T4.edw = (function () {
     const code = existing ? existing.value : (el.querySelector('pre') ? el.querySelector('pre').textContent : '');
     el.innerHTML =
       '<div class="cw-head ed-ui">' +
-        '<select class="cw-lang" aria-label="Programming language">' + CODE_LANGS.map(([v, l]) => '<option value="' + v + '"' + (v === p.lang ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
-        '<button type="button" class="cw-copy" title="Copy code">' + icon('copy') + '<span>Copy</span></button>' +
+        '<select class="cw-lang" aria-label="' + esc(E('Programming language')) + '">' + CODE_LANGS.map(([v, l]) => '<option value="' + v + '"' + (v === p.lang ? ' selected' : '') + '>' + esc(E(l)) + '</option>').join('') + '</select>' +
+        '<button type="button" class="cw-copy" title="' + esc(E('Copy code')) + '">' + icon('copy') + '<span>' + esc(E('Copy')) + '</span></button>' +
       '</div>' +
       '<div class="cw-body"><pre class="cw-hl" aria-hidden="true"><code class="language-' + esc(p.lang || 'none') + '"></code></pre>' +
-      '<textarea class="cw-input" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Code"></textarea></div>' +
-      '<span class="cw-label" aria-hidden="true">' + esc((CODE_LANGS.find((c) => c[0] === p.lang) || CODE_LANGS[0])[1]) + '</span>';
+      '<textarea class="cw-input" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="' + esc(E('Code')) + '"></textarea></div>' +
+      '<span class="cw-label" aria-hidden="true">' + esc(E((CODE_LANGS.find((c) => c[0] === p.lang) || CODE_LANGS[0])[1])) + '</span>';
     const ta = el.querySelector('textarea');
     ta.value = code;
     paintCode(el);
@@ -524,7 +530,7 @@ T4.edw = (function () {
       case 'text': {
         const s = selectedShape(el);
         if (!s || s.t === 'line' || s.t === 'arrow') return;
-        textDialog('Text in shape', s.text, (text) => updateShapes(el, (p) => { const x = p.shapes.find((y) => y.id === id); if (x) x.text = text; }), true);
+        textDialog(E('Text in shape'), s.text, (text) => updateShapes(el, (p) => { const x = p.shapes.find((y) => y.id === id); if (x) x.text = text; }), true);
         return;
       }
       case 'duplicate': {
@@ -578,7 +584,7 @@ T4.edw = (function () {
       body: '<form id="wtext-form" class="form"><div class="field">' +
         (multiline ? '<textarea id="wtext" rows="3">' + esc(value) + '</textarea>' : '<input id="wtext" type="text" value="' + esc(value) + '">') +
         '</div></form>',
-      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">Cancel</button><button type="submit" class="btn btn--primary" form="wtext-form">Save</button>',
+      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(T4.i18n.t('c.cancel')) + '</button><button type="submit" class="btn btn--primary" form="wtext-form">' + esc(E('Save')) + '</button>',
       onMount(m) {
         const f = m.querySelector('#wtext-form');
         f.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); f.requestSubmit(); } });
@@ -602,19 +608,19 @@ T4.edw = (function () {
   function mathDialog(opts) {
     let display = !!opts.display;
     ui.openModal({
-      title: opts.tex ? 'Edit formula' : 'Insert formula',
+      title: E(opts.tex ? 'Edit formula' : 'Insert formula'),
       size: 'lg',
       body: '<form id="math-form" class="form math-dlg">' +
         '<div class="math-dlg__palette">' + MATH_GROUPS.map(([name, items]) =>
-          '<div class="math-dlg__group"><span class="label">' + name + '</span><div class="math-dlg__btns">' + items.map(([tex, label]) =>
-            '<button type="button" class="math-btn" data-tex="' + esc(tex) + '" title="' + esc(label || tex) + '">' + texToHTML(tex, false) + '</button>').join('') + '</div></div>').join('') +
+          '<div class="math-dlg__group"><span class="label">' + esc(E(name)) + '</span><div class="math-dlg__btns">' + items.map(([tex, label]) =>
+            '<button type="button" class="math-btn" data-tex="' + esc(tex) + '" title="' + esc(label ? E(label) : tex) + '">' + texToHTML(tex, false) + '</button>').join('') + '</div></div>').join('') +
         '</div>' +
         '<div class="field"><label for="math-src">LaTeX</label><textarea id="math-src" rows="3" spellcheck="false" class="mono" placeholder="e.g. E = mc^2   or   \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}">' + esc(opts.tex || '') + '</textarea>' +
-        '<p class="field__help">Use LaTeX syntax. Click a symbol above to insert it at the cursor.</p></div>' +
-        '<div class="field"><span class="label">Preview</span><div class="math-dlg__preview" id="math-preview" aria-live="polite"></div></div>' +
-        '<div class="seg" role="radiogroup" aria-label="Display"><button type="button" class="seg__btn" role="radio" data-display="0">Inline (in the text line)</button><button type="button" class="seg__btn" role="radio" data-display="1">Block (own line, centered)</button></div>' +
+        '<p class="field__help">' + esc(E('Use LaTeX syntax. Click a symbol above to insert it at the cursor.')) + '</p></div>' +
+        '<div class="field"><span class="label">' + esc(E('Preview')) + '</span><div class="math-dlg__preview" id="math-preview" aria-live="polite"></div></div>' +
+        '<div class="seg" role="radiogroup" aria-label="' + esc(E('Display')) + '"><button type="button" class="seg__btn" role="radio" data-display="0">' + esc(E('Inline (in the text line)')) + '</button><button type="button" class="seg__btn" role="radio" data-display="1">' + esc(E('Block (own line, centered)')) + '</button></div>' +
         '</form>',
-      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">Cancel</button><button type="submit" class="btn btn--primary" form="math-form">' + (opts.tex ? 'Save formula' : 'Insert formula') + ' <kbd>Ctrl ↵</kbd></button>',
+      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(T4.i18n.t('c.cancel')) + '</button><button type="submit" class="btn btn--primary" form="math-form">' + esc(E(opts.tex ? 'Save formula' : 'Insert formula')) + ' <kbd>Ctrl ↵</kbd></button>',
       onMount(m) {
         const src = m.querySelector('#math-src');
         const prev = m.querySelector('#math-preview');
@@ -656,20 +662,20 @@ T4.edw = (function () {
   function chartDialog(opts) {
     const p = JSON.parse(JSON.stringify(opts.props));
     ui.openModal({
-      title: opts.isNew ? 'Insert chart' : 'Edit chart',
+      title: E(opts.isNew ? 'Insert chart' : 'Edit chart'),
       size: 'lg',
       body: '<form id="chart-form" class="form chart-dlg">' +
         '<div class="chart-dlg__top">' +
-          '<div class="seg" role="radiogroup" aria-label="Chart type">' + CHART_TYPES.map(([v, l]) => '<button type="button" class="seg__btn" role="radio" data-ctype="' + v + '">' + l + '</button>').join('') + '</div>' +
-          '<label class="checkbox"><input type="checkbox" id="chart-legend"' + (p.legend ? ' checked' : '') + '><span>Legend</span></label>' +
+          '<div class="seg" role="radiogroup" aria-label="' + esc(E('Chart type')) + '">' + CHART_TYPES.map(([v, l]) => '<button type="button" class="seg__btn" role="radio" data-ctype="' + v + '">' + esc(E(l)) + '</button>').join('') + '</div>' +
+          '<label class="checkbox"><input type="checkbox" id="chart-legend"' + (p.legend ? ' checked' : '') + '><span>' + esc(E('Legend')) + '</span></label>' +
         '</div>' +
-        '<div class="field"><label for="chart-title">Title</label><input id="chart-title" type="text" maxlength="120" value="' + esc(p.title) + '" placeholder="Optional"></div>' +
+        '<div class="field"><label for="chart-title">' + esc(T4.i18n.t('tk.fTitle')) + '</label><input id="chart-title" type="text" maxlength="120" value="' + esc(p.title) + '" placeholder="' + esc(E('Optional')) + '"></div>' +
         '<div class="chart-dlg__grid" id="chart-grid"></div>' +
-        '<div class="btn-row"><button type="button" class="btn btn--sm" id="chart-add-row">' + icon('plus') + 'Row</button><button type="button" class="btn btn--sm" id="chart-add-series">' + icon('plus') + 'Series</button>' +
+        '<div class="btn-row"><button type="button" class="btn btn--sm" id="chart-add-row">' + icon('plus') + esc(E('Row')) + '</button><button type="button" class="btn btn--sm" id="chart-add-series">' + icon('plus') + esc(E('Series')) + '</button>' +
           '<span class="muted small" id="chart-hint"></span></div>' +
         '<div class="chart-dlg__preview" id="chart-preview"></div>' +
         '</form>',
-      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">Cancel</button><button type="submit" class="btn btn--primary" form="chart-form">' + (opts.isNew ? 'Insert chart' : 'Save chart') + '</button>',
+      footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(T4.i18n.t('c.cancel')) + '</button><button type="submit" class="btn btn--primary" form="chart-form">' + esc(E(opts.isNew ? 'Insert chart' : 'Save chart')) + '</button>',
       onMount(m) {
         const grid = m.querySelector('#chart-grid');
         const preview = m.querySelector('#chart-preview');
@@ -677,16 +683,16 @@ T4.edw = (function () {
           const v = validate('chart', p);
           preview.innerHTML = v ? chartSVG(v) : '';
           m.querySelectorAll('[data-ctype]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.ctype === p.type)));
-          m.querySelector('#chart-hint').textContent = p.type === 'pie' ? 'Pie charts use the first series only.' : '';
+          m.querySelector('#chart-hint').textContent = p.type === 'pie' ? E('Pie charts use the first series only.') : '';
         };
         const paintGrid = () => {
-          grid.innerHTML = '<table class="chart-table"><thead><tr><th>Label</th>' + p.series.map((s, si) =>
-            '<th><div class="chart-table__series"><input type="color" value="' + esc(s.color) + '" data-scolor="' + si + '" aria-label="Series color">' +
-            '<input type="text" value="' + esc(s.name) + '" data-sname="' + si + '" placeholder="Series ' + (si + 1) + '" aria-label="Series name">' +
-            (p.series.length > 1 ? '<button type="button" class="icon-btn icon-btn--sm" data-del-series="' + si + '" aria-label="Remove series">' + icon('x') + '</button>' : '') + '</div></th>').join('') + '<th></th></tr></thead><tbody>' +
-            p.labels.map((l, i) => '<tr><td><input type="text" value="' + esc(l) + '" data-label="' + i + '" aria-label="Label ' + (i + 1) + '"></td>' +
-              p.series.map((s, si) => '<td><input type="number" step="any" value="' + s.values[i] + '" data-val="' + si + ':' + i + '" aria-label="Value"></td>').join('') +
-              '<td>' + (p.labels.length > 1 ? '<button type="button" class="icon-btn icon-btn--sm" data-del-row="' + i + '" aria-label="Remove row">' + icon('x') + '</button>' : '') + '</td></tr>').join('') +
+          grid.innerHTML = '<table class="chart-table"><thead><tr><th>' + esc(E('Label')) + '</th>' + p.series.map((s, si) =>
+            '<th><div class="chart-table__series"><input type="color" value="' + esc(s.color) + '" data-scolor="' + si + '" aria-label="' + esc(E('Series color')) + '">' +
+            '<input type="text" value="' + esc(s.name) + '" data-sname="' + si + '" placeholder="' + esc(E('Series') + ' ' + (si + 1)) + '" aria-label="' + esc(E('Series name')) + '">' +
+            (p.series.length > 1 ? '<button type="button" class="icon-btn icon-btn--sm" data-del-series="' + si + '" aria-label="' + esc(E('Remove series')) + '">' + icon('x') + '</button>' : '') + '</div></th>').join('') + '<th></th></tr></thead><tbody>' +
+            p.labels.map((l, i) => '<tr><td><input type="text" value="' + esc(l) + '" data-label="' + i + '" aria-label="' + esc(E('Label {n}', { n: i + 1 })) + '"></td>' +
+              p.series.map((s, si) => '<td><input type="number" step="any" value="' + s.values[i] + '" data-val="' + si + ':' + i + '" aria-label="' + esc(E('Value')) + '"></td>').join('') +
+              '<td>' + (p.labels.length > 1 ? '<button type="button" class="icon-btn icon-btn--sm" data-del-row="' + i + '" aria-label="' + esc(E('Remove row')) + '">' + icon('x') + '</button>' : '') + '</td></tr>').join('') +
             '</tbody></table>';
         };
         grid.addEventListener('input', (e) => {
@@ -721,7 +727,7 @@ T4.edw = (function () {
         m.querySelector('#chart-form').addEventListener('submit', (e) => {
           e.preventDefault();
           const v = validate('chart', p);
-          if (!v) { ui.toast('A chart needs at least one row and one series.', 'error'); return; }
+          if (!v) { ui.toast(E('A chart needs at least one row and one series.'), 'error'); return; }
           ui.closeModal(true);
           opts.onSave(v);
         });

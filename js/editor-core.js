@@ -625,7 +625,7 @@ T4.edcore = (function () {
         if (at) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(at); at = null; }
         insertBlock(W.create('img', { a: id, w, al: 'center', alt: (f.name || '').replace(/\.\w+$/, '') }), { select: true });
       } catch (e) {
-        hooks.toast(e.message || 'Could not insert the image.', 'error');
+        hooks.toast(e.message || T4.i18n.t('ed.Could not insert the image.'), 'error');
       }
     }
   }
@@ -783,7 +783,7 @@ T4.edcore = (function () {
   function linkAtCaret() { const s = state(); return s.link || null; }
   function setLink(href, text, existing) {
     href = SAN.safeHref(href);
-    if (!href) { hooks.toast('Please enter a valid web address (https://…) or e-mail (mailto:…).', 'error'); return false; }
+    if (!href) { hooks.toast(T4.i18n.t('ed.Please enter a valid web address (https://…) or e-mail (mailto:…).'), 'error'); return false; }
     run(() => {
       if (existing && existing.isConnected) {
         existing.setAttribute('href', href);
