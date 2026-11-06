@@ -783,6 +783,59 @@ export default async function (b) {
   // Weekly Planner → Calendar view + calendar subscriptions (tests/functional-calendar.mjs)
   await calendarChecks(b, run);
 
+  // ---- Quick-add recurrence syntax (2.2.0) ----
+  await run('recurrence-quickadd', `
+    const P = (s) => T4.tasks.parseQuickAdd(s), U = T4.util, today = U.today();
+    const nextDow = (i) => { for (let k = 0; k < 7; k++) { const d = U.addDays(today, k); if (U.parseDate(d).getDay() === i) return d; } };
+    const rj = (s) => JSON.stringify(P(s).recurrence);
+    const J = JSON.stringify;
+    ok(rj('Water plants every day') === J({unit:'day',every:1,from:'due'}) && P('Water plants every day').title === 'Water plants' && P('x every day').dueDate === today, 'every day -> daily, due today, phrase removed from title');
+    ok(rj('a every weekday') === J({unit:'week',every:1,weekdays:[1,2,3,4,5],from:'due'}), 'every weekday');
+    ok(rj('a every week') === J({unit:'week',every:1,from:'due'}) && rj('a every month') === J({unit:'month',every:1,from:'due'}) && rj('a every year') === J({unit:'year',every:1,from:'due'}), 'every week / month / year');
+    ok(rj('a every monday') === J({unit:'week',every:1,weekdays:[1],from:'due'}) && P('a every monday').dueDate === nextDow(1), 'every monday: next Monday (or today)');
+    ok(rj('a EVERY Mon') === rj('a every monday') && rj('a every mondays') === rj('a every monday'), 'every mon / mondays / any case');
+    ok(rj('a every mo') === undefined && P('a every mo').title === 'a every mo', 'two letters are not a weekday');
+    ok(rj('a every mon,wed,fri') === J({unit:'week',every:1,weekdays:[1,3,5],from:'due'}) && rj('a every mon, wed, fri') === rj('a every mon,wed,fri'), 'every mon,wed,fri (with or without spaces)');
+    ok(P('a every mon,wed,fri').dueDate === [1,3,5].map(nextDow).sort()[0], 'weekday list: first matching date');
+    const m = P('Call every monday, then rest'); ok(m.recurrence && m.title === 'Call then rest', 'comma after a weekday does not break parsing: ' + m.title);
+    ok(rj('a every 2 weeks') === J({unit:'week',every:2,from:'due'}) && P('a every 2 weeks').dueDate === today, 'every 2 weeks, due today');
+    ok(rj('a every 3 days') === J({unit:'day',every:3,from:'due'}) && rj('a every 2 months') === J({unit:'month',every:2,from:'due'}) && rj('a every 1 year') === J({unit:'year',every:1,from:'due'}), 'every n days / months / year');
+    ok(rj('a every other week') === rj('a every 2 weeks') && rj('a every other friday') === J({unit:'week',every:2,weekdays:[5],from:'due'}), 'every other week / friday');
+    const d15 = P('Rent every 15th'); const dd = U.parseDate(d15.dueDate);
+    ok(d15.recurrence.monthDay === 15 && d15.recurrence.unit === 'month' && dd.getDate() === 15 && d15.dueDate >= today && U.diffDays(today, d15.dueDate) <= 31 && d15.title === 'Rent', 'every 15th: monthly on 15, next 15th');
+    ok(P('a every 1st').recurrence.monthDay === 1 && P('a every 22nd').recurrence.monthDay === 22 && P('a every 3rd').recurrence.monthDay === 3, '1st / 22nd / 3rd');
+    const ld = P('Report every last day'); const ldd = U.parseDate(ld.dueDate);
+    ok(ld.recurrence.monthDay === -1 && ld.dueDate >= today && ldd.getDate() === new Date(ldd.getFullYear(), ldd.getMonth() + 1, 0).getDate(), 'every last day: month end, next month end');
+    ok(P('a every day after done').recurrence.from === 'done' && P('a every day after done').title === 'a' && P('a every 3 days after done').recurrence.every === 3, 'after done -> from done');
+    ok(P('a every monday after done').recurrence.from === 'done' && P('a every day after').title === 'a after' && P('a every day after').recurrence.from === 'due', 'after done needs both words');
+    ok(rj('a *daily') === J({unit:'day',every:1,from:'due'}) && rj('a *weekly') === J({unit:'week',every:1,from:'due'}) && rj('a *monthly') === J({unit:'month',every:1,from:'due'}) && rj('a *yearly') === J({unit:'year',every:1,from:'due'}) && rj('a *weekdays') === rj('a every weekday'), 'shorthands only with *');
+    ok(P('Check daily weekly reports').recurrence === undefined && P('Check daily weekly reports').title === 'Check daily weekly reports', 'bare daily/weekly stay in the title');
+    // Negative cases: "every" stays in the title (numbers outside 1..99 are rejected, not clamped)
+    for (const s of ['Read every chapter', 'every', 'Do every', 'Do every 0 days', 'Do every 100 weeks', 'Do every 2', 'Do every 32nd', 'Do every 0th', 'Do every other', 'Do every last', 'Do every thing', 'Do every moon']) {
+      const p = P(s); ok(p.recurrence === undefined && p.title === s && !p.dueDate, 'not a recurrence: "' + s + '"');
+    }
+    ok(P('every day').title === '' && P('every day').recurrence.unit === 'day', 'phrase only -> empty title (caller rejects)');
+    // Combination and explicit date
+    const c = P('Team meeting !2 #work every monday @fri');
+    ok(c.title === 'Team meeting' && c.priority === 'high' && c.categoryId === 'cat_work' && c.recurrence.weekdays[0] === 1 && c.dueDate === P('x @fri').dueDate, 'combination with !2 #work @fri: explicit @date wins');
+    ok(P('a every day every week').recurrence.unit === 'day' && P('a every day every week').title === 'a every week', 'only the first phrase counts');
+    // Creating tasks
+    await go('dashboard');
+    await submitQuick('#qa-dash', 'Standup every weekday #work');
+    const t1 = S().tasks.find(t => t.title === 'Standup');
+    ok(t1 && T4.recur.equals(t1.recurrence, {unit:'week',every:1,weekdays:[1,2,3,4,5]}) && !!t1.dueDate && t1.categoryId === 'cat_work', 'quick-add form saves recurrence on the task');
+    await submitQuick('#qa-dash', 'Remember every 2 weeks');
+    const t2 = S().tasks.find(t => t.title === 'Remember');
+    ok(t2 && t2.recurrence.every === 2 && t2.dueDate === today && !t2.inbox, 'recurring task has a due date');
+    const t3 = T4.tasks.captureText('Backup *weekly', { inbox: true });
+    ok(t3 && t3.recurrence && t3.recurrence.unit === 'week' && t3.inbox === false, 'recurrence sorts a task out of the Inbox');
+    const t4 = T4.tasks.captureText('Plain thought', { inbox: true });
+    ok(t4 && t4.inbox === true && !t4.recurrence, 'plain Inbox capture stays in the Inbox');
+    T4.store.toggleComplete(t2.id);
+    const n2 = S().tasks.find(t => t.title === 'Remember' && t.id !== t2.id);
+    ok(n2 && n2.dueDate === U.addDays(today, 14), 'completing schedules the next occurrence via the parsed rule');
+  `);
+
   await run('a11y-basics', `
     for (const r of ['dashboard','inbox','tasks','today','upcoming','planner','plan','notes','focus','stats','settings']) {
       await go(r);

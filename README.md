@@ -27,7 +27,7 @@ You can also use Todo4Me in the browser without installing anything (see [Using 
 
 1. **Try it with sample data (optional).** *Settings → Data & backup → Add sample data* fills the app with example tasks. Clean up later with *Reset all data*.
 2. **Create your first task.** In the dashboard or under *My Tasks*, type into the "Add a task…" field and press Enter, or press `N` for the detailed form. With the **quick-add syntax** you set priority, category and date right away:
-   `Send invoice !2 #work @fri` (priority 2, category Work, due Friday). To drop in a thought without details, press `Q` (*Quick capture*) to put it in the **Inbox** and sort it later.
+   `Send invoice !2 #work @fri` (priority 2, category Work, due Friday). Add `every monday` and the task repeats. To drop in a thought without details, press `Q` (*Quick capture*) to put it in the **Inbox** and sort it later.
 
    ![My Tasks](docs/screenshots/tasks-light.png)
 
@@ -89,6 +89,8 @@ The screenshots are taken from the running app with sample data.
 | `Report !1 #work @mon` | Priority 1 (Critical), category Work, Monday |
 | `Buy milk #shopping` | Category Shopping (if no category matches, `#…` becomes a tag) |
 | `Dentist @2026-12-24` | Due on the given date |
+| `Team meeting every monday #work` | Repeats every Monday (first due on the next Monday), category Work |
+| `Pay rent every 1st` | Repeats monthly on the 1st |
 
 **Backup.** The desktop app automatically creates a backup every day (last 14 days, `%APPDATA%\Todo4Me\backups`). You can also save a file at any time under
 *Settings → Data & backup → Export JSON* and restore it with *Import JSON*. More: [Data: saving, backup and restore](#data-saving-backup-and-restore).
@@ -118,7 +120,7 @@ More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 | **Inbox** | Capture tasks without date, priority and category; with one click set them to Today/Tomorrow, sort them in the editor, or move them to My Tasks |
 | **My Tasks** | Search (title, description, notes, tags, subtasks, category), filters by status, priority, category, date, tag, sorting |
 | **Today / Upcoming** | Today plus overdue tasks ("all to today") · the next 14 days grouped by day, then "Later" |
-| **Tasks** | Title, description, notes, priority (Critical / High / Medium / Low / none), status, category, tags, due date with optional time, estimate, subtasks, repeat (daily / weekly / monthly), undo when completing and deleting |
+| **Tasks** | Title, description, notes, priority (Critical / High / Medium / Low / none), status, category, tags, due date with optional time, estimate, subtasks, repeat (daily, weekdays, every n days/weeks/months/years, specific weekdays or day of month, or counted from completion), undo when completing and deleting |
 | **Reminders** | Per task at the due time or 5/15/30 min, 1 h, 1 day before · Windows notification (also from the tray) · **Snooze 10 min** · each reminder only once |
 | **Weekly Planner** | **Days \| Calendar** view: day columns with drag & drop, or an hourly grid with time blocks to move, resize and create |
 | **Calendar subscriptions** | Outlook/Google calendars **read-only** via ICS link (desktop app) or `.ics` import |
@@ -281,10 +283,17 @@ Every "Add a task…" field (and Quick capture) understands:
 | `!1` `!2` `!3` `!4` (or `!critical`, `!high`, `!medium`, `!low`, `!c`, `!h`, `!m`, `!l`) | Priority |
 | `#work` | Category (name or beginning of it). If no category matches, it becomes a **tag** |
 | `@today` `@tomorrow` `@mon`…`@sun` `@nextweek` `@2026-12-24` | Due date |
+| `every day` · `every weekday` · `every week` · `every month` · `every year` | Repeat |
+| `every monday` · `every mon,wed,fri` · `every other week` · `every 2 weeks` · `every 3 days` · `every 2 months` | Repeat on weekdays or at an interval (1–99) |
+| `every 15th` · `every last day` | Repeat monthly on that day of the month / on the last day |
+| `… after done` (e.g. `every 3 days after done`) | Count the next date from the completion day instead of the due date |
+| `*daily` `*weekly` `*monthly` `*yearly` `*weekdays` | Shorthands (need the `*`, so ordinary words stay in the title) |
 
-Example: `Send invoice !2 #work @fri`
+Example: `Send invoice !2 #work @fri`, `Team meeting every monday #work`
 
-In the Inbox, a token for date, priority or category automatically sorts the task into My Tasks.
+A repeat phrase is only recognized when it is complete: `Read every chapter` or `every 0 days` stay plain text. Without an `@date` the first due date is the first matching day (today for `every day`, the next Monday for `every monday`).
+
+In the Inbox, a token for date, priority, category or repeat automatically sorts the task into My Tasks.
 
 ### Keyboard shortcuts
 
