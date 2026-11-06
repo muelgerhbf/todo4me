@@ -15,7 +15,7 @@ const outDir = process.argv[3] || path.join(here, 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 
 const EXE = process.env.EXE || 'C:/dev/todo4me/node_modules/electron/dist/electron.exe';
-const EXE_ARGS = process.env.EXE ? [] : ['C:/dev/todo4me'];
+const EXE_ARGS = process.env.EXE ? [] : [path.resolve(here, '..')];
 const env = Object.assign({}, process.env, { TODO4ME_USER_DATA: process.env.UDATA || profile });
 delete env.ELECTRON_RUN_AS_NODE;
 let chrome;

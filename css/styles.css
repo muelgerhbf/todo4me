@@ -124,12 +124,35 @@ kbd {
   display: flex; flex-direction: column; gap: 14px;
   padding: 18px 14px; background: var(--surface); border-right: 1px solid var(--border);
 }
+.sidebar > * { flex-shrink: 0; } /* scroll instead of squashing items (e.g. Quick capture) on short windows */
 .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 6px; }
 .brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); }
 .brand-mark .icon { width: 16px; height: 16px; stroke-width: 3; }
 .brand-name { font-weight: 700; font-size: 16px; letter-spacing: -.01em; }
 .sidebar .sidebar__close { margin-left: auto; display: none; }
 .sidebar__capture kbd { margin-left: auto; }
+/* Update button (desktop app only; shown once an update is downloaded). Uses the user's accent color. */
+.update-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; align-self: flex-start;
+  height: 30px; padding: 0 14px 0 11px; margin: 0 0 2px 0; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 75%, #000); background: var(--accent); color: var(--accent-fg);
+  font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .01em; cursor: pointer;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: filter .15s var(--ease), transform .15s var(--ease);
+}
+.update-btn[hidden] { display: none; }
+.update-btn .icon { width: 15px; height: 15px; stroke-width: 2.4; }
+.update-btn:hover:not(:disabled) { filter: brightness(.92); }
+.update-btn:active:not(:disabled) { transform: translateY(1px); }
+.update-btn:disabled { opacity: .65; cursor: progress; }
+.update-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.update-btn.is-new { animation: update-pulse 1.8s var(--ease) 1; }
+@keyframes update-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .update-btn.is-new { animation: none; } }
 .sidebar__footer { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 10px 4px 0; border-top: 1px solid var(--border); }
 .save-indicator { font-size: 12px; color: var(--muted); }
 .save-indicator.is-error { color: var(--danger); font-weight: 600; }

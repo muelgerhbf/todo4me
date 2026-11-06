@@ -4,6 +4,19 @@ All notable changes to Todo4Me (Windows desktop app and web app) are documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `windows-v`.
 
+## [2.1.2] - 2026-11-06
+
+### Added
+- **Update button** at the top of the sidebar (like VS Code), in the user's accent color: appears once an update is downloaded; one click saves, installs and restarts. Replaces the 30-second "Restart now" notice.
+
+### Changed
+- Updates are now published as releases of this repository (`muelgerhbf/todo4me`) instead of the former `todo4me-releases`. Versions 2.0.0–2.1.1 must install 2.1.2 once manually.
+- License: MIT.
+- All repository documentation is now in English.
+
+### Fixed
+- Sidebar items (e.g. *Quick capture*) were squeezed on short windows; the sidebar now scrolls instead.
+
 ## [2.1.1] - 2026-11-06
 
 ### Fixed
@@ -56,6 +69,7 @@ Release tags use the prefix `windows-v`.
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.1.2]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.2
 [2.1.1]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.1
 [2.1.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.0
 [2.0.1]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.0.1

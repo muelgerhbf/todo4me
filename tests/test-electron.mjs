@@ -77,6 +77,50 @@ export default async function (b) {
     ok(st.status === 'unsupported' && st.current, 'update state reported by main process: ' + st.status);
   `);
 
+  // --- Sidebar "Update" button: only with a fully downloaded update, in the accent color, click installs
+  const sendUpd = (s) => b.mainEval(`${'process.mainModule.require(\'electron\')'}.BrowserWindow.getAllWindows()[0].webContents.send('update:state', ${JSON.stringify(s)}); true`);
+  await run(`
+    const btn = () => $('#update-btn');
+    const shown = () => { const e = btn(); return !!e && !e.hidden && e.offsetParent !== null; };
+    ok(!shown(), 'update button hidden without an update (dev build: updater unsupported)');
+  `);
+  await sendUpd({ status: 'downloading', version: '9.9.9', percent: 40, current: '2.1.2' }); await b.sleep(200);
+  await run(`ok(!($('#update-btn') && !$('#update-btn').hidden), 'update button hidden while the update is still downloading');`);
+  await sendUpd({ status: 'ready', version: '9.9.9', percent: 100, current: '2.1.2' }); await b.sleep(300);
+  await run(`
+    const e = $('#update-btn');
+    ok(e && !e.hidden && e.offsetParent !== null, 'update button visible once the update is downloaded');
+    ok(e.previousElementSibling && e.previousElementSibling.classList.contains('sidebar__brand') && e.nextElementSibling && e.nextElementSibling.classList.contains('sidebar__capture'), 'update button sits between the logo and Quick capture');
+    ok(e.getAttribute('aria-label') === 'Update to 9.9.9 – restarts Todo4Me' && e.title === e.getAttribute('aria-label') && e.textContent.trim() === 'Update' && e.querySelector('svg'), 'update button: icon + "Update", tooltip/aria-label with version');
+    ok(parseFloat(getComputedStyle(e).borderTopLeftRadius) >= 15, 'update button is pill shaped');
+    ok(!$$('.toast').some((t) => /Restart now/.test(t.textContent)), 'no "Restart now" toast any more');
+    const probe = document.createElement('i'); document.body.appendChild(probe);
+    const accentRgb = (hex) => { probe.style.color = hex; return getComputedStyle(probe).color; };
+    const fgOf = () => getComputedStyle(e).color;
+    let n = 0;
+    for (const theme of ['light', 'dark']) {
+      if (T4.store.settings.theme !== theme) click('[data-action=toggle-theme]');
+      for (const hex of T4.storage.ACCENTS) {
+        click('[data-action=set-accent][data-value="' + hex + '"]'); await wait(30);
+        const bg = getComputedStyle(e).backgroundColor;
+        if (bg === accentRgb(hex) && fgOf() === 'rgb(255, 255, 255)') n++; else window.__r.push('FAIL accent mismatch ' + theme + ' ' + hex + ' ' + bg);
+      }
+    }
+    ok(n === 2 * T4.storage.ACCENTS.length, 'update button background = accent color (' + n + ' combinations of light/dark x all accents), white text');
+    probe.remove();
+    click('[data-action=set-accent][data-value="' + T4.storage.ACCENTS[0] + '"]');
+    if (T4.store.settings.theme !== 'light') click('[data-action=toggle-theme]');
+    // click -> install flow: the dev build has no real update, so the main process refuses; the button must come back
+    const t0 = Date.now(); e.click();
+    ok(e.disabled, 'update button is disabled right after the click (no double install)');
+    e.click(); // ignored while installing
+    await wait(1200);
+    ok([...document.querySelectorAll('.toast')].some((t) => /No update is ready to install/.test(t.textContent)), 'click calls the install flow in the main process');
+    ok(!e.disabled, 'button usable again when the installation failed');
+  `);
+  await sendUpd({ status: 'unsupported', reason: 'x', current: '2.1.2' }); await b.sleep(200);
+  await run(`ok($('#update-btn').hidden, 'update button hidden again when the status is not "ready"');`);
+
   /* ---------- Running in the background: tray, close to tray, hotkey, start with Windows, notifications ---------- */
   const E = `process.mainModule.require('electron')`;
   const BG = `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.replace(/\\\\/g, '/').endsWith('/electron/background.js')).exports`;

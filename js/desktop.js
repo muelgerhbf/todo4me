@@ -102,13 +102,10 @@
   function onUpdate(s) {
     upd = s;
     paintUpdate();
+    paintUpdateButton();
     if (s.status === 'downloading' && s.version && !notified['dl' + s.version]) {
       notified['dl' + s.version] = true;
       ui.toast('Todo4Me ' + s.version + ' is available and is being downloaded in the background.', 'info', 6000);
-    }
-    if (s.status === 'ready' && !notified['ready' + s.version]) {
-      notified['ready' + s.version] = true;
-      ui.toast('Todo4Me ' + s.version + ' is ready. Restart to update — your data is kept.', 'info', 30000, { label: 'Restart now', fn: installUpdate });
     }
     if (s.manual) {
       if (s.status === 'latest') ui.toast('You are using the latest version (' + s.current + ').', 'success', 4000);
@@ -116,11 +113,42 @@
       if (s.status === 'unsupported') ui.toast(s.reason, 'info', 9000);
     }
   }
+  /* Sidebar button (like VS Code): shown only once an update is fully downloaded; the color comes from the accent in CSS. */
+  let updBtn = null;
+  function paintUpdateButton() {
+    if (!updBtn) {
+      const brand = document.querySelector('#sidebar .sidebar__brand');
+      if (!brand) return;
+      updBtn = document.createElement('button');
+      updBtn.type = 'button';
+      updBtn.id = 'update-btn';
+      updBtn.className = 'update-btn';
+      updBtn.dataset.action = 'desktop-install-update';
+      updBtn.hidden = true;
+      brand.after(updBtn);
+    }
+    if (upd.status !== 'ready' || !upd.version) { updBtn.hidden = true; return; }
+    const label = 'Update to ' + upd.version + ' – restarts Todo4Me';
+    updBtn.innerHTML = icon('reset') + '<span>Update</span>';
+    updBtn.title = label;
+    updBtn.setAttribute('aria-label', label);
+    if (updBtn.hidden) { // pulse once whenever the button appears
+      updBtn.hidden = false;
+      updBtn.classList.remove('is-new'); void updBtn.offsetWidth; updBtn.classList.add('is-new');
+    }
+  }
+  let installing = false;
   async function installUpdate() {
-    ui.toast('Saving and restarting…', 'info', 4000);
-    if (T4.editor) await T4.editor.flush();
-    const res = await desktop.installUpdate();
-    if (res && !res.ok) ui.toast(res.error || 'The update could not be installed.', 'error', 9000);
+    if (installing) return;
+    installing = true;
+    if (updBtn) updBtn.disabled = true;
+    const failed = (msg) => { ui.toast(msg, 'error', 9000); installing = false; if (updBtn) updBtn.disabled = false; };
+    try {
+      ui.toast('Saving and restarting…', 'info', 4000);
+      if (T4.editor) await T4.editor.flush();
+      const res = await desktop.installUpdate();
+      if (res && !res.ok) failed(res.error || 'The update could not be installed.');
+    } catch (e) { failed('The update could not be installed.'); }
   }
   ui.on('desktop-check-update', () => {
     desktop.checkForUpdates().then((s) => { if (s && s.status === 'unsupported') ui.toast(s.reason, 'info', 9000); });
@@ -201,7 +229,7 @@
       try { last = localStorage.getItem('todo4me.app.version'); localStorage.setItem('todo4me.app.version', i.version); } catch (e) { /* ignore */ }
       if (last && last !== i.version) ui.toast('Todo4Me was updated to version ' + i.version + '. All your data is still here.', 'success', 9000);
     });
-    if (desktop.getUpdateState) desktop.getUpdateState().then((s) => { upd = s; paintUpdate(); });
+    if (desktop.getUpdateState) desktop.getUpdateState().then((s) => { upd = s; paintUpdate(); paintUpdateButton(); });
     if (desktop.getDesktopSettings) {
       desktop.getDesktopSettings().then((s) => {
         dset = s;

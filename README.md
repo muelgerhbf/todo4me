@@ -4,7 +4,7 @@
 weekly notes, reminders, and a document editor with PDF export. Everything runs **offline on your computer**, with no account and no cloud.
 There is a Windows desktop app (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.1.1-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.1.2-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -13,9 +13,9 @@ There is a Windows desktop app (Electron) and a browser version.
 
 ## Download & install
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.1.1](https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.1)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.1.1.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.1.1-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.1.2](https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.2)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.1.2.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.1.2-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -93,7 +93,7 @@ The screenshots are taken from the running app with sample data.
 **Backup.** The desktop app automatically creates a backup every day (last 14 days, `%APPDATA%\Todo4Me\backups`). You can also save a file at any time under
 *Settings → Data & backup → Export JSON* and restore it with *Import JSON*. More: [Data: saving, backup and restore](#data-saving-backup-and-restore).
 
-**Updates.** The installed version checks for new versions by itself and asks before restarting (*Restart now*). Manually: *Help → Check for updates*. Details: [Updates](#updates).
+**Updates.** The installed version checks for new versions by itself. When one is downloaded, an **Update** button in your accent color appears at the top of the sidebar; one click saves, installs and restarts. Manually: *Help → Check for updates*. Details: [Updates](#updates).
 
 More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 
@@ -135,15 +135,15 @@ The **installed** version updates itself:
 
 1. Shortly after starting, and then every 4 hours, Todo4Me checks for a new version in the background.
 2. If there is one, it is downloaded in the background ("Todo4Me 2.1.0 is available and is being downloaded…").
-3. Then "Todo4Me 2.1.0 is ready" appears with **Restart now**. If you restart later, the update is installed the next time you quit.
+3. Then an **Update** button appears at the top of the sidebar, in your accent color (hover shows the version). One click saves everything, installs the update and restarts Todo4Me. If you don't click it, the update is installed the next time you quit.
 4. After the restart, the app confirms "Todo4Me was updated to version 2.1.0". Tasks, notes, plans and documents are kept, because they live in `%APPDATA%\Todo4Me` and not in the program folder.
 
 Status and the buttons **Check for updates** / **Restart & install** are under *Settings → Desktop app → Updates* and in the menu *Help → Check for updates*.
 Without internet nothing disruptive happens: automatic checks fail silently, a manual check shows an understandable message.
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
-> **One-time step for existing users of version 1.0.0:** 1.0.0 had no update feature yet.
-> Install `Todo4Me-Setup-2.1.1.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
+> Install `Todo4Me-Setup-2.1.2.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
@@ -210,7 +210,7 @@ All shortcuts of the web app (`N`, `Q`, `/`, `G` + letter …) keep working. In 
 **Tray and closing.** Todo4Me shows an icon in the notification area of the taskbar. A click opens the window, a right-click opens the menu
 (*Open Todo4Me*, *Quick capture*, *New task*, *Quit Todo4Me*). Closing the window (X, `Alt+F4`) **only hides it**, so reminders also appear while the window is closed.
 The first time, a Windows notification points this out once. **To really quit:** tray → *Quit Todo4Me* or *File → Exit*; the rule "save first, then close" still applies.
-Shutting down or signing out of Windows ends Todo4Me properly, as does *Restart & install*. A downloaded update is installed as soon as Todo4Me really quits (or immediately with *Restart now*).
+Shutting down or signing out of Windows ends Todo4Me properly, as does *Restart & install*. A downloaded update is installed as soon as Todo4Me really quits (or immediately with the **Update** button).
 
 **Reminders.** The task editor has a **Reminder** field: *At due time*, 5/15/30 minutes, 1 hour or 1 day before.
 What counts is the due date and time. If the task only has a date, the **Reminder time** from *Settings → Tasks & planning* applies (default 09:00).
