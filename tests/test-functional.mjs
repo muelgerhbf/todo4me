@@ -612,6 +612,38 @@ export default async function (b) {
     click('[data-action=set-theme][data-value=light]'); await wait(30);
   `);
 
+  await run('themes', `
+    const TH = T4.themes, R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
+    const ids = TH.list().map(d => d.id);
+    ok(ids.includes('classic') && ids.includes('demo'), 'themes: registry lists classic + demo');
+    ok(TH.get('nope').id === 'classic', 'themes: unknown design falls back to classic');
+    const cl = TH.list().find(d => d.id === 'classic');
+    ok(cl.modes.length === 2 && cl.preview.bg && cl.preview.sidebar && cl.preview.accent, 'themes: list() entries carry modes and preview');
+    T4.store.updateSettings({ theme: 'light', design: 'classic', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100 });
+    T4.settings.applyAppearance();
+    ok(R.dataset.design === 'classic' && R.dataset.theme === 'light' && R.dataset.density === 'comfortable', 'themes: classic light attributes');
+    ok(cs('--bg') === '#f6f6f8' && cs('--radius') === '10px' && cs('--radius-sm') === '6px' && cs('--radius-lg') === '14px', 'themes: classic light tokens unchanged');
+    ok(getComputedStyle(document.body).fontSize === '14.5px' && cs('--space') === '1', 'themes: classic body size / spacing unchanged');
+    T4.store.updateSettings({ theme: 'dark' }); T4.settings.applyAppearance();
+    ok(R.dataset.theme === 'dark' && cs('--bg') === '#0e0f12', 'themes: classic dark tokens unchanged');
+    T4.store.updateSettings({ design: 'demo' }); T4.settings.applyAppearance();
+    ok(R.dataset.design === 'demo' && cs('--bg') === '#0b1316' && cs('--sidebar-bg') === '#07100f', 'themes: design CSS block applies');
+    T4.store.updateSettings({ theme: 'light' }); T4.settings.applyAppearance();
+    ok(R.dataset.theme === 'dark' && TH.resolveMode(T4.store.settings) === 'dark', 'themes: dark-only design forces dark');
+    ok(getComputedStyle($('.sidebar')).backgroundColor === 'rgb(7, 16, 15)', 'themes: sidebar uses --sidebar-bg');
+    ok(cs('--accent') === '#5b5bd6', 'themes: accentSource custom keeps the custom accent');
+    T4.store.updateSettings({ accentSource: 'design' }); T4.settings.applyAppearance();
+    ok(cs('--accent') === '#2dd4bf', 'themes: accentSource design uses the design accent');
+    ok(cs('--radius') === '3px' && /Mono|monospace/i.test(cs('--font')) && /sans-serif/.test(cs('--heading-font')), 'themes: design radius / font / heading font');
+    T4.store.updateSettings({ radius: 'round', font: 'serif' }); T4.settings.applyAppearance();
+    ok(cs('--radius') === '16px' && /serif/.test(cs('--font')) && cs('--heading-font') === cs('--font'), 'themes: radius / font overrides beat the design');
+    T4.store.updateSettings({ design: 'classic', theme: 'light', radius: 'sharp', font: 'mono', density: 'compact', fontScale: 120 }); T4.settings.applyAppearance();
+    ok(cs('--radius') === '3px' && cs('--radius-lg') === '5px' && R.dataset.density === 'compact' && cs('--space') === '.78', 'themes: sharp radius + compact density');
+    ok(cs('--font-scale') === '1.2' && getComputedStyle(document.body).fontSize === '17.4px', 'themes: fontScale scales the base text');
+    T4.store.updateSettings({ design: 'classic', theme: 'light', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100 }); T4.settings.applyAppearance();
+    ok(getComputedStyle(document.body).fontSize === '14.5px' && cs('--radius') === '10px', 'themes: back to defaults');
+  `);
+
   await run('export-import', `
     const json = T4.storage.exportJSON(S());
     const parsed = T4.storage.parseImport(json);

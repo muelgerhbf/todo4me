@@ -7,21 +7,20 @@
   <meta name="color-scheme" content="light dark">
   <!-- Content Security Policy: only local files; the inline theme script below is allowed by its hash
        (if you edit that script, update the hash). Inline style attributes are used for dynamic colors. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-RPQDyn7LvmKcb6p3OqD6gJWX3UcQVVzI9RNbB+cFK/U='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-78eXz9X+Kx5gswVbt7J38WepFUk2rZl+yVHYLaXeXj0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
   <title>Todo4Me</title>
   <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/editor.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <script src="js/themes.js"></script>
   <script>
     // Apply theme before first paint to avoid a flash of the wrong theme.
     (function () {
       try {
         var raw = localStorage.getItem('todo4me.data.v1');
         var s = raw ? (JSON.parse(raw).settings || {}) : {};
-        var theme = s.theme === 'dark' || s.theme === 'light' ? s.theme
-          : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-        if (s.accent && /^#[0-9a-f]{6}$/i.test(s.accent)) document.documentElement.style.setProperty('--accent', s.accent);
+        T4.themes.apply(s);
       } catch (e) { /* storage unavailable: defaults apply */ }
     })();
   </script>

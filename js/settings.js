@@ -6,14 +6,9 @@ T4.settings = (function () {
 
   /* ---------- Theme ---------- */
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-  function resolvedTheme() {
-    const t = store.settings.theme;
-    return t === 'system' ? (mq && mq.matches ? 'dark' : 'light') : t;
-  }
+  function resolvedTheme() { return T4.themes.resolveMode(store.settings); }
   function applyAppearance() {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', resolvedTheme());
-    root.style.setProperty('--accent', store.settings.accent);
+    T4.themes.apply(store.settings);
     const btn = document.querySelector('[data-action="toggle-theme"] use');
     if (btn) btn.setAttribute('href', resolvedTheme() === 'dark' ? '#i-sun' : '#i-moon');
   }

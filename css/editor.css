@@ -109,8 +109,7 @@ body.is-editor .main { max-width: none; padding: 0; flex: 1; min-height: 0; }
 .tb-color__bar { position: absolute; left: 8px; right: 8px; bottom: 5px; height: 3.5px; border-radius: 2px; background: #c62828; }
 
 /* ---------- Scroll area & paper page ---------- */
-.ed-scroll { position: relative; flex: 1; min-height: 0; overflow: auto; padding: 28px 24px 80px; background: color-mix(in srgb, var(--bg) 70%, var(--surface-3)); }
-[data-theme="dark"] .ed-scroll { background: #0b0c0f; }
+.ed-scroll { position: relative; flex: 1; min-height: 0; overflow: auto; padding: 28px 24px 80px; background: var(--editor-desk); }
 .ed-page {
   --page-w: 210mm; --page-h: 297mm; --m-t: 25.4mm; --m-r: 25.4mm; --m-b: 25.4mm; --m-l: 25.4mm;
   position: relative; width: var(--page-w); min-height: calc(var(--page-h) * var(--pages, 1)); margin: 0 auto; padding: var(--m-t) var(--m-r) var(--m-b) var(--m-l);
@@ -384,7 +383,7 @@ body.is-editor .main { max-width: none; padding: 0; flex: 1; min-height: 0; }
   .ed, .ed.side-hidden { grid-template-columns: minmax(0, 1fr); }
   .ed-side { position: fixed; z-index: 58; left: 0; top: 0; bottom: 0; width: min(300px, 86vw); visibility: visible !important; border-right: 1px solid var(--border) !important; transform: translateX(-102%); transition: transform .25s var(--ease); box-shadow: var(--shadow-lg); padding-top: calc(16px + env(safe-area-inset-top)); }
   .ed.side-open .ed-side { transform: none; }
-  .ed.side-open .ed-scrim { display: block; position: fixed; inset: 0; z-index: 57; background: rgba(10, 10, 16, .4); }
+  .ed.side-open .ed-scrim { display: block; position: fixed; inset: 0; z-index: 57; background: var(--scrim); }
   .ed-home { padding: 20px 16px 40px; }
   .ed-scroll { padding: 12px 8px 40px; }
   .ed-page { width: 100%; min-height: 0; padding: 20px 18px 40px; zoom: 1 !important; }

@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Todo4Me — design palettes (loaded after styles.css). One block per design:
+     [data-design="id"][data-theme="light|dark"] { … }
+   The engine (js/themes.js) sets data-design / data-theme / data-density on <html> and the inline tokens
+   --accent, --font, --heading-font, --radius-sm/--radius/--radius-lg, --font-scale. 'classic' needs no block
+   (it is the default token set in styles.css).
+
+   Tokens a design may set (defaults in styles.css :root / [data-theme="dark"]):
+     Surfaces   --bg --surface --surface-2 --surface-3 --border --border-strong --shadow-sm --shadow --shadow-lg
+     Text       --text --text-2 --muted
+     Accent     --accent-fg (text on accent) --accent-soft --accent-softer --accent-text   (--accent itself comes from the engine)
+     Status     --p-critical --p-high --p-medium --p-low --good --danger --warn
+     Sidebar    --sidebar-bg --sidebar-text --sidebar-text-strong --sidebar-muted --sidebar-border --sidebar-hover
+                --sidebar-active --sidebar-active-text
+     Misc       --on-color (text on solid status colors) --focus-ring --backdrop --scrim --editor-desk
+                --toast-bg --toast-fg --toast-success --toast-error --toast-info --toast-reminder
+     Typography --mono (engine sets --font/--heading-font from the design definition)
+     Always also set color-scheme: light|dark in the block.
+   ========================================================================== */
+
+/* ---------- demo (dark only) ---------- */
+[data-design="demo"][data-theme="dark"] {
+  --bg: #0b1316; --surface: #122026; --surface-2: #17292f; --surface-3: #1e343b;
+  --border: #223a42; --border-strong: #2f4e58;
+  --text: #e6f4f1; --text-2: #b4cdc8; --muted: #86a39d;
+  --accent-fg: #04201c;
+  --sidebar-bg: #07100f; --sidebar-border: #12221f; --sidebar-hover: #102321;
+  --sidebar-text: #a9c7c1; --sidebar-text-strong: #e6f4f1; --sidebar-muted: #7f9c96;
+  --sidebar-active: color-mix(in srgb, var(--accent) 22%, transparent); --sidebar-active-text: #5eead4;
+  --editor-desk: #070d0f;
+  color-scheme: dark;
+}
