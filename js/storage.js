@@ -222,23 +222,23 @@ T4.storage = (function () {
       throw new Error('Data is not a JSON object.');
     }
     if (typeof input.version === 'number' && input.version > SCHEMA_VERSION) {
-      issues.push('Data was created by a newer version of Todo4Me; unknown fields were ignored.');
+      issues.push(T4.i18n.t('sto.newerVersion'));
     }
     const base = defaultData();
 
     let categories = Array.isArray(input.categories) ? input.categories.map(sanitizeCategory).filter(Boolean) : base.categories;
     categories = dedupeById(categories);
-    if (Array.isArray(input.categories) && categories.length < input.categories.length) issues.push((input.categories.length - categories.length) + ' invalid categories skipped');
+    if (Array.isArray(input.categories) && categories.length < input.categories.length) issues.push(T4.i18n.t('sto.skipCats', { count: input.categories.length - categories.length }));
     const catIds = new Set(categories.map((c) => c.id));
 
     const rawTasks = Array.isArray(input.tasks) ? input.tasks : [];
     const tasks = dedupeById(rawTasks.map((t) => sanitizeTask(t, catIds)).filter(Boolean));
-    if (tasks.length < rawTasks.length) issues.push((rawTasks.length - tasks.length) + ' invalid tasks skipped');
+    if (tasks.length < rawTasks.length) issues.push(T4.i18n.t('sto.skipTasks', { count: rawTasks.length - tasks.length }));
     const taskIds = new Set(tasks.map((t) => t.id));
 
     const rawNotes = Array.isArray(input.notes) ? input.notes : [];
     const notes = dedupeById(rawNotes.map(sanitizeNote).filter(Boolean));
-    if (notes.length < rawNotes.length) issues.push((rawNotes.length - notes.length) + ' invalid notes skipped');
+    if (notes.length < rawNotes.length) issues.push(T4.i18n.t('sto.skipNotes', { count: rawNotes.length - notes.length }));
 
     const dailyPlans = {};
     if (input.dailyPlans && typeof input.dailyPlans === 'object') {
@@ -299,25 +299,25 @@ T4.storage = (function () {
    */
   function load() {
     const warnings = [];
-    if (!available) warnings.push('Browser storage is unavailable (private mode?). Changes will not be saved — export your data before closing.');
+    if (!available) warnings.push(T4.i18n.t('sto.unavailable'));
     let raw = null;
-    try { raw = adapter.load(KEY); } catch (e) { warnings.push('Could not read saved data.'); }
+    try { raw = adapter.load(KEY); } catch (e) { warnings.push(T4.i18n.t('sto.readFailed')); }
     if (raw == null) {
       return { data: defaultData(), warnings, firstRun: true };
     }
     try {
       const { data, issues } = sanitize(JSON.parse(raw));
-      if (issues.length) warnings.push('Some saved data was repaired: ' + issues.join('; ') + '.');
+      if (issues.length) warnings.push(T4.i18n.t('sto.repaired', { issues: issues.join('; ') }));
       return { data, warnings, firstRun: false };
     } catch (err) {
       // Quarantine the unreadable payload so it is never lost.
       try { adapter.save(CORRUPT_PREFIX + Date.now(), raw); } catch (e) { /* ignore */ }
       const backup = loadBackup();
       if (backup) {
-        warnings.push('Saved data was unreadable, so your latest automatic backup (' + U.fmtDateTime(backup.at) + ') was restored. The damaged copy was kept in storage.');
+        warnings.push(T4.i18n.t('sto.restoredBackup', { date: U.fmtDateTime(backup.at) }));
         return { data: backup.data, warnings, firstRun: false };
       }
-      warnings.push('Saved data was unreadable and no backup exists. The damaged copy was kept in storage; starting fresh.');
+      warnings.push(T4.i18n.t('sto.noBackup'));
       return { data: defaultData(), warnings, firstRun: false };
     }
   }
@@ -383,9 +383,9 @@ T4.storage = (function () {
   /** Parse an import file. Throws with a readable message on failure. */
   function parseImport(text) {
     let parsed;
-    try { parsed = JSON.parse(text); } catch (e) { throw new Error('The file is not valid JSON.'); }
+    try { parsed = JSON.parse(text); } catch (e) { throw new Error(T4.i18n.t('sto.badJson')); }
     if (!parsed || typeof parsed !== 'object' || (!Array.isArray(parsed.tasks) && !Array.isArray(parsed.notes))) {
-      throw new Error('This file does not look like a Todo4Me backup (no tasks or notes found).');
+      throw new Error(T4.i18n.t('sto.notBackup'));
     }
     return sanitize(parsed);
   }

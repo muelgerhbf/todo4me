@@ -32,7 +32,7 @@ T4.store = (function () {
     const ok = S.save(data);
     if (!ok && !saveFailedNotified && T4.ui) {
       saveFailedNotified = true;
-      T4.ui.toast('Could not save — browser storage may be full or disabled. Export your data to keep it safe.', 'error', 8000);
+      T4.ui.toast(T4.i18n.t('sto.saveFailed'), 'error', 8000);
     } else if (ok) {
       saveFailedNotified = false;
     }
@@ -137,8 +137,8 @@ T4.store = (function () {
 
   function addCategory(name, color) {
     name = String(name || '').trim().slice(0, 40);
-    if (!name) return { error: 'Please enter a category name.' };
-    if (data.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: 'A category with that name already exists.' };
+    if (!name) return { error: T4.i18n.t('sto.catEnter') };
+    if (data.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: T4.i18n.t('sto.catExists') };
     const c = { id: U.uid('cat'), name, color: /^#[0-9a-f]{6}$/i.test(color) ? color : '#5f6b7a' };
     commit((d) => { d.categories.push(c); }, { type: 'category-added' });
     return { category: c };
@@ -146,10 +146,10 @@ T4.store = (function () {
 
   function updateCategory(id, patch) {
     const c = category(id);
-    if (!c) return { error: 'Category not found.' };
+    if (!c) return { error: T4.i18n.t('sto.catNotFound') };
     const name = patch.name != null ? String(patch.name).trim().slice(0, 40) : c.name;
-    if (!name) return { error: 'Category name cannot be empty.' };
-    if (data.categories.some((x) => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) return { error: 'A category with that name already exists.' };
+    if (!name) return { error: T4.i18n.t('sto.catEmpty') };
+    if (data.categories.some((x) => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) return { error: T4.i18n.t('sto.catExists') };
     const color = patch.color && /^#[0-9a-f]{6}$/i.test(patch.color) ? patch.color : c.color;
     commit(() => { c.name = name; c.color = color; }, { type: 'category-updated' });
     return { category: c };

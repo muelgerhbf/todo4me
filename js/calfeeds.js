@@ -17,6 +17,7 @@ T4.calfeeds = (function () {
   'use strict';
   const U = T4.util, ui = T4.ui, ICS = T4.ics;
   const { esc, icon } = U;
+  const tt = (k, p) => T4.i18n.t(k, p);
   const desktop = window.todo4meDesktop;
   const bridge = desktop && desktop.isDesktop && typeof desktop.fetchCalendar === 'function' ? desktop : null;
 
@@ -60,7 +61,7 @@ T4.calfeeds = (function () {
     if (kind === 'url' && !url) return null;
     return {
       id: f.id,
-      name: String(f.name == null ? '' : f.name).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60) || 'Calendar',
+      name: String(f.name == null ? '' : f.name).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60) || tt('cf.defaultName'),
       color: hex(f.color, COLORS[0]),
       kind, url,
       enabled: f.enabled !== false,
@@ -97,7 +98,7 @@ T4.calfeeds = (function () {
   }
   function saveFeeds() {
     try { localStorage.setItem(FEEDS_KEY, JSON.stringify({ version: 1, feeds })); return true; } catch (e) {
-      ui.toast('Could not save the calendar list — browser storage may be full.', 'error', 6000);
+      ui.toast(tt('cf.saveFailed'), 'error', 6000);
       return false;
     }
   }
@@ -165,7 +166,7 @@ T4.calfeeds = (function () {
       s.checkedAt = new Date().toISOString();
       if (!res || !res.ok) {
         s.state = 'error';
-        s.error = String((res && res.error) || 'The calendar could not be downloaded.').slice(0, 300);
+        s.error = String((res && res.error) || tt('cf.downloadFailed')).slice(0, 300);
       } else {
         try {
           const cal = ICS.parse(res.text);
@@ -174,17 +175,17 @@ T4.calfeeds = (function () {
           s.state = 'ok'; s.error = null; s.at = s.checkedAt; s.count = cal.events.length;
         } catch (e) {
           s.state = 'error';
-          s.error = e && e.message ? String(e.message).slice(0, 300) : 'The calendar file could not be read.';
+          s.error = e && e.message ? String(e.message).slice(0, 300) : tt('cf.readFailed');
         }
       }
       status[id] = s;
       if (!feeds.some((x) => x.id === id)) return s; // removed meanwhile
       saveCache();
-      if (manual) ui.toast(s.state === 'ok' ? f.name + ': ' + U.plural(s.count, 'event') + ' updated' : f.name + ': ' + s.error, s.state === 'ok' ? 'success' : 'error', s.state === 'ok' ? 3000 : 7000);
+      if (manual) ui.toast(s.state === 'ok' ? tt('cf.updated', { name: f.name, count: s.count }) : f.name + ': ' + s.error, s.state === 'ok' ? 'success' : 'error', s.state === 'ok' ? 3000 : 7000);
       changed();
       return s;
     }).catch(() => {
-      status[id] = Object.assign({}, status[id], { state: 'error', error: 'The calendar could not be downloaded.' });
+      status[id] = Object.assign({}, status[id], { state: 'error', error: tt('cf.downloadFailed') });
       changed();
       return status[id];
     }).finally(() => { delete inflight[id]; });
@@ -193,12 +194,12 @@ T4.calfeeds = (function () {
   }
   function refreshAll(manual) {
     const list = feeds.filter((f) => f.kind === 'url' && f.enabled);
-    if (manual && !bridge) { ui.toast('Calendar subscriptions are updated in the desktop app. In the browser, import an .ics file instead.', 'info', 6000); return Promise.resolve([]); }
-    if (manual && !list.length) { ui.toast('No subscribed calendars to update.', 'info'); return Promise.resolve([]); }
+    if (manual && !bridge) { ui.toast(tt('cf.desktopOnly'), 'info', 6000); return Promise.resolve([]); }
+    if (manual && !list.length) { ui.toast(tt('cf.noneToUpdate'), 'info'); return Promise.resolve([]); }
     return Promise.all(list.map((f) => refresh(f.id, false))).then((res) => {
       if (manual) {
         const bad = res.filter((s) => s && s.state === 'error').length;
-        ui.toast(bad ? U.plural(bad, 'calendar') + ' could not be updated — see Settings → Calendars.' : 'Calendars updated', bad ? 'error' : 'success', bad ? 6000 : 2500);
+        ui.toast(bad ? tt('cf.someFailed', { count: bad }) : tt('cf.allUpdated'), bad ? 'error' : 'success', bad ? 6000 : 2500);
       }
       return res;
     });
@@ -218,7 +219,7 @@ T4.calfeeds = (function () {
           out.push(Object.assign(o, { feedId: f.id, color: f.color, calName: f.name, key: f.id + '|' + o.uid + '|' + o.start }));
         });
       } catch (e) {
-        status[f.id] = Object.assign({}, status[f.id], { state: 'error', error: 'Some events of this calendar could not be shown.' });
+        status[f.id] = Object.assign({}, status[f.id], { state: 'error', error: tt('cf.someEventsFailed') });
       }
     });
     memo = { key, list: out };
@@ -234,52 +235,49 @@ T4.calfeeds = (function () {
   function statusText(f) {
     const s = status[f.id] || {};
     const when = (iso) => (iso ? U.fmtDateTime(iso) : '');
-    if (f.kind === 'file') return 'Imported file · ' + U.plural(s.count || 0, 'event') + (s.at ? ' · ' + esc(when(s.at)) : '');
-    if (s.state === 'loading') return 'Updating…';
-    if (s.state === 'error') return '<span class="text-danger">' + icon('alert') + esc(s.error || 'Error') + '</span>' + (cals[f.id] && s.at ? ' · showing the version from ' + esc(when(s.at)) : '');
-    if (s.state === 'ok') return U.plural(s.count || 0, 'event') + ' · updated ' + esc(when(s.at)) + (s.uncached ? ' · too large to keep offline' : '');
-    return bridge ? 'Not downloaded yet' : 'Updates only in the desktop app';
+    const events = (n) => tt('cf.events', { count: n });
+    if (f.kind === 'file') return esc(tt('cf.statusFile', { events: events(s.count || 0) }) + (s.at ? ' · ' + when(s.at) : ''));
+    if (s.state === 'loading') return esc(tt('cf.updating'));
+    if (s.state === 'error') return '<span class="text-danger">' + icon('alert') + esc(s.error || tt('cf.error')) + '</span>' + (cals[f.id] && s.at ? ' · ' + esc(tt('cf.statusErrVersion', { date: when(s.at) })) : '');
+    if (s.state === 'ok') return esc(tt('cf.statusOk', { events: events(s.count || 0), date: when(s.at) }) + (s.uncached ? ' · ' + tt('cf.tooLarge') : ''));
+    return esc(tt(bridge ? 'cf.notDownloaded' : 'cf.desktopOnlyStatus'));
   }
   function listHtml() {
-    if (!feeds.length) return '<p class="muted small">No calendars yet.</p>';
+    if (!feeds.length) return '<p class="muted small">' + esc(tt('cf.none')) + '</p>';
     return '<ul class="cal-feeds" role="list">' + feeds.map((f) =>
       '<li class="cal-feed" data-id="' + f.id + '">' +
-        '<input type="color" value="' + esc(f.color) + '" data-change="cal-feed" data-field="color" data-id="' + f.id + '" aria-label="Color for ' + esc(f.name) + '">' +
+        '<input type="color" value="' + esc(f.color) + '" data-change="cal-feed" data-field="color" data-id="' + f.id + '" aria-label="' + esc(tt('cf.colorFor', { name: f.name })) + '">' +
         '<div class="cal-feed__main">' +
-          '<input type="text" maxlength="60" value="' + esc(f.name) + '" data-change="cal-feed" data-field="name" data-id="' + f.id + '" aria-label="Calendar name">' +
+          '<input type="text" maxlength="60" value="' + esc(f.name) + '" data-change="cal-feed" data-field="name" data-id="' + f.id + '" aria-label="' + esc(tt('cf.calName')) + '">' +
           '<span class="cal-feed__src">' + (f.kind === 'url' ? icon('calendar') + '<span class="cal-feed__url">' + esc(maskUrl(f.url)) + '</span> · ' : '') +
             '<span class="cal-feed__status" id="cal-status-' + f.id + '">' + statusText(f) + '</span></span>' +
         '</div>' +
-        '<label class="checkbox small"><input type="checkbox" data-change="cal-feed" data-field="enabled" data-id="' + f.id + '"' + (f.enabled ? ' checked' : '') + '>Show</label>' +
-        (f.kind === 'url' && bridge ? '<button type="button" class="icon-btn icon-btn--sm" data-action="cal-refresh" data-id="' + f.id + '" title="Update now" aria-label="Update ' + esc(f.name) + ' now">' + icon('reset') + '</button>' : '') +
-        '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="cal-remove" data-id="' + f.id + '" title="Remove" aria-label="Remove calendar ' + esc(f.name) + '">' + icon('trash') + '</button>' +
+        '<label class="checkbox small"><input type="checkbox" data-change="cal-feed" data-field="enabled" data-id="' + f.id + '"' + (f.enabled ? ' checked' : '') + '>' + esc(tt('cf.show')) + '</label>' +
+        (f.kind === 'url' && bridge ? '<button type="button" class="icon-btn icon-btn--sm" data-action="cal-refresh" data-id="' + f.id + '" title="' + esc(tt('cf.updateNow')) + '" aria-label="' + esc(tt('cf.updateNowLabel', { name: f.name })) + '">' + icon('reset') + '</button>' : '') +
+        '<button type="button" class="icon-btn icon-btn--sm icon-btn--danger" data-action="cal-remove" data-id="' + f.id + '" title="' + esc(tt('cf.remove')) + '" aria-label="' + esc(tt('cf.removeLabel', { name: f.name })) + '">' + icon('trash') + '</button>' +
       '</li>').join('') + '</ul>';
   }
   const nextColor = () => COLORS.find((c) => !feeds.some((f) => f.color === c)) || COLORS[feeds.length % COLORS.length];
 
   function settingsCard() {
     const color = draft.color || nextColor();
-    return '<section class="card settings__section" id="cal-settings"><h2 class="card__title">Calendars</h2>' +
-      '<p class="muted small">Show your Outlook or Google calendar (read-only) in the Weekly Planner\'s <strong>Calendar</strong> view and on the dashboard.</p>' +
+    return '<section class="card settings__section" id="cal-settings"><h2 class="card__title">' + esc(tt('cf.title')) + '</h2>' +
+      '<p class="muted small">' + tt('cf.intro') + '</p>' + // dictionary HTML, no values
       '<div id="cal-feeds">' + listHtml() + '</div>' +
       (bridge
         ? '<form class="cal-add" data-form="cal-add" id="cal-add-form" autocomplete="off">' +
-            '<input type="color" name="color" value="' + esc(color) + '" data-input="cal-draft" aria-label="Color for the new calendar">' +
-            '<input type="text" name="name" maxlength="60" value="' + esc(draft.name) + '" data-input="cal-draft" placeholder="Name, e.g. Work" aria-label="Name for the new calendar">' +
-            '<input type="url" name="url" maxlength="2048" value="' + esc(draft.url) + '" data-input="cal-draft" placeholder="https://… or webcal://… (ICS link)" aria-label="Calendar address (ICS link)" spellcheck="false" autocomplete="off">' +
-            '<button type="submit" class="btn btn--sm btn--primary">' + icon('plus') + 'Subscribe</button>' +
+            '<input type="color" name="color" value="' + esc(color) + '" data-input="cal-draft" aria-label="' + esc(tt('cf.newColor')) + '">' +
+            '<input type="text" name="name" maxlength="60" value="' + esc(draft.name) + '" data-input="cal-draft" placeholder="' + esc(tt('cf.namePh')) + '" aria-label="' + esc(tt('cf.newName')) + '">' +
+            '<input type="url" name="url" maxlength="2048" value="' + esc(draft.url) + '" data-input="cal-draft" placeholder="' + esc(tt('cf.urlPh')) + '" aria-label="' + esc(tt('cf.urlLabel')) + '" spellcheck="false" autocomplete="off">' +
+            '<button type="submit" class="btn btn--sm btn--primary">' + icon('plus') + esc(tt('cf.subscribe')) + '</button>' +
           '</form>'
-        : '<p class="callout">' + icon('alert') + '<span>Subscribing to a calendar address works in the <strong>desktop app</strong> only: browsers do not let a page download calendars from other websites. ' +
-            'Here you can import an <strong>.ics file</strong> instead (it is not updated automatically).</span></p>') +
+        : '<p class="callout">' + icon('alert') + '<span>' + tt('cf.browserNote') + '</span></p>') +
       '<div class="btn-row">' +
-        '<button type="button" class="btn btn--sm" data-action="cal-import-pick">' + icon('upload') + 'Import .ics file</button>' +
-        (bridge && feeds.some((f) => f.kind === 'url') ? '<button type="button" class="btn btn--sm btn--ghost" data-action="cal-refresh-all">' + icon('reset') + 'Update all</button>' : '') +
+        '<button type="button" class="btn btn--sm" data-action="cal-import-pick">' + icon('upload') + esc(tt('cf.importFile')) + '</button>' +
+        (bridge && feeds.some((f) => f.kind === 'url') ? '<button type="button" class="btn btn--sm btn--ghost" data-action="cal-refresh-all">' + icon('reset') + esc(tt('cf.updateAll')) + '</button>' : '') +
         '<input type="file" id="cal-file" accept=".ics,text/calendar" hidden data-change="cal-import">' +
       '</div>' +
-      '<p class="muted small"><strong>Where to find the link:</strong> Outlook → Settings → Calendar → Shared calendars → <em>Publish a calendar</em> → ICS link. ' +
-        'Google Calendar → Settings → your calendar → <em>Secret address in iCal format</em>. ' +
-        'The link works like a password: anyone who has it can read the calendar. Todo4Me keeps it only on this device, shows it masked and never puts it into exports or backups. ' +
-        (bridge ? 'Subscribed calendars are updated at start and every 30 minutes.' : '') + '</p>' +
+      '<p class="muted small">' + tt('cf.helpLink') + (bridge ? ' ' + esc(tt('cf.helpRefresh')) : '') + '</p>' +
       '</section>';
   }
 
@@ -287,18 +285,18 @@ T4.calfeeds = (function () {
   ui.on('input:cal-draft', (el) => { draft[el.name] = el.value; });
   ui.on('submit:cal-add', (form) => {
     const url = normalizeUrl(form.querySelector('[name="url"]').value);
-    if (!url) { ui.toast('Please paste the calendar\'s https:// or webcal:// ICS link.', 'error', 6000); return; }
-    if (feeds.length >= MAX_FEEDS) { ui.toast('You can subscribe to at most ' + MAX_FEEDS + ' calendars.', 'error'); return; }
-    if (feeds.some((f) => f.url === url)) { ui.toast('This calendar is already subscribed.', 'info'); return; }
+    if (!url) { ui.toast(tt('cf.badLink'), 'error', 6000); return; }
+    if (feeds.length >= MAX_FEEDS) { ui.toast(tt('cf.tooMany', { n: MAX_FEEDS }), 'error'); return; }
+    if (feeds.some((f) => f.url === url)) { ui.toast(tt('cf.already'), 'info'); return; }
     let name = form.querySelector('[name="name"]').value.trim().slice(0, 60);
-    if (!name) { try { name = new URL(url).hostname.replace(/^www\./, '').split('.')[0]; } catch (e) { name = ''; } name = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Calendar'; }
+    if (!name) { try { name = new URL(url).hostname.replace(/^www\./, '').split('.')[0]; } catch (e) { name = ''; } name = name ? name.charAt(0).toUpperCase() + name.slice(1) : tt('cf.defaultName'); }
     const f = sanitizeFeed({ id: U.uid('cal'), name, color: form.querySelector('[name="color"]').value, kind: 'url', url, enabled: true });
     feeds.push(f);
     status[f.id] = { state: 'idle', count: 0 };
     if (!saveFeeds()) { feeds.pop(); return; }
     draft.name = ''; draft.url = ''; draft.color = null;
     if (T4.app.route.name === 'settings') T4.app.render();
-    ui.toast('Subscribed to "' + f.name + '" — downloading…', 'info', 3000);
+    ui.toast(tt('cf.subscribed', { name: f.name }), 'info', 3000);
     refresh(f.id, true);
   });
   ui.on('cal-refresh', (el) => refresh(el.dataset.id, true));
@@ -316,33 +314,33 @@ T4.calfeeds = (function () {
   ui.on('cal-remove', async (el) => {
     const f = feeds.find((x) => x.id === el.dataset.id);
     if (!f) return;
-    const ok = await ui.confirm({ title: 'Remove calendar "' + f.name + '"?', message: 'Its events disappear from Todo4Me. The calendar itself (in Outlook or Google) is not changed.', confirmText: 'Remove', danger: true });
+    const ok = await ui.confirm({ title: tt('cf.removeTitle', { name: f.name }), message: tt('cf.removeMsg'), confirmText: tt('cf.remove'), danger: true });
     if (!ok) return;
     feeds = feeds.filter((x) => x.id !== f.id);
     delete cals[f.id]; delete status[f.id];
     saveFeeds(); saveCache();
     changed();
     if (T4.app.route.name === 'settings') T4.app.render();
-    ui.toast('Calendar removed');
+    ui.toast(tt('cf.removed'));
   });
   ui.on('cal-import-pick', () => { const i = document.getElementById('cal-file'); if (i) { i.value = ''; i.click(); } });
   ui.on('change:cal-import', (el) => {
     const file = el.files && el.files[0];
     if (!file) return;
-    if (file.size > MAX_FILE) { ui.toast('That file is too large for a calendar (more than 5 MB).', 'error'); return; }
+    if (file.size > MAX_FILE) { ui.toast(tt('cf.fileTooLarge'), 'error'); return; }
     const reader = new FileReader();
-    reader.onerror = () => ui.toast('Could not read the file.', 'error');
+    reader.onerror = () => ui.toast(tt('cf.fileReadFailed'), 'error');
     reader.onload = () => importText(String(reader.result), file.name);
     reader.readAsText(file);
   });
   /** Import ICS text as a new (static) calendar. Returns the feed or null. */
   function importText(text, fileName) {
     let cal;
-    try { cal = ICS.parse(text); } catch (e) { ui.toast(e.message || 'The file could not be read.', 'error', 6000); return null; }
-    if (feeds.length >= MAX_FEEDS) { ui.toast('You can add at most ' + MAX_FEEDS + ' calendars.', 'error'); return null; }
+    try { cal = ICS.parse(text); } catch (e) { ui.toast(e.message || tt('cf.fileBad'), 'error', 6000); return null; }
+    if (feeds.length >= MAX_FEEDS) { ui.toast(tt('cf.addMax', { n: MAX_FEEDS }), 'error'); return null; }
     ICS.prune(cal, Date.now() - KEEP_PAST_MS);
     const base = String(fileName || '').replace(/\.ics$/i, '').trim();
-    const f = sanitizeFeed({ id: U.uid('cal'), name: cal.name || base || 'Imported calendar', color: nextColor(), kind: 'file', enabled: true });
+    const f = sanitizeFeed({ id: U.uid('cal'), name: cal.name || base || tt('cf.importedName'), color: nextColor(), kind: 'file', enabled: true });
     feeds.push(f);
     cals[f.id] = { name: cal.name, events: cal.events, zones: cal.zones };
     status[f.id] = { state: 'ok', at: new Date().toISOString(), checkedAt: new Date().toISOString(), error: null, count: cal.events.length };
@@ -350,13 +348,13 @@ T4.calfeeds = (function () {
     saveCache();
     changed();
     if (T4.app.route.name === 'settings') T4.app.render();
-    ui.toast('Imported "' + f.name + '": ' + U.plural(cal.events.length, 'event') + (status[f.id].uncached ? ' (too large to keep after a restart)' : ''), 'success', 4000);
+    ui.toast(tt(status[f.id].uncached ? 'cf.importedLarge' : 'cf.imported', { name: f.name, events: tt('cf.events', { count: cal.events.length }) }), 'success', 4000);
     return f;
   }
 
   /* ---------- Dashboard ---------- */
   function fmtRange(o) {
-    if (o.allDay) return 'All day';
+    if (o.allDay) return tt('cl.allDay');
     const t = (ms) => U.fmtTime(U.pad(new Date(ms).getHours()) + ':' + U.pad(new Date(ms).getMinutes()));
     return o.end > o.start ? t(o.start) + ' – ' + t(o.end) : t(o.start);
   }
@@ -365,14 +363,14 @@ T4.calfeeds = (function () {
     const today = U.today();
     const list = occurrences(today, U.addDays(today, 1)).slice().sort((a, b) => (b.allDay - a.allDay) || (a.allDay ? 0 : a.start - b.start));
     return '<section class="card" aria-labelledby="dash-cal-h">' +
-      '<div class="card__head"><h2 class="card__title" id="dash-cal-h">' + icon('calendar') + 'Calendar today <span class="count">' + list.length + '</span></h2>' +
-        '<a class="btn btn--sm btn--ghost" href="#/planner?view=calendar">Open calendar ' + icon('arrow-right') + '</a></div>' +
+      '<div class="card__head"><h2 class="card__title" id="dash-cal-h">' + icon('calendar') + esc(tt('cf.todayTitle')) + ' <span class="count">' + list.length + '</span></h2>' +
+        '<a class="btn btn--sm btn--ghost" href="#/planner?view=calendar">' + esc(tt('cf.openCal')) + ' ' + icon('arrow-right') + '</a></div>' +
       (list.length ? '<ul class="mini-list" role="list">' + list.slice(0, 8).map((o) =>
         '<li><button type="button" class="mini-item cal-mini" data-action="cal-event" data-key="' + esc(o.key) + '" style="--ev:' + esc(o.color) + '">' +
           '<span class="cal-mini__dot" aria-hidden="true"></span><span class="mini-item__title">' + esc(o.title) + '</span>' +
           '<span class="muted small nowrap">' + esc(fmtRange(o)) + '</span></button></li>').join('') + '</ul>' +
-          (list.length > 8 ? '<p class="muted small">+ ' + (list.length - 8) + ' more</p>' : '')
-        : '<p class="muted small">No events in your calendars today.</p>') +
+          (list.length > 8 ? '<p class="muted small">' + esc(tt('cl.more', { n: list.length - 8 })) + '</p>' : '')
+        : '<p class="muted small">' + esc(tt('cf.noEventsToday')) + '</p>') +
       '</section>';
   }
 

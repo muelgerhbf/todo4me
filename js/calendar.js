@@ -50,6 +50,7 @@ T4.calendar = (function () {
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const pct = (m) => (m / DAY_MIN * 100).toFixed(4);
   function fmtClock(m) { return m >= DAY_MIN ? '24:00' : U.fmtTime(fromMin(m)); }
+  const tt = (k, p) => T4.i18n.t(k, p);
   const range = (s, e) => fmtClock(s) + ' – ' + fmtClock(e);
 
   /** Is the calendar shown? (?view=calendar|days in the route switches and is remembered.) */
@@ -66,7 +67,7 @@ T4.calendar = (function () {
 
   function modeToggle(mode) {
     const b = (m, label) => '<button type="button" class="seg__btn" data-action="planner-mode" data-mode="' + m + '" aria-pressed="' + (mode === m) + '">' + label + '</button>';
-    return '<div class="seg seg--sm" role="group" aria-label="Planner view">' + b('days', icon('week') + 'Days') + b('calendar', icon('clock') + 'Calendar') + '</div>';
+    return '<div class="seg seg--sm" role="group" aria-label="' + esc(tt('cl.plannerView')) + '">' + b('days', icon('week') + esc(tt('cl.days'))) + b('calendar', icon('clock') + esc(tt('cl.calendar'))) + '</div>';
   }
 
   /* ======================= Data for the visible days ======================= */
@@ -144,7 +145,7 @@ T4.calendar = (function () {
     return '<button type="button" class="cal-blk prio-' + (t.priority || 'none') + (done ? ' is-done' : '') + (dur < 45 ? ' is-short' : '') + (store.isOverdue(t) ? ' is-overdue' : '') + '"' +
       ' data-action="edit-task" data-id="' + t.id + '" data-cal-task="' + t.id + '"' +
       ' style="' + posStyle(it) + (cat ? ';--cat:' + esc(cat.color) : '') + '"' +
-      ' aria-label="' + esc(t.title + ', ' + range(it.start, it.end) + ', ' + U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) + (done ? ', completed' : '')) + '" aria-describedby="cal-kbd-help">' +
+      ' aria-label="' + esc(t.title + ', ' + range(it.start, it.end) + ', ' + U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) + (done ? ', ' + tt('cl.completed') : '')) + '" aria-describedby="cal-kbd-help">' +
       '<span class="cal-blk__t">' + (done ? icon('check') : '') + esc(t.title) + '</span>' +
       '<span class="cal-blk__m">' + esc(range(it.start, it.end)) + (t.reminder != null && !done ? ' ' + icon('bell') : '') + '</span>' +
       '<span class="cal-blk__rs" data-cal-resize="' + t.id + '" aria-hidden="true"></span>' +
@@ -156,7 +157,7 @@ T4.calendar = (function () {
     const when = T4.calfeeds.fmtRange(ev);
     return '<button type="button" class="cal-ev' + (it.end - it.start < 45 ? ' is-short' : '') + '" data-action="cal-event" data-key="' + esc(ev.key) + '"' +
       ' style="' + posStyle(it) + ';--ev:' + esc(ev.color) + '"' +
-      ' aria-label="' + esc(ev.title + ', ' + when + ', ' + ev.calName + ' calendar (read-only)') + '">' +
+      ' aria-label="' + esc(ev.title + ', ' + when + ', ' + tt('cl.calReadonly', { name: ev.calName })) + '">' +
       '<span class="cal-ev__t">' + esc(ev.title) + '</span>' +
       '<span class="cal-blk__m">' + esc(when) + (ev.location ? ' · ' + esc(ev.location) : '') + '</span>' +
       '</button>';
@@ -165,31 +166,31 @@ T4.calendar = (function () {
   function allDayItem(it, d) {
     if (it.kind === 'event') {
       const ev = it.ev;
-      return '<button type="button" class="cal-chip cal-chip--ev" data-action="cal-event" data-key="' + esc(ev.key) + '" style="--ev:' + esc(ev.color) + '" title="' + esc(ev.title) + '" aria-label="' + esc(ev.title + ', all day, ' + ev.calName + ' calendar (read-only)') + '">' + esc(ev.title) + '</button>';
+      return '<button type="button" class="cal-chip cal-chip--ev" data-action="cal-event" data-key="' + esc(ev.key) + '" style="--ev:' + esc(ev.color) + '" title="' + esc(ev.title) + '" aria-label="' + esc(ev.title + ', ' + tt('cl.allDay').toLocaleLowerCase(T4.i18n.language()) + ', ' + tt('cl.calReadonly', { name: ev.calName })) + '">' + esc(ev.title) + '</button>';
     }
     const t = it.t;
     return '<button type="button" class="cal-chip prio-' + (t.priority || 'none') + (t.status === 'done' ? ' is-done' : '') + '" data-action="edit-task" data-id="' + t.id + '" data-cal-drag="' + t.id + '" title="' + esc(t.title) + '"' +
-      ' aria-label="' + esc(t.title + ', ' + U.fmt(d, { weekday: 'long' }) + ', no time') + '"><span class="prio-dot"></span>' + esc(t.title) + '</button>';
+      ' aria-label="' + esc(t.title + ', ' + U.fmt(d, { weekday: 'long' }) + ', ' + tt('cl.noTime')) + '"><span class="prio-dot"></span>' + esc(t.title) + '</button>';
   }
 
   function sideHtml() {
     const today = U.today();
     const open = store.planned().filter(store.isOpen);
     const groups = [
-      ['Overdue', 'alert', store.sortTasks(open.filter((t) => t.dueDate && t.dueDate < today), 'due')],
-      ['Inbox', 'inbox', store.sortTasks(store.inboxTasks(), 'created')],
-      ['No date', 'list', store.sortTasks(open.filter((t) => !t.dueDate))],
+      [tt('tk.overdue'), 'alert', store.sortTasks(open.filter((t) => t.dueDate && t.dueDate < today), 'due')],
+      [tt('nav.inbox'), 'inbox', store.sortTasks(store.inboxTasks(), 'created')],
+      [tt('tk.fNoDate'), 'list', store.sortTasks(open.filter((t) => !t.dueDate))],
     ];
     const item = (t) => '<li><button type="button" class="cal-side__item prio-' + (t.priority || 'none') + '" data-action="edit-task" data-id="' + t.id + '" data-cal-drag="' + t.id + '"' +
-      ' aria-label="' + esc(t.title) + (t.dueDate ? ', due ' + esc(U.relDate(t.dueDate)) : '') + '"><span class="prio-dot"></span><span class="cal-side__t">' + esc(t.title) + '</span>' +
+      ' aria-label="' + esc(t.title) + (t.dueDate ? ', ' + esc(tt('cl.due', { date: U.relDate(t.dueDate) })) : '') + '"><span class="prio-dot"></span><span class="cal-side__t">' + esc(t.title) + '</span>' +
       (t.dueDate ? '<span class="muted small nowrap">' + esc(U.relDate(t.dueDate)) + '</span>' : '') + '</button></li>';
     const body = groups.filter((g) => g[2].length).map((g) =>
-      '<h3 class="subhead">' + icon(g[1]) + g[0] + ' <span class="count">' + g[2].length + '</span></h3>' +
+      '<h3 class="subhead">' + icon(g[1]) + esc(g[0]) + ' <span class="count">' + g[2].length + '</span></h3>' +
       '<ul class="cal-side__list" role="list">' + g[2].slice(0, 12).map(item).join('') + '</ul>' +
-      (g[2].length > 12 ? '<p class="muted small">+ ' + (g[2].length - 12) + ' more</p>' : '')).join('');
-    return '<aside class="cal-side" aria-labelledby="cal-side-h"><h2 class="cal-side__title" id="cal-side-h">' + icon('inbox') + 'To schedule</h2>' +
-      '<p class="muted small">Drag a task into the calendar to give it a day and time.</p>' +
-      (body || '<p class="muted small mt-sm">Nothing waiting: no overdue, inbox or undated tasks.</p>') + '</aside>';
+      (g[2].length > 12 ? '<p class="muted small">' + esc(tt('cl.more', { n: g[2].length - 12 })) + '</p>' : '')).join('');
+    return '<aside class="cal-side" aria-labelledby="cal-side-h"><h2 class="cal-side__title" id="cal-side-h">' + icon('inbox') + esc(tt('cl.toSchedule')) + '</h2>' +
+      '<p class="muted small">' + esc(tt('cl.dragHint')) + '</p>' +
+      (body || '<p class="muted small mt-sm">' + esc(tt('cl.nothingWaiting')) + '</p>') + '</aside>';
   }
 
   function render() {
@@ -208,13 +209,13 @@ T4.calendar = (function () {
       const cls = (d === today ? ' is-today' : '') + (d < today ? ' is-past' : '');
       const inner = '<span class="cal__wd">' + esc(U.fmt(d, { weekday: 'short' })) + '</span><span class="cal__num">' + Number(d.slice(8)) + '</span>';
       return '<div class="cal__dh' + cls + '">' + (sp === 'week'
-        ? '<button type="button" class="cal__dhbtn" data-action="cal-day" data-date="' + d + '" title="Show this day" aria-label="Show ' + esc(U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' })) + '">' + inner + '</button>'
+        ? '<button type="button" class="cal__dhbtn" data-action="cal-day" data-date="' + d + '" title="' + esc(tt('cl.showDay')) + '" aria-label="' + esc(tt('cl.showDayLabel', { day: U.fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) })) + '">' + inner + '</button>'
         : '<span class="cal__dhbtn">' + inner + '</span>') + '</div>';
     }).join('');
 
     const allDay = cols.map((c) => '<div class="cal__ad' + (c.date === today ? ' is-today' : '') + '" data-cal-allday="' + c.date + '">' +
       c.allDay.map((it) => allDayItem(it, c.date)).join('') +
-      '<button type="button" class="cal__adadd" data-action="new-task" data-date="' + c.date + '" title="New task" aria-label="New task on ' + esc(U.fmt(c.date, { weekday: 'long', month: 'long', day: 'numeric' })) + '">' + icon('plus') + '</button></div>').join('');
+      '<button type="button" class="cal__adadd" data-action="new-task" data-date="' + c.date + '" title="' + esc(tt('tk.newTask')) + '" aria-label="' + esc(tt('cl.newTaskOn', { day: U.fmt(c.date, { weekday: 'long', month: 'long', day: 'numeric' }) })) + '">' + icon('plus') + '</button></div>').join('');
 
     const hours = Array.from({ length: 24 }, (_, h) => '<span class="cal__hour" style="top:' + pct(h * 60) + '%">' + (h ? esc(U.fmtTime(U.pad(h) + ':00')) : '') + '</span>').join('');
 
@@ -223,30 +224,29 @@ T4.calendar = (function () {
       (c.date === today ? '<div class="cal__now" style="top:' + pct(nowMin) + '%" aria-hidden="true"></div>' : '') +
       '</div>').join('');
 
-    return '<header class="page-head"><div><h1 class="page-title">Weekly Planner</h1>' +
-        '<p class="page-sub">' + esc(sub) + (isCurrent ? ' · <span class="text-accent">' + (sp === 'week' ? 'This week' : 'Today') + '</span>' : '') + '</p></div>' +
+    return '<header class="page-head"><div><h1 class="page-title">' + esc(tt('nav.planner')) + '</h1>' +
+        '<p class="page-sub">' + esc(sub) + (isCurrent ? ' · <span class="text-accent">' + esc(tt(sp === 'week' ? 'pl.thisWeek' : 'tk.today')) + '</span>' : '') + '</p></div>' +
         '<div class="page-actions">' + modeToggle('calendar') +
-          (narrow() ? '' : '<div class="seg seg--sm" role="group" aria-label="Calendar range">' +
-            '<button type="button" class="seg__btn" data-action="cal-span" data-span="day" aria-pressed="' + (sp === 'day') + '">Day</button>' +
-            '<button type="button" class="seg__btn" data-action="cal-span" data-span="week" aria-pressed="' + (sp === 'week') + '">Week</button></div>') +
-          '<div class="btn-group" role="group" aria-label="' + (sp === 'week' ? 'Week' : 'Day') + ' navigation">' +
-            '<button type="button" class="btn" data-action="cal-nav" data-dir="-1" aria-label="Previous ' + sp + '">' + icon('chevron-left') + '</button>' +
-            '<button type="button" class="btn" data-action="cal-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>' + (sp === 'week' ? 'This week' : 'Today') + '</button>' +
-            '<button type="button" class="btn" data-action="cal-nav" data-dir="1" aria-label="Next ' + sp + '">' + icon('chevron-right') + '</button>' +
+          (narrow() ? '' : '<div class="seg seg--sm" role="group" aria-label="' + esc(tt('cl.calRange')) + '">' +
+            '<button type="button" class="seg__btn" data-action="cal-span" data-span="day" aria-pressed="' + (sp === 'day') + '">' + esc(tt('cl.day')) + '</button>' +
+            '<button type="button" class="seg__btn" data-action="cal-span" data-span="week" aria-pressed="' + (sp === 'week') + '">' + esc(tt('cl.week')) + '</button></div>') +
+          '<div class="btn-group" role="group" aria-label="' + esc(tt(sp === 'week' ? 'pl.weekNav' : 'pl.dayNav')) + '">' +
+            '<button type="button" class="btn" data-action="cal-nav" data-dir="-1" aria-label="' + esc(tt(sp === 'week' ? 'pl.prevWeek' : 'pl.prevDay')) + '">' + icon('chevron-left') + '</button>' +
+            '<button type="button" class="btn" data-action="cal-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>' + esc(tt(sp === 'week' ? 'pl.thisWeek' : 'tk.today')) + '</button>' +
+            '<button type="button" class="btn" data-action="cal-nav" data-dir="1" aria-label="' + esc(tt(sp === 'week' ? 'pl.nextWeek' : 'pl.nextDay')) + '">' + icon('chevron-right') + '</button>' +
           '</div>' +
-          (hasFeeds && T4.calfeeds.canSubscribe ? '<button type="button" class="icon-btn" data-action="cal-refresh-all" title="Update calendars" aria-label="Update subscribed calendars">' + icon('reset') + '</button>' : '') +
+          (hasFeeds && T4.calfeeds.canSubscribe ? '<button type="button" class="icon-btn" data-action="cal-refresh-all" title="' + esc(tt('cl.updateCals')) + '" aria-label="' + esc(tt('cl.updateSubscribed')) + '">' + icon('reset') + '</button>' : '') +
         '</div></header>' +
       feedsOn.map((p) => '<p class="callout callout--warn cal-problem">' + icon('alert') + '<span><strong>' + esc(p.name) + ':</strong> ' + esc(p.error) +
-        (p.at ? ' Showing the version from ' + esc(U.fmtDateTime(p.at)) + '.' : '') + ' <a class="link" href="#/settings">Settings</a></span></p>').join('') +
-      '<p class="muted small hint-dnd">Tip: drag a block to move it, drag its lower edge to change the length, click or drag in an empty slot to add a task. ' +
-        'Keyboard: focus a block, then ↑/↓ moves it by 15 minutes, ←/→ by a day, Shift+↑/↓ changes the length.</p>' +
-      '<p class="sr-only" id="cal-kbd-help">Arrow up or down moves the task by 15 minutes, arrow left or right by one day, Shift with arrow up or down changes its length. Enter opens it.</p>' +
+        (p.at ? ' ' + esc(tt('cl.showingVersion', { date: U.fmtDateTime(p.at) })) : '') + ' <a class="link" href="#/settings">' + esc(tt('nav.settings')) + '</a></span></p>').join('') +
+      '<p class="muted small hint-dnd">' + esc(tt('cl.tip')) + '</p>' +
+      '<p class="sr-only" id="cal-kbd-help">' + esc(tt('cl.kbdHelp')) + '</p>' +
       '<div class="cal' + (sp === 'day' ? ' cal--day' : '') + '" style="--cal-days:' + dates.length + '">' +
         '<div class="cal__main">' +
           '<div class="cal__scroller" id="cal-scroller">' +
             '<div class="cal__top">' +
               '<div class="cal__row cal__head"><div class="cal__corner"></div>' + head + '</div>' +
-              '<div class="cal__row cal__allday"><div class="cal__corner cal__adlabel">All day</div>' + allDay + '</div>' +
+              '<div class="cal__row cal__allday"><div class="cal__corner cal__adlabel">' + esc(tt('cl.allDay')) + '</div>' + allDay + '</div>' +
             '</div>' +
             '<div class="cal__row cal__grid"><div class="cal__hours" aria-hidden="true">' + hours + '</div>' + grid + '</div>' +
           '</div>' +
@@ -281,16 +281,16 @@ T4.calendar = (function () {
     let msg;
     if ('estimate' in next) {
       if (next.estimate === (t.estimate || DEFAULT_MIN)) return null;
-      msg = 'Length: ' + U.fmtMinutes(next.estimate);
+      msg = tt('cl.length', { len: U.fmtMinutes(next.estimate) });
     } else {
       if (next.dueDate === t.dueDate && next.dueTime === t.dueTime && !t.inbox) return null;
       next.inbox = false;
       if (next.dueDate !== t.dueDate || next.dueTime !== t.dueTime) next.reminderSnooze = null; // new occurrence (like the task editor)
-      msg = (prev.dueDate ? 'Moved to ' : 'Scheduled for ') + U.relDate(next.dueDate) + (next.dueTime ? ', ' + U.fmtTime(next.dueTime) : ' (no time)');
+      msg = tt((prev.dueDate ? 'cl.moved' : 'cl.sched') + (next.dueTime ? 'Time' : 'NoTime'), { date: U.relDate(next.dueDate), time: next.dueTime ? U.fmtTime(next.dueTime) : '' });
     }
     const res = store.updateTask(id, next);
     if (res) {
-      ui.toast(msg, 'success', 5000, { label: 'Undo', fn: () => { if (store.getTask(id)) { store.updateTask(id, prev); ui.toast('Change undone', 'info', 2000); } } });
+      ui.toast(msg, 'success', 5000, { label: tt('c.undo'), fn: () => { if (store.getTask(id)) { store.updateTask(id, prev); ui.toast(tt('cl.undone'), 'info', 2000); } } });
     }
     return res;
   }
@@ -424,7 +424,7 @@ T4.calendar = (function () {
       const s = m < a ? m : a;
       const e = m < a ? a + SNAP : Math.max(a + SNAP, m);
       drag.result = { date: tg.date, start: s, end: e };
-      placeGhost(tg.r, s, e, 'New task · ' + range(s, e), 'cal-ghost--new');
+      placeGhost(tg.r, s, e, tt('tk.newTask') + ' · ' + range(s, e), 'cal-ghost--new');
     }
   }
 
@@ -563,7 +563,7 @@ T4.calendar = (function () {
     let when;
     if (ev.allDay) {
       const last = U.addDays(ev.end, -1);
-      when = U.fmt(ev.start, { weekday: 'long', month: 'long', day: 'numeric' }) + (last !== ev.start ? ' – ' + U.fmt(last, { weekday: 'long', month: 'long', day: 'numeric' }) : '') + ' · All day';
+      when = U.fmt(ev.start, { weekday: 'long', month: 'long', day: 'numeric' }) + (last !== ev.start ? ' – ' + U.fmt(last, { weekday: 'long', month: 'long', day: 'numeric' }) : '') + ' · ' + tt('cl.allDay');
     } else {
       when = U.fmt(new Date(ev.start), { weekday: 'long', month: 'long', day: 'numeric' }) + ', ' + T4.calfeeds.fmtRange(ev);
     }
@@ -573,10 +573,10 @@ T4.calendar = (function () {
       body: '<div class="cal-evd">' +
         '<p class="cal-evd__row">' + icon('clock') + '<span>' + esc(when) + '</span></p>' +
         (ev.location ? '<p class="cal-evd__row">' + icon('pin') + '<span>' + esc(ev.location) + '</span></p>' : '') +
-        '<p class="cal-evd__row"><span class="cal-evd__dot" style="--ev:' + esc(ev.color) + '"></span><span>' + esc(ev.calName) + (ev.recurring ? ' · repeats' : '') + ' · read-only</span></p>' +
+        '<p class="cal-evd__row"><span class="cal-evd__dot" style="--ev:' + esc(ev.color) + '"></span><span>' + esc(ev.calName) + (ev.recurring ? ' · ' + tt('cl.repeats') : '') + ' · ' + tt('cl.readOnly') + '</span></p>' +
         (ev.description ? '<div class="cal-evd__desc">' + U.escMultiline(ev.description) + '</div>' : '') +
-        '<p class="muted small">Events from subscribed calendars can only be changed in Outlook or Google Calendar.</p></div>',
-      footer: '<button type="button" class="btn btn--primary" data-action="modal-close">Close</button>',
+        '<p class="muted small">' + esc(tt('cl.eventNote')) + '</p></div>',
+      footer: '<button type="button" class="btn btn--primary" data-action="modal-close">' + esc(tt('c.close')) + '</button>',
     });
   });
 
