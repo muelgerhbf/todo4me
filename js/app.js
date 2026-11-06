@@ -4,23 +4,69 @@ T4.app = (function () {
   const U = T4.util, ui = T4.ui, store = T4.store;
   const { esc, icon } = U;
 
+  // Sections are fixed; custom order applies within a section. Dashboard and Settings are locked (always visible).
   const NAV = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'inbox', label: 'Inbox', icon: 'inbox', count: 'inbox' },
-    { id: 'tasks', label: 'My Tasks', icon: 'list', count: 'tasks' },
-    { id: 'today', label: 'Today', icon: 'sun', count: 'today' },
-    { id: 'upcoming', label: 'Upcoming', icon: 'upcoming', count: 'upcoming' },
-    { sep: 'Plan' },
-    { id: 'planner', label: 'Weekly Planner', icon: 'week' },
-    { id: 'plan', label: 'Daily Plan', icon: 'book' },
-    { id: 'notes', label: 'Weekly Notes', icon: 'note', count: 'notes' },
-    { sep: 'Write' },
-    { id: 'editor', label: 'Editor', icon: 'doc' },
-    { sep: 'Do' },
-    { id: 'focus', label: 'Focus Mode', icon: 'target' },
-    { id: 'stats', label: 'Statistics', icon: 'chart' },
-    { id: 'settings', label: 'Settings', icon: 'settings' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', section: '', locked: true },
+    { id: 'inbox', label: 'Inbox', icon: 'inbox', count: 'inbox', section: '' },
+    { id: 'tasks', label: 'My Tasks', icon: 'list', count: 'tasks', section: '' },
+    { id: 'today', label: 'Today', icon: 'sun', count: 'today', section: '' },
+    { id: 'upcoming', label: 'Upcoming', icon: 'upcoming', count: 'upcoming', section: '' },
+    { id: 'planner', label: 'Weekly Planner', icon: 'week', section: 'Plan' },
+    { id: 'plan', label: 'Daily Plan', icon: 'book', section: 'Plan' },
+    { id: 'notes', label: 'Weekly Notes', icon: 'note', count: 'notes', section: 'Plan' },
+    { id: 'editor', label: 'Editor', icon: 'doc', section: 'Write' },
+    { id: 'focus', label: 'Focus Mode', icon: 'target', section: 'Do' },
+    { id: 'stats', label: 'Statistics', icon: 'chart', section: 'Do' },
+    { id: 'settings', label: 'Settings', icon: 'settings', section: 'Do', locked: true },
   ];
+  const SECTIONS = ['', 'Plan', 'Write', 'Do'];
+  const navLabel = (n) => (T4.i18n && T4.i18n.has && T4.i18n.has('nav.' + n.id)) ? T4.i18n.t('nav.' + n.id) : n.label;
+  const navSection = (s) => (s && T4.i18n && T4.i18n.has && T4.i18n.has('nav.section.' + s.toLowerCase())) ? T4.i18n.t('nav.section.' + s.toLowerCase()) : s;
+
+  /** Sidebar customization API (settings.nav = { hidden, order }). Unknown ids in settings are ignored. */
+  const nav = (function () {
+    const cfg = () => store.data.settings.nav || { hidden: [], order: [] };
+    const known = (id) => NAV.some((n) => n.id === id);
+    const decorate = (n) => ({ id: n.id, label: navLabel(n), icon: n.icon, section: n.section, locked: !!n.locked, hidden: !n.locked && cfg().hidden.indexOf(n.id) >= 0 });
+    /** All views in effective order (sections fixed, custom order within each section), hidden ones included. */
+    function items() {
+      const order = cfg().order.filter(known);
+      const rank = (n) => { const i = order.indexOf(n.id); return i < 0 ? 1e6 + NAV.indexOf(n) : i; };
+      const out = [];
+      SECTIONS.forEach((sec) => out.push(...NAV.filter((n) => n.section === sec).sort((a, b) => rank(a) - rank(b))));
+      return out.map(decorate);
+    }
+    const visible = () => items().filter((n) => !n.hidden);
+    function setHidden(id, hide) {
+      const n = NAV.find((x) => x.id === id);
+      if (!n || n.locked) return false;
+      const set = new Set(cfg().hidden.filter(known));
+      if (hide) set.add(id); else set.delete(id);
+      store.updateSettings({ nav: { hidden: Array.from(set), order: cfg().order } });
+      return true;
+    }
+    /** Move one step (delta -1 up / +1 down) within its section; hidden items keep their slot. */
+    function move(id, delta) {
+      const all = items();
+      const it = all.find((x) => x.id === id);
+      if (!it) return false;
+      const sec = all.filter((x) => x.section === it.section);
+      const i = sec.indexOf(sec.find((x) => x.id === id)), j = Math.max(0, Math.min(sec.length - 1, i + (delta < 0 ? -1 : 1) * Math.max(1, Math.abs(delta | 0))));
+      if (i === j) return false;
+      const [m] = sec.splice(i, 1);
+      sec.splice(j, 0, m);
+      const ids = [];
+      SECTIONS.forEach((s) => ids.push(...(s === it.section ? sec : all.filter((x) => x.section === s)).map((x) => x.id)));
+      setOrder(ids);
+      return true;
+    }
+    function setOrder(ids) {
+      const clean = Array.from(new Set((ids || []).filter(known)));
+      store.updateSettings({ nav: { hidden: cfg().hidden, order: clean } });
+    }
+    function reset() { store.updateSettings({ nav: { hidden: [], order: [] } }); }
+    return { items, visible, setHidden, move, setOrder, reset, isHidden: (id) => !!(items().find((x) => x.id === id) || {}).hidden };
+  })();
   const BOTTOM = ['dashboard', 'today', 'planner', 'notes'];
 
   const main = document.getElementById('main');
@@ -49,22 +95,29 @@ T4.app = (function () {
     const c = store.counts();
     const counts = { inbox: c.inbox, tasks: c.tasks, today: c.today, upcoming: c.upcoming, notes: c.notes };
     const overdue = store.overdueTasks().length;
-    document.getElementById('nav').innerHTML = '<ul role="list">' + NAV.map((n) => {
-      if (n.sep) return '<li class="nav__sep" aria-hidden="true">' + esc(n.sep) + '</li>';
+    let lastSec = null;
+    document.getElementById('nav').innerHTML = '<ul role="list">' + nav.visible().map((n) => {
+      let sep = '';
+      if (n.section !== lastSec) {
+        lastSec = n.section;
+        if (n.section) sep = '<li class="nav__sep" aria-hidden="true">' + esc(navSection(n.section)) + '</li>';
+      }
+      const def = NAV.find((x) => x.id === n.id);
       const active = current.name === n.id;
-      const count = n.count ? counts[n.count] : 0;
+      const count = def.count ? counts[def.count] : 0;
       const danger = n.id === 'today' && overdue;
-      return '<li><a class="nav__link' + (active ? ' is-active' : '') + '" href="#/' + n.id + '"' + (active ? ' aria-current="page"' : '') + '>' +
+      return sep + '<li><a class="nav__link' + (active ? ' is-active' : '') + '" href="#/' + n.id + '"' + (active ? ' aria-current="page"' : '') + '>' +
         icon(n.icon) + '<span>' + esc(n.label) + '</span>' +
         (count ? '<span class="nav__count' + (danger ? ' nav__count--danger' : '') + '"' + (danger ? ' title="' + U.plural(overdue, 'overdue task') + '"' : '') + '>' + count + '<span class="sr-only"> items</span></span>' : '') +
         '</a></li>';
     }).join('') + '</ul>';
-    document.getElementById('bottom-nav').innerHTML = BOTTOM.map((id) => {
+    const shown = nav.visible().map((n) => n.id);
+    document.getElementById('bottom-nav').innerHTML = BOTTOM.filter((id) => shown.indexOf(id) >= 0).map((id) => {
       const n = NAV.find((x) => x.id === id);
       const active = current.name === id;
       const count = n.count ? counts[n.count] : 0;
       return '<a class="bnav__link' + (active ? ' is-active' : '') + '" href="#/' + id + '"' + (active ? ' aria-current="page"' : '') + '>' +
-        icon(n.icon) + '<span>' + esc(n.label.replace('Weekly ', '')) + '</span>' + (count ? '<span class="bnav__dot" aria-hidden="true"></span>' : '') + '</a>';
+        icon(n.icon) + '<span>' + esc(navLabel(n).replace('Weekly ', '')) + '</span>' + (count ? '<span class="bnav__dot" aria-hidden="true"></span>' : '') + '</a>';
     }).join('') +
       '<button type="button" class="bnav__link" data-action="open-sidebar" aria-label="More sections">' + icon('menu') + '<span>More</span></button>';
     document.getElementById('topbar-title').textContent = (T4.views[current.name] || {}).title || 'Todo4Me';
@@ -214,8 +267,9 @@ T4.app = (function () {
     }
   }
 
-  return { init, render, pageTitle, get route() { return current; } };
+  return { init, render, pageTitle, nav, get route() { return current; } };
 })();
+T4.nav = T4.app.nav;
 
 document.addEventListener('DOMContentLoaded', () => {
   try {
