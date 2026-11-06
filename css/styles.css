@@ -436,6 +436,17 @@ button.chip--tag:hover { color: var(--accent-text); }
 .toast--reminder > .icon { color: #f5b041; }
 [data-theme="dark"] .toast--reminder > .icon { color: #c27c0e; }
 .field__hint { font-size: 12px; color: var(--muted); margin: 0; }
+/* Task editor: custom repeat rule */
+.recur-custom { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.recur-custom[hidden], .recur-custom__row[hidden] { display: none; }
+.recur-custom__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.recur-custom__row > label, .recur-custom__row > .label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.recur-custom input[type=number] { width: 76px; }
+.recur-custom select { width: auto; min-width: 96px; }
+.recur-custom .seg { background: var(--surface); }
+.recur-custom .seg__btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); box-shadow: none; }
+.recur-custom .seg__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.recur-custom__preview { margin: 0; font-size: 13px; font-weight: 600; color: var(--accent-text); }
 .desktop-status { font-size: 13px; margin: 4px 0 0; }
 .toast__action { border: 0; background: none; color: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; padding: 2px 4px; }
 .toast__close { border: 0; background: none; color: inherit; opacity: .55; padding: 2px; display: grid; }

@@ -9,7 +9,7 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = Number(process.env.CDP_PORT) || 9333;
 const here = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, '$1');
 const profile = path.join(here, 'profile-' + Date.now());
-const APP = 'file:///C:/dev/todo4me/index.html';
+const APP = 'file:///' + path.resolve(here, '..', 'index.html').replace(/\\/g, '/');
 
 const plan = await import('file:///' + path.resolve(process.argv[2]).replace(/\\/g, '/'));
 const outDir = process.argv[3] || path.join(here, 'shots');

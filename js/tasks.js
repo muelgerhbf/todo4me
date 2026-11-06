@@ -14,8 +14,6 @@ T4.tasks = (function () {
     low: { label: 'Low', hint: 'Can wait' },
   };
   const STATUS = { todo: 'To do', in_progress: 'In progress', done: 'Completed' };
-  // Repeat presets of the editor select (part 2 replaces this with T4.recur.presets); other rules show as an extra option.
-  const RECUR_BASIC = ['daily', 'weekly', 'monthly'];
   const SORT_LABELS = { priority: 'Priority', due: 'Due date', created: 'Newest first', alpha: 'Alphabetical', status: 'Status' };
 
   /* ======================= Components ======================= */
@@ -137,18 +135,30 @@ T4.tasks = (function () {
   }
 
   /* ======================= Editor ======================= */
-  /** Options of the Repeat select: the 3 basic rules; any other existing rule is shown as an extra selected option. */
-  function recurOptions(rule) {
+  const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+  const WEEK_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const WEEK_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  /** Rule with the defaults of the due date filled in (weekday for weeks, day of month for months). */
+  function fillRecurDefaults(rule, due) {
     const r = T4.recur.normalize(rule);
-    const basic = RECUR_BASIC.find((k) => r && T4.recur.equals(r, k));
-    const opt = (v, label, sel) => '<option value="' + v + '"' + (sel ? ' selected' : '') + '>' + esc(label) + '</option>';
-    return RECUR_BASIC.map((k) => opt(k, T4.recur.describe(k), basic === k)).join('') +
-      (r && !basic ? opt('current', T4.recur.describe(r), true) : '');
+    if (!r) return null;
+    const d = U.parseDate(due);
+    if (r.unit === 'week' && !r.weekdays) r.weekdays = [d.getDay()];
+    if (r.unit === 'month' && r.monthDay == null) r.monthDay = d.getDate();
+    return r;
   }
-  /** Select value → rule object ('current' keeps the existing non-basic rule). */
-  function recurFromSelect(value, existingRule) {
-    if (!value) return null;
-    return T4.recur.normalize(value === 'current' ? existingRule : value);
+  /** Markup of the inline controls for a custom repeat rule (filled and wired in openEditor). */
+  function recurCustomHtml() {
+    return '<div class="recur-custom" id="tf-recur-custom" hidden>' +
+      '<div class="recur-custom__row"><label for="tf-r-every">Every</label>' +
+        '<input id="tf-r-every" type="number" min="1" max="99" step="1" inputmode="numeric">' +
+        '<select id="tf-r-unit" aria-label="Unit"><option value="day">days</option><option value="week">weeks</option><option value="month">months</option><option value="year">years</option></select></div>' +
+      '<div class="recur-custom__row" id="tf-r-week" role="group" aria-label="Repeat on these weekdays" hidden><span class="label">On</span><div class="seg">' +
+        WEEK_ORDER.map((d) => '<button type="button" class="seg__btn" data-wd="' + d + '" aria-pressed="false" aria-label="' + WEEK_LONG[d] + '">' + WEEK_SHORT[d] + '</button>').join('') + '</div></div>' +
+      '<div class="recur-custom__row" id="tf-r-month" hidden><label for="tf-r-monthday">On day</label><select id="tf-r-monthday">' +
+        Array.from({ length: 31 }, (_, i) => '<option value="' + (i + 1) + '">' + (i + 1) + '</option>').join('') + '<option value="-1">Last day</option></select></div>' +
+      '<label class="checkbox"><input type="checkbox" id="tf-r-done"><span>Count from completion date</span></label>' +
+      '<p class="recur-custom__preview" id="tf-r-preview" aria-live="polite"></p></div>';
   }
 
   /** Open the task editor. existing = task or null; defaults for new tasks. */
@@ -189,9 +199,8 @@ T4.tasks = (function () {
             cats.map((c) => '<option value="' + c.id + '"' + (t.categoryId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') +
             '</select><button type="button" class="icon-btn" id="tf-newcat-btn" title="New category" aria-label="New category" aria-expanded="false">' + icon('plus') + '</button></div>' +
             '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="Category name" aria-label="New category name"><button type="button" class="btn btn--sm" id="tf-newcat-add">Add</button></div></div>' +
-          '<div class="field"><label for="tf-recur">Repeat</label><select id="tf-recur" name="recurrence"><option value="">Does not repeat</option>' +
-            recurOptions(t.recurrence) + '</select></div>' +
-        '</div>' +
+          '<div class="field"><label for="tf-recur">Repeat</label><select id="tf-recur" name="recurrence"><option value="">Does not repeat</option></select></div>' +
+        '</div>' + recurCustomHtml() +
         (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">Reminder</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">No reminder</option>' +
             remindOpts.map((o) => '<option value="' + o[0] + '"' + (t.reminder === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' +
             '<p class="field__hint" id="tf-remind-hint" aria-live="polite"></p></div></div>' : '') +
@@ -267,6 +276,102 @@ T4.tasks = (function () {
         m.querySelector('#tf-newcat-add').addEventListener('click', addCat);
         ncName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } });
 
+        // Repeat: presets that follow the due date, plus inline custom controls.
+        const recurSel = m.querySelector('#tf-recur'), recurPanel = m.querySelector('#tf-recur-custom');
+        const dateEl = m.querySelector('#tf-date');
+        const rEvery = m.querySelector('#tf-r-every'), rUnit = m.querySelector('#tf-r-unit'), rMonthDay = m.querySelector('#tf-r-monthday');
+        const rDone = m.querySelector('#tf-r-done'), rPreview = m.querySelector('#tf-r-preview');
+        const rWeekRow = m.querySelector('#tf-r-week'), rMonthRow = m.querySelector('#tf-r-month');
+        const recurDue = () => (U.isDateStr(dateEl.value) ? dateEl.value : U.today());
+        let presets = [];
+        let draft = null; // rule being edited in "Custom…"
+        let touchedDays = false; // the user chose weekdays / month day, so the due date no longer drives them
+        let lastRecurValue = '';
+        const optHtml = (v, label) => '<option value="' + v + '">' + esc(label) + '</option>';
+        const paintRecurOptions = (selected) => {
+          presets = T4.recur.presets(recurDue());
+          recurSel.innerHTML = optHtml('', 'Does not repeat') + presets.map((p) => optHtml(p.id, p.label)).join('') +
+            '<option disabled>──────────</option>' + optHtml('custom', 'Custom…');
+          recurSel.value = selected;
+        };
+        const defaultDraft = (rule) => {
+          const d = U.parseDate(recurDue());
+          const r = T4.recur.normalize(rule) || { unit: 'week', every: 1, from: 'due' };
+          return { unit: r.unit, every: r.every, from: r.from, weekdays: r.weekdays ? r.weekdays.slice() : [d.getDay()], monthDay: r.monthDay != null ? r.monthDay : d.getDate() };
+        };
+        const draftRule = () => T4.recur.normalize({
+          unit: draft.unit, every: draft.every, from: draft.from,
+          weekdays: draft.unit === 'week' ? draft.weekdays : undefined, monthDay: draft.unit === 'month' ? draft.monthDay : undefined,
+        });
+        const currentRule = () => {
+          if (recurSel.value === '') return null;
+          if (recurSel.value === 'custom') return draftRule();
+          const p = presets.find((x) => x.id === recurSel.value);
+          return p ? p.rule : null;
+        };
+        const paintCustom = () => {
+          recurPanel.hidden = recurSel.value !== 'custom';
+          if (recurPanel.hidden || !draft) return;
+          rEvery.value = draft.every;
+          rUnit.value = draft.unit;
+          rMonthDay.value = String(draft.monthDay);
+          rDone.checked = draft.from === 'done';
+          rWeekRow.hidden = draft.unit !== 'week';
+          rMonthRow.hidden = draft.unit !== 'month';
+          m.querySelectorAll('[data-wd]').forEach((b) => b.setAttribute('aria-pressed', String(draft.weekdays.includes(Number(b.dataset.wd)))));
+          rPreview.textContent = T4.recur.describe(draftRule());
+        };
+        const selectCustom = (rule) => { draft = defaultDraft(rule); touchedDays = false; recurSel.value = 'custom'; paintCustom(); };
+        // Initial selection: a matching preset (legacy rules get the due date's defaults first), otherwise Custom.
+        paintRecurOptions('');
+        const existingRule = T4.recur.normalize(t.recurrence);
+        if (existingRule) {
+          const hit = presets.find((p) => T4.recur.equals(p.rule, fillRecurDefaults(existingRule, recurDue())));
+          if (hit) recurSel.value = hit.id;
+          else selectCustom(existingRule);
+        }
+        lastRecurValue = recurSel.value;
+        paintCustom();
+        recurSel.addEventListener('change', () => {
+          if (recurSel.value === 'custom') {
+            const prev = presets.find((x) => x.id === lastRecurValue);
+            selectCustom(prev ? prev.rule : (draft ? draftRule() : null));
+          } else paintCustom();
+          lastRecurValue = recurSel.value;
+        });
+        // A new due date relabels the presets; the selection is kept by id.
+        const onDueChange = () => {
+          const prevId = recurSel.value, prevPreset = presets.find((x) => x.id === prevId);
+          paintRecurOptions(prevId);
+          if (prevPreset && recurSel.value !== prevId) selectCustom(prevPreset.rule); // preset does not exist for the new date
+          else if (prevId === 'custom' && !touchedDays) {
+            const d = defaultDraft(null);
+            draft.weekdays = d.weekdays; draft.monthDay = d.monthDay;
+          }
+          lastRecurValue = recurSel.value;
+          paintCustom();
+        };
+        dateEl.addEventListener('change', onDueChange);
+        dateEl.addEventListener('input', onDueChange);
+        rEvery.addEventListener('input', () => {
+          const n = Math.round(Number(rEvery.value));
+          if (rEvery.value !== '' && Number.isFinite(n)) draft.every = Math.min(99, Math.max(1, n));
+          rPreview.textContent = T4.recur.describe(draftRule());
+        });
+        rEvery.addEventListener('change', paintCustom);
+        rUnit.addEventListener('change', () => { draft.unit = rUnit.value; paintCustom(); });
+        rMonthDay.addEventListener('change', () => { draft.monthDay = Number(rMonthDay.value); touchedDays = true; paintCustom(); });
+        rDone.addEventListener('change', () => { draft.from = rDone.checked ? 'done' : 'due'; paintCustom(); });
+        rWeekRow.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-wd]');
+          if (!btn) return;
+          const d = Number(btn.dataset.wd);
+          if (!draft.weekdays.includes(d)) draft.weekdays.push(d);
+          else if (draft.weekdays.length > 1) draft.weekdays = draft.weekdays.filter((x) => x !== d); // keep at least one day
+          touchedDays = true;
+          paintCustom();
+        });
+
         // Reminder: show when it will fire.
         const remSel = m.querySelector('#tf-remind'), remHint = m.querySelector('#tf-remind-hint');
         const paintReminder = () => {
@@ -312,11 +417,16 @@ T4.tasks = (function () {
             dueDate: fd.get('dueDate') || null,
             dueTime: fd.get('dueDate') ? (fd.get('dueTime') || null) : null,
             estimate: fd.get('estimate') ? Number(fd.get('estimate')) : null,
-            recurrence: recurFromSelect(fd.get('recurrence'), t.recurrence),
+            recurrence: currentRule(),
             subtasks,
           };
           if (remSel) fields.reminder = remSel.value === '' ? null : Number(remSel.value);
-          if (fields.recurrence && !fields.dueDate) fields.dueDate = U.today();
+          if (fields.recurrence && !fields.dueDate) {
+            // No due date: today, or the first matching day (>= today) when the rule names weekdays / a day of the month.
+            const named = (fields.recurrence.unit === 'week' && fields.recurrence.weekdays) || (fields.recurrence.unit === 'month' && fields.recurrence.monthDay != null);
+            const yesterday = U.addDays(U.today(), -1);
+            fields.dueDate = (named && T4.recur.next(Object.assign({}, fields.recurrence, { from: 'due' }), { due: yesterday, today: yesterday })) || U.today();
+          }
           if (fields.reminder != null && !fields.dueDate) fields.dueDate = U.today();
           // A changed due date/time or reminder is a new occurrence: drop a pending snooze.
           if (existing && (fields.dueDate !== t.dueDate || fields.dueTime !== t.dueTime || (remSel && fields.reminder !== t.reminder))) fields.reminderSnooze = null;

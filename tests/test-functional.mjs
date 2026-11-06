@@ -261,10 +261,10 @@ export default async function (b) {
     // editor: existing rules are shown and survive a save
     const x = T4.store.addTask({ title: 'Rule: editor', dueDate: D0, recurrence: { unit: 'week', every: 2, weekdays: [1, 3] } });
     T4.tasks.openEditor(T4.store.getTask(x.id)); await wait(40);
-    ok($('#tf-recur').selectedOptions[0].textContent === 'Every 2 weeks on Mon, Wed', 'editor: a non-basic rule is shown as the selected option');
+    ok($('#tf-recur').value === 'custom' && $('#tf-r-preview').textContent === 'Every 2 weeks on Mon, Wed', 'editor: a non-preset rule opens as Custom with its preview');
     $('#tf-title').value = 'Rule: editor 2'; $('#task-form').requestSubmit(); await wait(50);
     const x2 = T4.store.getTask(x.id);
-    ok(x2.title === 'Rule: editor 2' && x2.recurrence.every === 2 && x2.recurrence.weekdays.join() === '1,3', 'editor: saving keeps the non-basic rule');
+    ok(x2.title === 'Rule: editor 2' && x2.recurrence.every === 2 && x2.recurrence.weekdays.join() === '1,3', 'editor: saving keeps the custom rule');
     T4.tasks.openEditor(x2); await wait(40);
     $('#tf-recur').value = 'monthly'; $('#task-form').requestSubmit(); await wait(50);
     ok(T4.store.getTask(x.id).recurrence.unit === 'month' && typeof T4.store.getTask(x.id).recurrence === 'object', 'editor: choosing Monthly saves a rule object');
@@ -273,6 +273,155 @@ export default async function (b) {
     $('#tf-recur').value = ''; $('#task-form').requestSubmit(); await wait(50);
     ok(T4.store.getTask(x.id).recurrence === null, 'editor: Does not repeat clears the rule');
     S().tasks.filter((t) => t.title.startsWith('Rule:')).forEach((t) => T4.store.deleteTask(t.id));
+  `);
+
+  // ---- Flexible recurrence (2.2.0 part 2): Repeat field of the task editor ----
+  await run('recurrence-editor', `
+    const U = T4.util, DUE = '2030-05-15'; // a Wednesday
+    const dowOf = (d) => U.parseDate(d).getDay();
+    const LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const open = async (t, defaults) => { T4.tasks.openEditor(t || null, defaults); await wait(40); };
+    const fire = (el, type) => el.dispatchEvent(new Event(type || 'change', { bubbles: true }));
+    const pick = (v) => { const s = $('#tf-recur'); s.value = v; fire(s); };
+    const setDate = (d) => { $('#tf-date').value = d; fire($('#tf-date')); };
+    const labels = () => $$('#tf-recur option').map((o) => o.textContent);
+    const days = () => $$('#tf-r-week [data-wd]').filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent).join();
+    const save = async () => { $('#task-form').requestSubmit(); await wait(50); };
+    const find = (title) => S().tasks.find((x) => x.title === title);
+
+    // --- new task: options, presets follow the due date, Custom hidden by default
+    await open(null, { dueDate: DUE });
+    ok($('#tf-recur').value === '' && $('#tf-recur').options[0].textContent === 'Does not repeat', 'repeat: new task defaults to Does not repeat');
+    ok($('#tf-recur-custom').hidden, 'repeat: custom controls hidden by default');
+    ok(labels().includes('Daily') && labels().includes('Every weekday') && labels().includes('Weekly on Wednesday') && labels().includes('Every 2 weeks on Wednesday') &&
+       labels().includes('Monthly on the 15th') && labels().includes('Yearly on May 15') && labels().pop() === 'Custom…', 'repeat: presets labelled from the due date: ' + labels().join(' | '));
+    ok(!labels().includes('Monthly on the last day'), 'repeat: no last-day preset on a mid-month date');
+    pick('weekly');
+    setDate('2030-05-17'); // Friday
+    ok($('#tf-recur').value === 'weekly' && $('#tf-recur').selectedOptions[0].textContent === 'Weekly on Friday', 'repeat: changing the due date relabels the preset and keeps the selection');
+    ok(labels().includes('Monthly on the 17th') && labels().includes('Yearly on May 17'), 'repeat: other labels follow the due date');
+    setDate('2030-05-31');
+    ok(labels().includes('Monthly on the last day') && labels().includes('Monthly on the 31st'), 'repeat: last-day preset appears on the last day of the month');
+    pick('monthly-last'); setDate('2030-05-30');
+    ok($('#tf-recur').value === 'custom' && !$('#tf-recur-custom').hidden && $('#tf-r-preview').textContent === 'Monthly on the last day', 'repeat: a vanished preset turns into Custom with the same rule');
+    setDate(DUE); pick('');
+    $('#tf-title').value = 'Rep: none'; await save();
+    ok(find('Rep: none').recurrence === null, 'repeat: Does not repeat saves null');
+
+    // --- presets save the rule
+    await open(null, { dueDate: DUE });
+    pick('weekdays'); $('#tf-title').value = 'Rep: weekdays'; await save();
+    const rw = find('Rep: weekdays').recurrence;
+    ok(rw.unit === 'week' && rw.weekdays.join() === '1,2,3,4,5' && rw.every === 1, 'repeat: Every weekday preset saves weekdays 1-5');
+    await open(null, { dueDate: DUE });
+    pick('biweekly'); $('#tf-title').value = 'Rep: biweekly'; await save();
+    const rb = find('Rep: biweekly').recurrence;
+    ok(rb.every === 2 && rb.weekdays.join() === '3', 'repeat: every 2 weeks preset uses the weekday of the due date');
+    await open(find('Rep: biweekly'));
+    ok($('#tf-recur').value === 'biweekly' && $('#tf-recur-custom').hidden, 'repeat: reopening selects the matching preset');
+    T4.ui.closeModal();
+
+    // --- Custom: weekdays + interval
+    await open(null, { dueDate: DUE });
+    pick('custom');
+    ok(!$('#tf-recur-custom').hidden && $('#tf-r-unit').value === 'week' && $('#tf-r-every').value === '1', 'custom: panel opens (weekly, every 1)');
+    ok(days() === 'Wed' && !$('#tf-r-week').hidden && $('#tf-r-month').hidden, 'custom: weekday toggles default to the weekday of the due date');
+    ok($$('#tf-r-week [data-wd]').map((b) => b.textContent).join() === 'Mon,Tue,Wed,Thu,Fri,Sat,Sun', 'custom: weekday toggles run Monday to Sunday');
+    $('#tf-r-every').value = '2'; fire($('#tf-r-every'), 'input');
+    click('#tf-r-week [data-wd="1"]');
+    ok(days() === 'Mon,Wed' && $('#tf-r-week [data-wd="1"]').getAttribute('aria-pressed') === 'true', 'custom: clicking a weekday toggles aria-pressed');
+    ok($('#tf-r-preview').textContent === 'Every 2 weeks on Mon, Wed', 'custom: live preview: ' + $('#tf-r-preview').textContent);
+    click('#tf-r-week [data-wd="1"]'); click('#tf-r-week [data-wd="3"]');
+    ok(days() === 'Wed', 'custom: the last weekday cannot be switched off');
+    click('#tf-r-week [data-wd="1"]');
+    $('#tf-title').value = 'Rep: custom week'; await save();
+    const rc = find('Rep: custom week').recurrence;
+    ok(rc.unit === 'week' && rc.every === 2 && rc.weekdays.join() === '1,3' && rc.from === 'due', 'custom: saved rule {week, every 2, Mon+Wed}: ' + JSON.stringify(rc));
+    await open(find('Rep: custom week'));
+    ok($('#tf-recur').value === 'custom' && days() === 'Mon,Wed' && $('#tf-r-every').value === '2' && $('#tf-r-preview').textContent === 'Every 2 weeks on Mon, Wed', 'custom: reopening shows Custom with prefilled controls');
+    T4.ui.closeModal();
+
+    // --- Custom: months and day, years, days, after completion
+    await open(null, { dueDate: DUE });
+    pick('custom'); $('#tf-r-unit').value = 'month'; fire($('#tf-r-unit'));
+    ok(!$('#tf-r-month').hidden && $('#tf-r-week').hidden && $('#tf-r-monthday').value === '15', 'custom: months show "On day", default = day of the due date');
+    $('#tf-r-monthday').value = '-1'; fire($('#tf-r-monthday'));
+    ok($('#tf-r-preview').textContent === 'Monthly on the last day', 'custom: last day preview');
+    $('#tf-r-monthday').value = '31'; fire($('#tf-r-monthday'));
+    $('#tf-r-every').value = '3'; fire($('#tf-r-every'), 'input');
+    $('#tf-r-done').checked = true; fire($('#tf-r-done'));
+    ok($('#tf-r-preview').textContent === 'Every 3 months on the 31st after completion', 'custom: preview with interval, day and completion: ' + $('#tf-r-preview').textContent);
+    $('#tf-title').value = 'Rep: custom month'; await save();
+    const rm = find('Rep: custom month').recurrence;
+    ok(rm.unit === 'month' && rm.every === 3 && rm.monthDay === 31 && rm.from === 'done', 'custom: saved month rule with from:done: ' + JSON.stringify(rm));
+    await open(find('Rep: custom month'));
+    ok($('#tf-recur').value === 'custom' && $('#tf-r-done').checked && $('#tf-r-monthday').value === '31', 'custom: month rule reopens as Custom');
+    $('#tf-r-unit').value = 'day'; fire($('#tf-r-unit'));
+    ok($('#tf-r-week').hidden && $('#tf-r-month').hidden && $('#tf-r-preview').textContent === 'Every 3 days after completion', 'custom: days hide the weekday and month controls');
+    $('#tf-r-every').value = '500'; fire($('#tf-r-every'), 'input'); fire($('#tf-r-every'));
+    ok($('#tf-r-every').value === '99', 'custom: interval is clamped to 99');
+    $('#tf-r-unit').value = 'year'; fire($('#tf-r-unit'));
+    ok($('#tf-r-preview').textContent === 'Every 99 years after completion', 'custom: years preview');
+    T4.ui.closeModal();
+
+    // --- selecting Custom from a preset starts from that preset
+    await open(null, { dueDate: DUE });
+    pick('weekdays'); pick('custom');
+    ok(days() === 'Mon,Tue,Wed,Thu,Fri' && $('#tf-r-preview').textContent === 'Every weekday', 'custom: starts from the previously selected preset');
+    T4.ui.closeModal();
+
+    // --- legacy and non-preset rules
+    const lw = T4.store.addTask({ title: 'Rep: legacy weekly', dueDate: DUE, recurrence: 'weekly' });
+    await open(T4.store.getTask(lw.id));
+    ok($('#tf-recur').value === 'weekly' && $('#tf-recur').selectedOptions[0].textContent === 'Weekly on Wednesday', 'legacy "weekly" selects "Weekly on <weekday of the due date>"');
+    T4.ui.closeModal();
+    const lm = T4.store.addTask({ title: 'Rep: legacy monthly', dueDate: DUE, recurrence: 'monthly' });
+    await open(T4.store.getTask(lm.id));
+    ok($('#tf-recur').value === 'monthly' && $('#tf-recur').selectedOptions[0].textContent === 'Monthly on the 15th', 'legacy "monthly" selects "Monthly on the <day>"');
+    $('#tf-title').value = 'Rep: legacy monthly 2'; await save();
+    const lmr = T4.store.getTask(lm.id).recurrence;
+    ok(lmr.unit === 'month' && lmr.monthDay === 15 && lmr.every === 1, 'legacy monthly is saved as an explicit rule');
+    const ld = T4.store.addTask({ title: 'Rep: legacy daily', dueDate: DUE, recurrence: 'daily' });
+    await open(T4.store.getTask(ld.id));
+    ok($('#tf-recur').value === 'daily', 'legacy "daily" selects Daily');
+    T4.ui.closeModal();
+    const dn = T4.store.addTask({ title: 'Rep: daily after done', dueDate: DUE, recurrence: { unit: 'day', every: 1, from: 'done' } });
+    await open(T4.store.getTask(dn.id));
+    ok($('#tf-recur').value === 'custom' && $('#tf-r-done').checked, 'a preset-like rule counted from completion opens as Custom');
+    T4.ui.closeModal();
+    const ev = T4.store.addTask({ title: 'Rep: monthly other day', dueDate: DUE, recurrence: { unit: 'month', every: 1, monthDay: 3 } });
+    await open(T4.store.getTask(ev.id));
+    ok($('#tf-recur').value === 'custom' && $('#tf-r-monthday').value === '3', 'monthly on a different day than the due date opens as Custom');
+    T4.ui.closeModal();
+
+    // --- keyboard / a11y
+    await open(null, { dueDate: DUE });
+    pick('custom');
+    ok(!!$('label[for=tf-recur]') && !!$('label[for=tf-r-every]') && $('#tf-r-unit').getAttribute('aria-label') && $$('#tf-r-week button').every((b) => b.type === 'button' && b.hasAttribute('aria-pressed') && b.getAttribute('aria-label')), 'a11y: labelled controls, weekday toggles are real buttons with aria-pressed');
+    ok($('#tf-r-preview').getAttribute('aria-live') === 'polite', 'a11y: preview is a live region');
+    T4.ui.closeModal();
+
+    // --- no due date: recurrence sets one
+    const today = U.today();
+    await open(null, {}); $('#tf-date').value = ''; fire($('#tf-date'));
+    $('#tf-title').value = 'Rep: no date daily'; pick('daily'); await save();
+    ok(find('Rep: no date daily').dueDate === today, 'no due date + Daily: due today');
+    await open(null, {}); $('#tf-date').value = ''; fire($('#tf-date'));
+    pick('custom'); $('#tf-r-unit').value = 'week'; fire($('#tf-r-unit'));
+    const target = (dowOf(today) + 2) % 7;
+    click('#tf-r-week [data-wd="' + target + '"]');
+    click('#tf-r-week [data-wd="' + dowOf(today) + '"]');
+    $('#tf-title').value = 'Rep: no date weekday'; await save();
+    const nd = find('Rep: no date weekday').dueDate;
+    ok(nd === U.addDays(today, 2) && dowOf(nd) === target, 'no due date + weekly on a weekday: first matching day >= today (' + nd + ')');
+    await open(null, {}); $('#tf-date').value = ''; fire($('#tf-date'));
+    pick('custom'); $('#tf-r-unit').value = 'month'; fire($('#tf-r-unit'));
+    $('#tf-r-monthday').value = '-1'; fire($('#tf-r-monthday'));
+    $('#tf-title').value = 'Rep: no date last day'; await save();
+    const td = U.parseDate(today), lastDay = U.toDateStr(new Date(td.getFullYear(), td.getMonth() + 1, 0));
+    ok(find('Rep: no date last day').dueDate === lastDay, 'no due date + monthly on the last day: due ' + lastDay);
+
+    S().tasks.filter((x) => x.title.startsWith('Rep:')).forEach((x) => T4.store.deleteTask(x.id));
   `);
 
   await run('delete', `
