@@ -615,7 +615,7 @@ export default async function (b) {
   await run('themes', `
     const TH = T4.themes, R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
     const ids = TH.list().map(d => d.id);
-    ok(ids.includes('classic') && ids.includes('demo'), 'themes: registry lists classic + demo');
+    ok(['classic','tokio','development','office','aubergine','fjord','paper'].every(x => ids.includes(x)) && !ids.includes('demo'), 'themes: registry lists classic + the six designs');
     ok(TH.get('nope').id === 'classic', 'themes: unknown design falls back to classic');
     const cl = TH.list().find(d => d.id === 'classic');
     ok(cl.modes.length === 2 && cl.preview.bg && cl.preview.sidebar && cl.preview.accent, 'themes: list() entries carry modes and preview');
@@ -626,15 +626,16 @@ export default async function (b) {
     ok(getComputedStyle(document.body).fontSize === '14.5px' && cs('--space') === '1', 'themes: classic body size / spacing unchanged');
     T4.store.updateSettings({ theme: 'dark' }); T4.settings.applyAppearance();
     ok(R.dataset.theme === 'dark' && cs('--bg') === '#0e0f12', 'themes: classic dark tokens unchanged');
-    T4.store.updateSettings({ design: 'demo' }); T4.settings.applyAppearance();
-    ok(R.dataset.design === 'demo' && cs('--bg') === '#0b1316' && cs('--sidebar-bg') === '#07100f', 'themes: design CSS block applies');
+    T4.store.updateSettings({ design: 'tokio' }); T4.settings.applyAppearance();
+    ok(R.dataset.design === 'tokio' && cs('--bg') === '#0a0920' && cs('--sidebar-bg') === '#070618', 'themes: design CSS block applies');
     T4.store.updateSettings({ theme: 'light' }); T4.settings.applyAppearance();
     ok(R.dataset.theme === 'dark' && TH.resolveMode(T4.store.settings) === 'dark', 'themes: dark-only design forces dark');
-    ok(getComputedStyle($('.sidebar')).backgroundColor === 'rgb(7, 16, 15)', 'themes: sidebar uses --sidebar-bg');
+    ok(getComputedStyle($('.sidebar')).backgroundColor === 'rgb(7, 6, 24)', 'themes: sidebar uses --sidebar-bg');
     ok(cs('--accent') === '#5b5bd6', 'themes: accentSource custom keeps the custom accent');
     T4.store.updateSettings({ accentSource: 'design' }); T4.settings.applyAppearance();
-    ok(cs('--accent') === '#2dd4bf', 'themes: accentSource design uses the design accent');
-    ok(cs('--radius') === '3px' && /Mono|monospace/i.test(cs('--font')) && /sans-serif/.test(cs('--heading-font')), 'themes: design radius / font / heading font');
+    ok(cs('--accent') === '#ff4fc3', 'themes: accentSource design uses the design accent');
+    T4.store.updateSettings({ design: 'development' }); T4.settings.applyAppearance();
+    ok(cs('--radius') === '3px' && /Mono|monospace/i.test(cs('--heading-font')) && /sans-serif/.test(cs('--font')), 'themes: design radius / font / heading font');
     T4.store.updateSettings({ radius: 'round', font: 'serif' }); T4.settings.applyAppearance();
     ok(cs('--radius') === '16px' && /serif/.test(cs('--font')) && cs('--heading-font') === cs('--font'), 'themes: radius / font overrides beat the design');
     T4.store.updateSettings({ design: 'classic', theme: 'light', radius: 'sharp', font: 'mono', density: 'compact', fontScale: 120 }); T4.settings.applyAppearance();
@@ -643,6 +644,74 @@ export default async function (b) {
     T4.store.updateSettings({ design: 'classic', theme: 'light', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100 }); T4.settings.applyAppearance();
     ok(getComputedStyle(document.body).fontSize === '14.5px' && cs('--radius') === '10px', 'themes: back to defaults');
   `);
+
+  await run('designs', `
+    const TH = T4.themes, R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+    const probe = document.createElement('span'); document.body.appendChild(probe);
+    // resolve any CSS color (incl. var()/color-mix()) to [r,g,b] composited over an opaque backdrop
+    const rgb = (token, over) => {
+      probe.style.color = ''; probe.style.color = 'var(' + token + ')';
+      const c = getComputedStyle(probe).color;
+      cx.clearRect(0, 0, 1, 1); cx.fillStyle = over || '#000'; cx.fillRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1);
+      const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]];
+    };
+    const lum = (c) => { const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    const hex = (c) => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+    const ids = ['tokio', 'development', 'office', 'aubergine', 'fjord', 'paper'];
+    const listed = TH.list().map(d => d.id);
+    ok(ids.every(i => listed.includes(i)), 'designs: all 6 registered');
+    ok(TH.list().every(d => d.id === 'classic' || (d.name && d.tagline && d.modes.length && d.preview.bg && d.preview.sidebar && d.preview.accent)), 'designs: every design has name, tagline, modes, preview');
+    ok(['tokio', 'aubergine'].every(i => TH.get(i).modes.length === 1) && ['development', 'office', 'fjord', 'paper'].every(i => TH.get(i).modes.length === 2), 'designs: mode lists as specified');
+    const report = [];
+    for (const id of ids) {
+      for (const mode of ['light', 'dark']) {
+        T4.store.updateSettings({ design: id, theme: mode, accentSource: 'design', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100 }); T4.settings.applyAppearance();
+        const eff = TH.get(id).modes.includes(mode) ? mode : TH.get(id).modes[0];
+        ok(R.dataset.design === id && R.dataset.theme === eff, 'designs: ' + id + '/' + mode + ' sets data-design and ' + (eff === mode ? 'the mode' : 'the forced mode ' + eff));
+        if (eff !== mode) continue;
+        ok(getComputedStyle(R).colorScheme === eff, 'designs: ' + id + '/' + mode + ' color-scheme matches the mode');
+        const bg = rgb('--bg'), sf = rgb('--surface'), sb = rgb('--sidebar-bg'), ac = rgb('--accent');
+        const sbAct = rgb('--sidebar-active', hex(sb));
+        const pairs = {
+          'text/bg': ratio(rgb('--text'), bg), 'text/surface': ratio(rgb('--text'), sf), 'text-2/surface': ratio(rgb('--text-2'), sf),
+          'muted/surface': ratio(rgb('--muted'), sf), 'muted/bg': ratio(rgb('--muted'), bg),
+          'sidebar-text/sidebar': ratio(rgb('--sidebar-text'), sb), 'sidebar-strong/sidebar': ratio(rgb('--sidebar-text-strong'), sb), 'sidebar-muted/sidebar': ratio(rgb('--sidebar-muted'), sb),
+          'sidebar-active-text/active': ratio(rgb('--sidebar-active-text'), sbAct),
+          'accent-fg/accent': ratio(rgb('--accent-fg'), ac), 'accent-text/surface': ratio(rgb('--accent-text'), sf),
+          'toast-fg/toast-bg': ratio(rgb('--toast-fg'), rgb('--toast-bg')),
+        };
+        const low = Object.keys(pairs).filter(k => pairs[k] < 4.5).map(k => k + '=' + pairs[k].toFixed(2));
+        ok(!low.length, 'designs: ' + id + '/' + mode + ' text contrast >= 4.5 ' + (low.length ? '(' + low.join(', ') + ')' : ''));
+        const ui = { 'accent/surface': ratio(ac, sf), 'focus-ring/surface': ratio(rgb('--focus-ring'), sf), 'border-strong/surface': ratio(rgb('--border-strong'), sf) };
+        const lowUi = ['accent/surface', 'focus-ring/surface'].filter(k => ui[k] < 3).map(k => k + '=' + ui[k].toFixed(2));
+        ok(!lowUi.length, 'designs: ' + id + '/' + mode + ' accent and focus ring >= 3:1 on surface ' + (lowUi.length ? '(' + lowUi.join(', ') + ')' : ''));
+        const pr = ['--p-critical', '--p-high', '--p-medium', '--p-low'].map(t => rgb(t));
+        const lowP = pr.map((c, i) => ratio(c, sf)).filter(r => r < 3);
+        let minD = 999; for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) minD = Math.min(minD, Math.hypot(pr[i][0] - pr[j][0], pr[i][1] - pr[j][1], pr[i][2] - pr[j][2]));
+        ok(minD >= 60 && !lowP.length, 'designs: ' + id + '/' + mode + ' priority colors distinct (min distance ' + minD.toFixed(0) + ') and >= 3:1 on surface');
+        report.push(id + '/' + mode + ' min text ' + Math.min.apply(null, Object.values(pairs)).toFixed(2) + ' (' + Object.keys(pairs).reduce((a, k) => pairs[k] < pairs[a] ? k : a) + ')');
+      }
+    }
+    window.__designReport = report;
+    // sidebar of Aubergine stays dark in a light work area
+    T4.store.updateSettings({ design: 'aubergine', theme: 'light' }); T4.settings.applyAppearance();
+    ok(lum(rgb('--sidebar-bg')) < .06 && lum(rgb('--bg')) > .85, 'designs: aubergine has a dark sidebar next to a light work area');
+    // Development: mono headings, sharp corners
+    T4.store.updateSettings({ design: 'development', theme: 'dark' }); T4.settings.applyAppearance();
+    ok(/monospace/.test(cs('--heading-font')) && cs('--radius') === '3px', 'designs: development uses mono headings and sharp corners');
+    // Paper: serif body
+    T4.store.updateSettings({ design: 'paper', theme: 'light' }); T4.settings.applyAppearance();
+    ok(/serif/.test(getComputedStyle(document.body).fontFamily), 'designs: paper uses a serif body font');
+    // accent follows the mode of a two-mode design
+    T4.store.updateSettings({ design: 'fjord', theme: 'light' }); T4.settings.applyAppearance(); const aL = cs('--accent');
+    T4.store.updateSettings({ theme: 'dark' }); T4.settings.applyAppearance();
+    ok(aL === '#2f7aa6' && cs('--accent') === '#88c0d0', 'designs: per-mode default accent');
+    probe.remove();
+    T4.store.updateSettings({ design: 'classic', theme: 'light', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100 }); T4.settings.applyAppearance();
+  `);
+  console.log('designs contrast report:', JSON.stringify(await b.evaluate('window.__designReport || []')));
 
   await run('export-import', `
     const json = T4.storage.exportJSON(S());

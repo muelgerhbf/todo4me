@@ -131,11 +131,36 @@ T4.themes = (function () {
     preview: { light: { bg: '#f6f6f8', surface: '#ffffff', sidebar: '#ffffff', text: '#17171c', accent: DEFAULT_ACCENT }, dark: { bg: '#0e0f12', surface: '#16171b', sidebar: '#16171b', text: '#ececf0', accent: DEFAULT_ACCENT } },
   });
 
-  /* Sample design proving the engine (agent 2 replaces it with the real designs). CSS: css/themes.css */
+  /* The designs. Palettes live in css/themes.css. */
   register({
-    id: 'demo', name: 'Demo', tagline: 'Engine sample: dark teal with a dark sidebar.', modes: ['dark'], accent: '#2dd4bf',
-    font: 'mono', headingFont: 'system', radius: 'sharp',
-    preview: { bg: '#0b1316', surface: '#122026', sidebar: '#07100f', text: '#e6f4f1', accent: '#2dd4bf' },
+    id: 'tokio', name: 'Tokio', tagline: 'Neon night city: deep indigo, hot magenta and glowing cyan.', modes: ['dark'], accent: '#ff4fc3',
+    font: 'system', headingFont: 'rounded', radius: 'soft',
+    preview: { bg: '#0a0920', surface: '#131135', sidebar: '#070618', text: '#eeecff', accent: '#ff4fc3' },
+  });
+  register({
+    id: 'development', name: 'Development', tagline: 'A code editor for your tasks: graphite, syntax colors and monospace headings.', modes: ['dark', 'light'],
+    accent: { dark: '#61afef', light: '#1f6fd0' }, font: 'system', headingFont: 'mono', radius: 'sharp',
+    preview: { dark: { bg: '#16181c', surface: '#1d2025', sidebar: '#111317', text: '#d7dce4', accent: '#61afef' }, light: { bg: '#f3f4f6', surface: '#ffffff', sidebar: '#eceef2', text: '#1f2430', accent: '#1f6fd0' } },
+  });
+  register({
+    id: 'office', name: 'Office', tagline: 'Crisp and businesslike: white, cool gray and a clear blue.', modes: ['light', 'dark'],
+    accent: { light: '#0b63ce', dark: '#4c9aff' }, font: 'system', radius: { sm: 3, md: 5, lg: 8 },
+    preview: { light: { bg: '#eef1f5', surface: '#ffffff', sidebar: '#ffffff', text: '#0f1724', accent: '#0b63ce' }, dark: { bg: '#0f141b', surface: '#171e28', sidebar: '#0b1017', text: '#f0f4f9', accent: '#4c9aff' } },
+  });
+  register({
+    id: 'aubergine', name: 'Aubergine', tagline: 'Workspace feel: a deep aubergine sidebar next to a warm, bright work area.', modes: ['light'], accent: '#c2410c',
+    font: 'system', radius: { sm: 5, md: 8, lg: 12 },
+    preview: { bg: '#faf6f0', surface: '#fffdf9', sidebar: '#3f0e40', text: '#2a1a2e', accent: '#c2410c' },
+  });
+  register({
+    id: 'fjord', name: 'Fjord', tagline: 'Nordic calm in ice blue, gray-blue and frost.', modes: ['light', 'dark'],
+    accent: { light: '#2f7aa6', dark: '#88c0d0' }, font: 'system', radius: 'round',
+    preview: { light: { bg: '#eaf1f6', surface: '#f9fcfd', sidebar: '#dfeaf2', text: '#1d2c3a', accent: '#2f7aa6' }, dark: { bg: '#19222d', surface: '#212c39', sidebar: '#151d27', text: '#e6eef5', accent: '#88c0d0' } },
+  });
+  register({
+    id: 'paper', name: 'Paper', tagline: 'Warm sepia paper and a serif voice, with a night-reading variant.', modes: ['light', 'dark'],
+    accent: { light: '#8f4a1f', dark: '#d9a05b' }, font: 'serif', radius: { sm: 2, md: 4, lg: 6 },
+    preview: { light: { bg: '#efe5d0', surface: '#f9f3e5', sidebar: '#e9dec6', text: '#33291d', accent: '#8f4a1f' }, dark: { bg: '#1b1610', surface: '#241e15', sidebar: '#15110c', text: '#e8dcc2', accent: '#d9a05b' } },
   });
 
   return { FONTS, RADII, register, get, list, apply, resolveMode, resolveAccent, tokens };
