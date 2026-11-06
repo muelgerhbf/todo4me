@@ -267,7 +267,7 @@ T4.settings = (function () {
     return '<button type="button" class="dcard' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" data-action="set-design" data-value="' + esc(d.id) + '" data-id="' + esc(d.id) + '">' +
       '<span class="dcard__pv" style="' + vars + '" aria-hidden="true"><i class="pv-side"></i><span class="pv-main"><b class="pv-bar"></b><span class="pv-card"><i class="pv-line"></i><i class="pv-line pv-line--s"></i><i class="pv-dot"></i></span></span></span>' +
       '<span class="dcard__name">' + esc(d.name) + '<span class="dcard__check">' + icon('check') + '</span></span>' +
-      '<span class="dcard__tag">' + esc(d.tagline) + '</span><span class="dcard__modes">' + badges + '</span></button>';
+      '<span class="dcard__tag">' + esc(T4.i18n && T4.i18n.has('design.' + d.id + '.tagline') ? T4.i18n.t('design.' + d.id + '.tagline') : d.tagline) + '</span><span class="dcard__modes">' + badges + '</span></button>';
   }
 
   function appearanceSection() {

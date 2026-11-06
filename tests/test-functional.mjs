@@ -1093,6 +1093,17 @@ export default async function (b) {
     ok($('.hero__title').textContent.startsWith('Good'), 'switch back to English');
   `);
   // i18n phase 3: app texts in de / tr / es
+  await run('design-taglines-i18n', `
+    for (const lang of ['de', 'tr', 'es']) {
+      T4.i18n.setLanguage(lang); location.hash = '#/settings'; await wait(250);
+      const tags = $$('.dcard__tag').map(e => e.textContent);
+      const en = T4.themes.list().map(d => d.tagline);
+      ok(tags.length === en.length && tags.every((t, i) => t && t !== en[i]), 'design gallery taglines translated (' + lang + '): ' + tags[1]);
+    }
+    T4.i18n.setLanguage('en'); await wait(150);
+    ok($$('.dcard__tag')[1].textContent === T4.themes.get('tokio').tagline, 'design gallery taglines in English again');
+    location.hash = '#/dashboard'; await wait(100);
+  `);
   await run('i18n-app', `
     const I = T4.i18n, U = T4.util;
     const LANGS = ['de', 'tr', 'es'];

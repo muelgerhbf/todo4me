@@ -1080,4 +1080,12 @@ T4.i18n.add('tr', {
   'set.scSave': 'Açık formu kaydet',
   'set.scClose': 'İletişim kutusunu kapat / odak modundan çık',
   'set.syntax': 'Hızlı ekleme sözdizimi: <code>!1</code>–<code>!4</code> öncelik (kritik → düşük), <code>#iş</code> kategori (eşleşen kategori yoksa etiket), <code>@today</code>, <code>@tomorrow</code>, <code>@fri</code>, <code>@2026-12-24</code> son tarih.',
+  // Design gallery taglines (js/themes.js)
+  'design.classic.tagline': 'Todo4Me’nin özgün görünümü.',
+  'design.tokio.tagline': 'Neon gece şehri: koyu çivit, canlı macenta ve parlayan camgöbeği.',
+  'design.development.tagline': 'Görevlerin için bir kod düzenleyici: grafit, sözdizimi renkleri ve eş aralıklı başlıklar.',
+  'design.office.tagline': 'Net ve profesyonel: beyaz, soğuk gri ve berrak bir mavi.',
+  'design.aubergine.tagline': 'Çalışma alanı hissi: sıcak, aydınlık bir çalışma alanının yanında koyu patlıcan moru bir kenar çubuğu.',
+  'design.fjord.tagline': 'Buz mavisi, gri mavi ve kırağı tonlarında İskandinav sakinliği.',
+  'design.paper.tagline': 'Sıcak sepya kâğıt ve tırnaklı bir yazı tipi; gece okuma seçeneğiyle.',
 });
