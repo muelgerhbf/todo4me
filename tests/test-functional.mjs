@@ -1033,7 +1033,147 @@ export default async function (b) {
     ok(T4.store.data.tasks.length >= 10 && T4.store.data.notes.length === 3, 'sample data loads');
   `);
   const res2 = await b.evaluate('window.__r');
-  const all = res0.concat(res1, res2);
+  await b.evaluate('window.__r = []'); // the settings-appearance block below collects its own results (it reloads once)
+  await run('settings-appearance', `
+    const TH = T4.themes, R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
+    const st = () => T4.store.settings;
+    TH.register({ id: 'nightonly', name: 'Night Only', tagline: 'Test design', modes: ['dark'], accent: '#ff8800', preview: { bg: '#000', surface: '#111', sidebar: '#050505', text: '#eee', accent: '#ff8800' } });
+    T4.store.updateSettings({ design: 'classic', theme: 'light', accentSource: 'custom', accent: '#5b5bd6', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100, nav: { hidden: [], order: [] } });
+    T4.i18n.setLanguage('en');
+    T4.settings.applyAppearance();
+    await go('settings'); await wait(60);
+    const sec = $('#set-appearance');
+    ok(!!sec && sec.querySelector('h2').textContent.trim() === 'Appearance & customization', 'appearance: section at the top, English title');
+    ok($$('.card__title', $('.settings')).filter(h => h.textContent.trim() === 'Appearance').length === 0, 'appearance: old small Appearance block is gone');
+    // --- gallery
+    const cards = () => $$('.dgallery [role=radio]');
+    ok($('.dgallery').getAttribute('role') === 'radiogroup' && cards().length === TH.list().length && cards().length >= 3, 'appearance: gallery lists every registered design (' + cards().length + ')');
+    ok(cards().every(c => c.querySelector('.dcard__pv') && c.querySelector('.dcard__name').textContent.trim() && c.querySelector('.badge-mode')), 'appearance: cards have preview, name, mode badges');
+    ok(cards().filter(c => c.getAttribute('aria-checked') === 'true').length === 1 && $('.dcard[data-value=classic]').classList.contains('is-on'), 'appearance: exactly one selected card (classic)');
+    click('.dcard[data-value=demo]'); await wait(60);
+    ok(st().design === 'demo' && R.dataset.design === 'demo' && cs('--bg') === '#0b1316', 'appearance: click on a card applies the design live');
+    ok($('.dcard[data-value=demo]').getAttribute('aria-checked') === 'true' && $('.dcard[data-value=classic]').getAttribute('aria-checked') === 'false', 'appearance: selection moves to the clicked card');
+    $('.dcard[data-value=demo]').focus();
+    $('.dcard[data-value=demo]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(60);
+    ok(st().design === 'classic' && document.activeElement === $('.dcard[data-value=classic]'), 'appearance: arrow key selects the neighbouring design and keeps focus');
+    ok($('.dcard[data-value=classic]').tabIndex === 0 && $('.dcard[data-value=demo]').tabIndex === -1, 'appearance: roving tabindex');
+    // --- mode
+    const modeBtn = (v) => $('[data-action=set-theme][data-value=' + v + ']');
+    ok(!modeBtn('light').disabled && !modeBtn('dark').disabled && !modeBtn('system').disabled && !$('#mode-hint'), 'appearance: classic supports every mode');
+    click(modeBtn('dark')); await wait(40);
+    ok(st().theme === 'dark' && R.dataset.theme === 'dark' && modeBtn('dark').getAttribute('aria-checked') === 'true', 'appearance: mode dark');
+    click(modeBtn('system')); await wait(40);
+    ok(st().theme === 'system', 'appearance: mode system');
+    click(modeBtn('light')); await wait(40);
+    ok(st().theme === 'light' && R.dataset.theme === 'light', 'appearance: mode light');
+    click('.dcard[data-value=nightonly]'); await wait(60);
+    ok(modeBtn('light').disabled && modeBtn('system').disabled && !modeBtn('dark').disabled && modeBtn('dark').getAttribute('aria-checked') === 'true', 'appearance: single-mode design disables unsupported modes');
+    ok(/Night Only is dark only/.test($('#mode-hint').textContent) && R.dataset.theme === 'dark', 'appearance: hint explains the single mode: ' + ($('#mode-hint') || {}).textContent);
+    modeBtn('light').click(); await wait(40);
+    ok(st().theme === 'light' && R.dataset.theme === 'dark', 'appearance: clicking a disabled mode does nothing (theme still forced dark)');
+    click('.dcard[data-value=classic]'); await wait(60);
+    ok(!modeBtn('light').disabled && modeBtn('light').getAttribute('aria-checked') === 'true', 'appearance: back on classic all modes are enabled again');
+    // --- accent
+    click('[data-action=set-accent][data-value="#d6409f"]'); await wait(40);
+    ok(st().accent === '#d6409f' && st().accentSource === 'custom' && cs('--accent') === '#d6409f' && $('[data-action=set-accent][data-value="#d6409f"]').getAttribute('aria-checked') === 'true', 'appearance: swatch sets a custom accent');
+    click('.dcard[data-value=demo]'); await wait(60);
+    click('[data-action=set-accent-design]'); await wait(40);
+    ok(st().accentSource === 'design' && cs('--accent') === '#2dd4bf' && $('[data-action=set-accent-design]').getAttribute('aria-pressed') === 'true', 'appearance: "use design accent" follows the design');
+    ok($$('.swatch.is-on').length === 0, 'appearance: no swatch selected while the design accent is used');
+    const cc = $('#set-accent-custom'); cc.value = '#123456'; cc.dispatchEvent(new Event('input', { bubbles: true })); await wait(30);
+    ok(cs('--accent') === '#123456' && st().accentSource === 'design', 'appearance: custom color previews live without saving');
+    cc.dispatchEvent(new Event('change', { bubbles: true })); await wait(40);
+    ok(st().accent === '#123456' && st().accentSource === 'custom' && cs('--accent') === '#123456', 'appearance: custom color saved on change');
+    click('.dcard[data-value=classic]'); await wait(60);
+    // --- font / corners / density
+    click('[data-action=set-font][data-value=serif]'); await wait(40);
+    ok(st().font === 'serif' && /serif/.test(cs('--font')) && $('[data-action=set-font][data-value=serif]').getAttribute('aria-checked') === 'true', 'appearance: font');
+    ok(/Georgia|Palatino/.test($('[data-action=set-font][data-value=serif]').style.fontFamily) && $$('[data-rg=font] [role=radio]').length === 1 + Object.keys(TH.FONTS).length, 'appearance: font labels rendered in their own font, design default + all fonts');
+    click('[data-action=set-font][data-value=design]'); await wait(40);
+    ok(st().font === 'design' && /Inter/.test(cs('--font')), 'appearance: font back to design default');
+    click('[data-action=set-radius][data-value=sharp]'); await wait(40);
+    ok(st().radius === 'sharp' && cs('--radius') === '3px', 'appearance: corners sharp');
+    click('[data-action=set-radius][data-value=round]'); await wait(40);
+    ok(st().radius === 'round' && cs('--radius') === '16px' && $$('[data-rg=radius] .rpv').length === 4, 'appearance: corners round (+ visual)');
+    click('[data-action=set-density][data-value=compact]'); await wait(40);
+    ok(st().density === 'compact' && R.dataset.density === 'compact', 'appearance: density compact');
+    click('[data-action=set-density][data-value=comfortable]'); await wait(40);
+    ok(R.dataset.density === 'comfortable', 'appearance: density comfortable');
+    // --- text size: live while dragging, one save, no toast
+    const sc = $('#set-scale');
+    ok(sc.type === 'range' && sc.min === '85' && sc.max === '125' && $('#set-scale-out').textContent === '100 %', 'appearance: text size slider 85-125 with value display');
+    const toasts0 = $$('.toast').length;
+    sc.value = '115'; sc.dispatchEvent(new Event('input', { bubbles: true })); await wait(30);
+    ok(cs('--font-scale') === '1.15' && $('#set-scale-out').textContent === '115 %' && st().fontScale === 100 && $('#set-scale') === sc, 'appearance: slider previews live (not saved yet, element kept)');
+    sc.dispatchEvent(new Event('change', { bubbles: true })); await wait(50);
+    ok(st().fontScale === 115 && $('#set-scale-out').textContent === '115 %' && $$('.toast').length === toasts0, 'appearance: slider saved on release, no "Settings saved" toast');
+    // --- sidebar editor
+    const row = (id) => $('.nav-edit__row[data-nav-id=' + id + ']');
+    ok($$('.nav-edit__row').length === T4.nav.items().length && $$('.nav-edit__group').length >= 3, 'appearance: sidebar editor lists every view in groups (' + $$('.nav-edit__row').length + ')');
+    ok(row('dashboard').querySelector('input').disabled && row('settings').querySelector('input').disabled && /Always visible/.test(row('settings').textContent) && row('settings').querySelector('.nav-edit__up').disabled && row('settings').querySelector('.nav-edit__down').disabled, 'appearance: locked views are disabled with a hint');
+    const linksN = () => $$('#nav .nav__link').length;
+    const before = linksN();
+    $('input[data-change=nav-toggle][data-id=focus]').click(); await wait(60);
+    ok(T4.nav.isHidden('focus') && linksN() === before - 1 && row('focus').classList.contains('is-hidden') && !$('input[data-change=nav-toggle][data-id=focus]').checked, 'appearance: toggle hides the view from the sidebar');
+    $('input[data-change=nav-toggle][data-id=focus]').click(); await wait(60);
+    ok(!T4.nav.isHidden('focus') && linksN() === before, 'appearance: toggle shows it again');
+    const grp = $$('.nav-edit__group').find(g => g.querySelectorAll('.nav-edit__row').length >= 2 && !g.querySelector('.nav-edit__lock'));
+    const ids = () => $$('.nav-edit__row', grp).map(r => r.dataset.navId);
+    const o0 = ids();
+    ok(row(o0[0]).querySelector('.nav-edit__up').disabled && !row(o0[0]).querySelector('.nav-edit__down').disabled, 'appearance: first item cannot move up');
+    row(o0[0]).querySelector('.nav-edit__down').click(); await wait(60);
+    const o1 = $$('.nav-edit__row', $$('.nav-edit__group').find(g => g.querySelector('[data-nav-id=' + o0[0] + ']'))).map(r => r.dataset.navId);
+    const sideOrder = $$('#nav .nav__link').map(a => a.getAttribute('href').slice(2));
+    ok(o1[0] === o0[1] && o1[1] === o0[0] && sideOrder.indexOf(o0[1]) < sideOrder.indexOf(o0[0]) && document.activeElement.classList.contains('nav-edit__down'), 'appearance: down button reorders editor and sidebar, focus kept');
+    row(o0[0]).querySelector('.nav-edit__up').click(); await wait(60);
+    ok(T4.nav.items().filter(n => n.section === T4.nav.items().find(x => x.id === o0[0]).section).map(n => n.id)[0] === o0[0], 'appearance: up button moves back');
+    $('input[data-change=nav-toggle][data-id=stats]').click(); await wait(50);
+    row(o0[0]).querySelector('.nav-edit__down').click(); await wait(50);
+    click('[data-action=nav-reset]'); await wait(60);
+    ok(JSON.stringify(st().nav) === '{"hidden":[],"order":[]}' && linksN() === before, 'appearance: "Reset sidebar" restores default order and visibility');
+    // --- language
+    const lang = $('#set-language');
+    ok(lang.options.length === 5 && Array.from(lang.options).map(o => o.textContent).join() === 'Automatic (system),English,Deutsch,Türkçe,Español', 'appearance: language select lists native names + automatic');
+    lang.value = 'de'; lang.dispatchEvent(new Event('change', { bubbles: true })); await wait(80);
+    ok(st().language === 'de' && $('#set-appearance h2').textContent.trim() === 'Aussehen & Anpassung' && document.documentElement.lang === 'de' && $('#set-language').value === 'de', 'appearance: language switch applies immediately (section text in German)');
+    ok($('.dcard[data-value=classic] .badge-mode').textContent.trim() === 'Hell' && $('.nav-edit__lock').textContent.includes('Immer sichtbar'), 'appearance: mode badges and sidebar editor translated');
+    $('#set-language').value = 'tr'; $('#set-language').dispatchEvent(new Event('change', { bubbles: true })); await wait(80);
+    ok($('#set-appearance h2').textContent.trim() === 'Görünüm ve özelleştirme', 'appearance: Turkish');
+    $('#set-language').value = 'es'; $('#set-language').dispatchEvent(new Event('change', { bubbles: true })); await wait(80);
+    ok($('#set-appearance h2').textContent.trim() === 'Apariencia y personalización', 'appearance: Spanish');
+    $('#set-language').value = 'auto'; $('#set-language').dispatchEvent(new Event('change', { bubbles: true })); await wait(80);
+    ok(st().language === 'auto' && T4.i18n.preference() === 'auto', 'appearance: automatic language');
+    T4.i18n.setLanguage('en'); await wait(60);
+    ok($('#set-appearance h2').textContent.trim() === 'Appearance & customization', 'appearance: back to English');
+    // --- reset + undo
+    click('.dcard[data-value=demo]'); await wait(40);
+    click('[data-action=set-font][data-value=mono]'); click('[data-action=set-density][data-value=compact]'); await wait(40);
+    click('[data-action=set-accent][data-value="#0e7c86"]'); await wait(40);
+    const snap = JSON.stringify(['design', 'theme', 'accentSource', 'accent', 'font', 'radius', 'density', 'fontScale'].map(k => st()[k]));
+    click('[data-action=reset-appearance]'); await wait(40);
+    click('#confirm [data-confirm=no]'); await wait(60);
+    ok(st().design === 'demo', 'appearance: cancelling the confirmation keeps everything');
+    click('[data-action=reset-appearance]'); await confirmYes();
+    ok(st().design === 'classic' && st().theme === 'system' && st().accentSource === 'custom' && st().accent === '#5b5bd6' && st().font === 'design' && st().radius === 'design' && st().density === 'comfortable' && st().fontScale === 100 && R.dataset.design === 'classic', 'appearance: reset restores the defaults');
+    const undo = $$('.toast__action').find(b => b.textContent === 'Undo');
+    ok(!!undo, 'appearance: reset offers an Undo toast');
+    undo.click(); await wait(60);
+    ok(JSON.stringify(['design', 'theme', 'accentSource', 'accent', 'font', 'radius', 'density', 'fontScale'].map(k => st()[k])) === snap && R.dataset.design === 'demo', 'appearance: undo restores the previous appearance');
+    // state for the reload check
+    T4.store.updateSettings({ design: 'demo', accentSource: 'design', font: 'serif', radius: 'round', density: 'compact', fontScale: 110, nav: { hidden: ['focus'], order: [] } }); T4.settings.applyAppearance();
+  `);
+  const resA = await b.evaluate('window.__r'); // collect before the reload, which clears window.__r
+  await b.reload();
+  await run('settings-appearance-persist', `
+    const R = document.documentElement, cs = (p) => getComputedStyle(R).getPropertyValue(p).trim();
+    ok(R.dataset.design === 'demo' && R.dataset.density === 'compact' && cs('--radius') === '16px' && cs('--font-scale') === '1.1' && cs('--accent') === '#2dd4bf', 'appearance: design, density, corners, text size and accent persist across reload');
+    ok(T4.nav.isHidden('focus') && !$('#nav a[href="#/focus"]'), 'appearance: sidebar customization persists');
+    await go('settings');
+    ok($('.dcard[data-value=demo]').getAttribute('aria-checked') === 'true' && $('#set-scale').value === '110' && $('[data-action=set-font][data-value=serif]').getAttribute('aria-checked') === 'true', 'appearance: settings page reflects the persisted choices');
+    T4.store.updateSettings({ design: 'classic', accentSource: 'custom', font: 'design', radius: 'design', density: 'comfortable', fontScale: 100, nav: { hidden: [], order: [] } }); T4.settings.applyAppearance();
+  `);
+  const resB = await b.evaluate('window.__r');
+  const all = res0.concat(res1, res2, resA, resB);
   all.forEach((r) => console.log(r));
   console.log('\n' + all.filter((r) => r.startsWith('PASS')).length + ' passed, ' + all.filter((r) => r.startsWith('FAIL')).length + ' failed');
 }
