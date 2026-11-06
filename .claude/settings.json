@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(gh auth status:*)",
+      "Bash(node tests/:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/.credentials.json)",
+      "Read(~/AppData/Roaming/Todo4Me/**)",
+      "Edit(~/AppData/Roaming/Todo4Me/**)",
+      "Write(~/AppData/Roaming/Todo4Me/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.mjs\"" }
+        ]
+      }
+    ]
+  }
+}
