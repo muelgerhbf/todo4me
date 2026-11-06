@@ -68,8 +68,8 @@ Everything about the look lives in *Settings → Appearance & customization* and
 | ![Development design](docs/screenshots/designs/development-dark-editor.png) | ![Aubergine design](docs/screenshots/designs/aubergine-light-planner.png) |
 | **Fjord** (dark) | **Office** |
 | ![Fjord design, dark](docs/screenshots/designs/fjord-dark-dashboard.png) | ![Office design](docs/screenshots/designs/office-light-dashboard.png) |
-| **Türkçe** | **Settings → Appearance & customization** |
-| ![Todo4Me in Turkish](docs/screenshots/dashboard-turkish.png) | ![Appearance settings](docs/screenshots/settings-appearance-light.png) |
+|  |
+|  | ![Appearance settings](docs/screenshots/settings-appearance-light.png) |
 
 ### Light and dark
 
