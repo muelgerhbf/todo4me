@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('todo4meDesktop', {
   /** Tell the main process which language the UI uses ('en' | 'de' | 'tr' | 'es'); validated in main. */
   setLanguage: (lang) => ipcRenderer.invoke('i18n:set-language', String(lang == null ? '' : lang).slice(0, 8)),
 
-  /* ---------- Tray, start with Windows, global hotkey (machine settings, validated in main) ---------- */
+  /* ---------- Tray, start at login, global hotkey (machine settings, validated in main) ---------- */
   getDesktopSettings: () => ipcRenderer.invoke('desktop:get-settings'),
   setDesktopSettings: (patch) => {
     const p = {};
@@ -58,7 +58,7 @@ contextBridge.exposeInMainWorld('todo4meDesktop', {
   },
 
   /* ---------- Native notifications (reminders) ---------- */
-  /** Show a Windows notification: { id: 'task:<id>' | 'summary' | …, title, body, snooze }. Resolves { ok }. */
+  /** Show a system notification: { id: 'task:<id>' | 'summary' | …, title, body, snooze }. Resolves { ok }. */
   notify: (n) => ipcRenderer.invoke('notify:show', {
     id: String((n && n.id) || '').slice(0, 80),
     title: String((n && n.title) || '').slice(0, 200),

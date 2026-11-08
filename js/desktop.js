@@ -162,7 +162,7 @@
     desktop.onNotificationClick((id, action) => { if (T4.reminders) T4.reminders.handleClick(id, action); });
   }
 
-  /* ---------- Tray, start with Windows, global hotkey ---------- */
+  /* ---------- Tray, start at login, global hotkey ---------- */
   let dset = null; // state from the main process (desktop-settings.json)
   function backgroundSettingsHtml() {
     if (!dset) return '';
@@ -174,7 +174,7 @@
       '<div class="setting"><label for="set-tray">' + esc(tt('dk.keepTray')) +
         '<span class="setting__help">' + esc(tt('dk.keepTrayHelp')) + '</span></label>' +
         '<input id="set-tray" type="checkbox" data-change="desktop-setting" data-key="closeToTray"' + chk(dset.closeToTray) + '></div>' +
-      '<div class="setting"><label for="set-login">' + esc(tt('dk.autostart')) +
+      '<div class="setting"><label for="set-login">' + esc(tt(/Windows/.test(navigator.userAgent) ? 'dk.autostart' : 'dk.autostartGeneric')) +
         '<span class="setting__help">' + (dset.loginSupported ? esc(tt(dset.closeToTray ? 'dk.autostartHelp' : 'dk.autostartHelpNoTray')) : esc(dset.loginReason || tt('dk.notAvailable'))) + '</span></label>' +
         '<input id="set-login" type="checkbox" data-change="desktop-setting" data-key="openAtLogin"' + chk(dset.openAtLogin) + (dset.loginSupported ? '' : ' disabled') + '></div>' +
       '<h3 class="settings__subhead">' + esc(tt('dk.hotkeyHeading')) + '</h3>' +

@@ -34,12 +34,27 @@ const T = (key, params) => i18n.t(key, params);
 
 /* ---------- Stable data location ----------
  * All LocalStorage data lives in <userData>/Local Storage. Pin userData to
- * %APPDATA%\Todo4Me so that renaming, updating, or switching between the
+ * <appData>\Todo4Me (Windows: %APPDATA%\Todo4Me, Linux: ~/.config/Todo4Me) so that renaming, updating, or switching between the
  * installed and the portable build never "loses" data.
  * TODO4ME_USER_DATA lets tests run against an isolated folder.
  * A build may set "todo4meDataFolder" in its package.json (electron-builder
  * extraMetadata) so a test or beta build can never share data with the real app;
- * regular builds don't have it and always use %APPDATA%\Todo4Me. */
+ * regular builds don't have it and always use <appData>/Todo4Me. */
+/* Linux AppImage on distros that restrict unprivileged user namespaces (Ubuntu 23.10+: AppArmor
+ * apparmor_restrict_unprivileged_userns=1): an AppImage has no AppArmor profile and runs from a
+ * FUSE mount, so Chromium's sandbox cannot start and the app would abort at launch. Only in that
+ * exact situation we start with --no-sandbox. Trade-off: the Chromium process sandbox is off for the
+ * AppImage (the window itself still uses contextIsolation, a sandboxed renderer setting and loads
+ * only local files). The deb/rpm packages ship an AppArmor profile (or setuid sandbox) and keep the
+ * sandbox; users can also pick those formats. Must run before app 'ready'. */
+if (process.platform === 'linux' && process.env.APPIMAGE) {
+  try {
+    if (fs.readFileSync('/proc/sys/kernel/apparmor_restrict_unprivileged_userns', 'utf8').trim() === '1') {
+      app.commandLine.appendSwitch('no-sandbox');
+    }
+  } catch (e) { /* file missing: no such restriction */ }
+}
+
 let dataFolder = APP_NAME;
 let appId = 'com.todo4me.app'; // = build.appId (the installer gives its shortcuts this AppUserModelID)
 try {
@@ -83,7 +98,7 @@ function onReady() {
     beforeInstall: saveEverything,
     // The page announces a ready update with a toast, but nobody sees it while the window is hidden in
     // the tray — and closing the window no longer quits (which used to install the update). So say it
-    // with a Windows notification; clicking it restarts into the new version.
+    // with a system notification; clicking it restarts into the new version.
     onReady: (version) => {
       const win = mainWindow;
       if (win && !win.isDestroyed() && win.isVisible()) return;
@@ -163,7 +178,7 @@ function createWindow(forceShow) {
     },
   });
 
-  // Started at Windows login (--hidden): stay in the tray. The page still loads, so reminders run.
+  // Started at login (--hidden): stay in the tray. The page still loads, so reminders run.
   const hidden = !forceShow && background.startHidden(process.argv);
   mainWindow.once('ready-to-show', () => { if (!hidden && mainWindow) mainWindow.show(); });
 

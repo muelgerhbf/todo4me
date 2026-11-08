@@ -1,8 +1,19 @@
 # Changelog
 
-All notable changes to Todo4Me (Windows desktop app and web app) are documented in this file.
+All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
-Release tags use the prefix `windows-v`.
+Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
+
+## [2.4.0] - 2026-11-08
+
+### Added
+- **Linux version:** `Todo4Me-<version>-x86_64.AppImage`, `Todo4Me-<version>-amd64.deb`, `Todo4Me-<version>-x86_64.rpm` and `Todo4Me-<version>-x64.tar.gz`. The AppImage updates itself (`latest-linux.yml`); deb, rpm and tar.gz show a hint to download the new version from the releases page.
+- Linux specifics: data in `~/.config/Todo4Me`; tray icon and global quick-capture hotkey are off by default (GNOME needs the AppIndicator extension, Wayland usually blocks global shortcuts); *Start at login* uses `~/.config/autostart/todo4me.desktop`. deb and rpm install an AppArmor profile (Ubuntu 23.10+); the AppImage starts with `--no-sandbox` automatically where Ubuntu restricts unprivileged user namespaces.
+- GitHub Actions workflow that builds the Windows and Linux files when a tag `v*` is pushed and creates a draft release.
+
+### Changed
+- Release tags now use the prefix `v` (e.g. `v2.4.0`) instead of `windows-v`; older tags keep their names. Windows auto-update is not affected: it reads the latest release and `latest.yml`, not the tag name.
+- The test harness runs on Linux and Windows.
 
 ## [2.3.0] - 2026-11-06
 
@@ -93,6 +104,7 @@ Release tags use the prefix `windows-v`.
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.4.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.4.0
 [2.3.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.3.0
 [2.2.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.2.0
 [2.1.2]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.1.2

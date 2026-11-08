@@ -1,21 +1,24 @@
 // Minimal CDP harness: node cdp.mjs <script.js> [outdir]
 // The script exports steps via a JSON-ish plan file evaluated in node.
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const CHROME = process.env.CHROME || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+  : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome');
 // Debug port: default 9333; override with env CDP_PORT so several test runs can use different ports in parallel.
 const PORT = Number(process.env.CDP_PORT) || 9333;
-const here = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, '$1');
+const here = path.dirname(fileURLToPath(import.meta.url));
 const profile = path.join(here, 'profile-' + Date.now());
-const APP = 'file:///' + path.resolve(here, '..', 'index.html').split(path.sep).join('/'); // the checkout this test lives in (also works in worktrees)
+const APP = pathToFileURL(path.resolve(here, '..', 'index.html')).href; // the checkout this test lives in (also works in worktrees)
 
-const plan = await import('file:///' + path.resolve(process.argv[2]).replace(/\\/g, '/'));
+const plan = await import(pathToFileURL(path.resolve(process.argv[2])).href);
 const outDir = process.argv[3] || path.join(here, 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 
-const EXE = process.env.EXE || 'C:/dev/todo4me/node_modules/electron/dist/electron.exe';
+const EXE = process.env.EXE || createRequire(import.meta.url)('electron') // path of the electron binary in this checkout (node_modules/electron);
 const EXE_ARGS = process.env.EXE ? [] : [path.resolve(here, '..')];
 const env = Object.assign({}, process.env, { TODO4ME_USER_DATA: process.env.UDATA || profile });
 delete env.ELECTRON_RUN_AS_NODE;
@@ -140,7 +143,8 @@ try {
     const gone = new Promise((r) => { chrome.once('exit', r); setTimeout(r, 6000); });
     try { await mainEval(`setTimeout(() => process.mainModule.require('electron').app.quit(), 20); true`); await gone; } catch {}
   }
-  try { (await import('node:child_process')).execSync('taskkill /F /T /PID ' + chrome.pid, { stdio: 'ignore' }); } catch {}
+  if (process.platform === 'win32') { try { (await import('node:child_process')).execSync('taskkill /F /T /PID ' + chrome.pid, { stdio: 'ignore' }); } catch {} }
+  else { try { chrome.kill('SIGKILL'); } catch {} }
   await sleep(500);
   try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
 }

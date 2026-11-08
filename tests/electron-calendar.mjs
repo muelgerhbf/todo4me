@@ -32,7 +32,7 @@ export default async function calendarFetchChecks(b, ok, run) {
   // --- Validation (no server needed)
   let r = await fetchCal('http://example.com/calendar.ics');
   ok(!r.ok && /https/.test(r.error) && !('text' in r), 'fetchCalendar rejects http:// — ' + r.error);
-  r = await fetchCal('file:///C:/Windows/win.ini');
+  r = await fetchCal(process.platform === 'win32' ? 'file:///C:/Windows/win.ini' : 'file:///etc/passwd');
   ok(!r.ok && /https/.test(r.error), 'fetchCalendar rejects file://');
   r = await fetchCal('javascript:alert(1)');
   ok(!r.ok, 'fetchCalendar rejects javascript:');

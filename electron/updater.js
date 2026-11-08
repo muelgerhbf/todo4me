@@ -1,14 +1,15 @@
 /* Todo4Me — automatic updates (electron-updater).
  *
  * How it works:
- *  - The installed app (NSIS setup) checks the release feed shortly after start and
+ *  - The installed app (NSIS setup on Windows, AppImage on Linux) checks the release feed shortly after start and
  *    every 4 hours. Releases are published to GitHub (see package.json → build.publish).
  *  - A new version is downloaded in the background; the user is told when it is ready
  *    and can restart now or later (it is also installed automatically on the next quit).
- *  - User data lives in %APPDATA%\Todo4Me, outside the installation folder, so updating
+ *  - User data lives in the user's app-data folder (Windows %APPDATA%\Todo4Me, Linux ~/.config/Todo4Me), outside the installation folder, so updating
  *    never touches tasks, notes or documents.
  *  - The portable .exe and the unpackaged dev app cannot update themselves; the state
- *    is then "unsupported" and the UI explains how to update manually.
+ *    is then "unsupported" and the UI explains how to update manually. The same applies to the Linux
+ *    deb / rpm / tar.gz packages: only the AppImage self-updates (feed: latest-linux.yml).
  *
  * TODO4ME_UPDATE_URL (optional) points the updater at another feed (a folder with
  * latest.yml + the installer, served over HTTP) — used to test updates locally. */
@@ -41,7 +42,8 @@ function supported() {
   if (!autoUpdater) return T('upd.missing');
   if (process.env.PORTABLE_EXECUTABLE_DIR) return T('upd.portable');
   if (!app.isPackaged && !process.env.TODO4ME_UPDATE_URL) return T('upd.installedOnly');
-  if (process.platform !== 'win32' && process.platform !== 'darwin') return T('upd.noAuto');
+  if (process.platform === 'linux' && !process.env.APPIMAGE) return T('upd.linuxPackage');
+  if (process.platform !== 'win32' && process.platform !== 'darwin' && process.platform !== 'linux') return T('upd.noAuto');
   return null;
 }
 

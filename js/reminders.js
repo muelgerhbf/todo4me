@@ -237,7 +237,7 @@ T4.reminders = (function () {
 
   /* ---------- Permission / settings ---------- */
   function systemStatus() {
-    if (bridge) return { kind: 'desktop', text: tt('rem.sysDesktop') };
+    if (bridge) return { kind: 'desktop', text: tt(/Windows/.test(navigator.userAgent) ? 'rem.sysDesktop' : 'rem.sysDesktopGeneric') };
     if (!('Notification' in window)) return { kind: 'none', text: tt('rem.sysNone') };
     if (Notification.permission === 'granted') return { kind: 'granted', text: tt('rem.sysGranted') };
     if (Notification.permission === 'denied') return { kind: 'denied', text: tt('rem.sysDenied') };
