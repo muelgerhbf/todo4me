@@ -96,6 +96,7 @@ function onReady() {
   calendar.init(); // calendar subscriptions: validated https download of ICS files (see calendar.js)
   updater.init({
     beforeInstall: saveEverything,
+    installAborted: () => { allowClose = false; }, // the Linux install was cancelled: closing the window hides to the tray again
     // The page announces a ready update with a toast, but nobody sees it while the window is hidden in
     // the tray — and closing the window no longer quits (which used to install the update). So say it
     // with a system notification; clicking it restarts into the new version.
