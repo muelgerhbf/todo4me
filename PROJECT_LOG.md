@@ -548,3 +548,27 @@ month's last day (Feb 28), the next occurrence counts from that date (Mar 28), n
 
 Tests: 251 functional (browser and desktop), 166 editor, 112 desktop, 62 ICS. A desktop run while other windows
 had the focus showed 10 focus/mouse failures; the immediate re-run was green (test environment, not the app).
+
+## Part 8: Linux (2026-11-08)
+
+### Step 27: Linux port and release workflow (version 2.4.0)
+
+**What changed**
+
+- `package.json`: version 2.4.0; `build.linux` (icon, category, `executableName` todo4me, artifact name `Todo4Me-${version}-${arch}.${ext}`), targets AppImage, deb, rpm and tar.gz (x64), deb dependency list, author with e-mail, `homepage`, `desktopName`; npm scripts `build:linux`, `build:appimage`, `build:deb`, `build:rpm`, `release:linux`.
+- `scripts/build.js`, `electron/*` and `js/*`: Linux builds, Linux defaults, update handling and desktop integration (see the diff of this branch). The test harness (`tests/`) now runs on Linux and Windows; `tests/pdftext.mjs` is a helper for the PDF text check.
+- `.github/workflows/release.yml` (new): on push of a tag `v*` builds the Windows files (windows-latest) and the Linux files (ubuntu-latest, plus `tests/test-ics.mjs` as a smoke check) and creates a **draft** release with the CHANGELOG section as notes. `workflow_dispatch` only builds and uploads artifacts.
+- README (install for Linux, Linux notes, build on Linux, release process), CHANGELOG 2.4.0.
+
+**Decisions**
+
+- **Formats:** AppImage (any distribution, self-updating), deb (Debian/Ubuntu), rpm (Fedora/openSUSE), tar.gz (no installation). x86_64 only; no arm64, Flatpak or Snap for now.
+- **Tag prefix:** `v<version>` (`publish.tagNamePrefix: "v"`) instead of `windows-v`, because one release now holds Windows and Linux files. Windows auto-update keeps working: electron-updater reads releases/latest and `latest.yml`, not the tag name. One combined release per version must contain both `latest.yml` and `latest-linux.yml`. Older tags keep their names.
+- **Sandbox trade-off (AppImage):** Ubuntu 23.10+ restricts unprivileged user namespaces with AppArmor, which breaks Chromium's sandbox. An AppImage cannot install an AppArmor profile, so it starts with `--no-sandbox` automatically on such systems. deb and rpm install a profile and keep the sandbox; they are the recommended choice on Ubuntu. The AppImage also needs libfuse2 (or `--appimage-extract-and-run`).
+- **Linux defaults:** tray and global hotkey off (GNOME needs the AppIndicator extension; Wayland usually blocks global shortcuts). "Start at login" writes `~/.config/autostart/todo4me.desktop`. Data in `~/.config/Todo4Me`.
+- **Update strategy:** only the AppImage self-updates (`latest-linux.yml`). deb, rpm and tar.gz show a hint to download from the releases page, since there is no package repository.
+- **rpm built locally without sudo:** `rpmbuild` was not installed on the development machine and there was no root; the rpm was built with a no-sudo workaround for local testing. CI installs `rpm` and `binutils` with apt instead. Note: rpm 6 (Ubuntu 26.04) writes the new v6 package format by default, which older rpm-based distributions cannot install; the local test build forced `%_rpmformat 4`, and CI is pinned to `ubuntu-24.04` (rpm 4.x).
+- **CI for Windows:** the Windows `.exe` files are built on a Windows runner in CI (no secrets, only `GITHUB_TOKEN`); publishing the draft stays manual.
+
+Tests (Linux, Ubuntu 26.04, run sequentially): functional 640/640, ICS 62/62, editor 166/166, desktop (Electron) 136/136 (incl. new Linux checks: defaults, XDG autostart file and Exec quoting, updater hint for packages, generic wording), 0 page errors.
+Packages 2.4.0 built locally (AppImage, deb, rpm v4, tar.gz); each started with an isolated data folder (AppImage via `APPIMAGE_EXTRACT_AND_RUN=1`, this host has no libfuse2); deb metadata/depends, desktop file, AppArmor profile checked. Not verified here: installing deb/rpm system-wide (no root), Windows build (CI only), AppImage `--no-sandbox` branch (host has no userns restriction), AppImage self-update.

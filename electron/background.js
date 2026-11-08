@@ -2,9 +2,11 @@
  *
  *  - tray icon with a small menu; closing the window hides it to the tray (setting, default on)
  *    so reminders keep working. Quitting is explicit: tray → Quit, File → Exit, an update restart
- *    or Windows shutting down (main.js tells "hide" and "quit" apart).
- *  - "Start Todo4Me when Windows starts" (setting, default off) → starts hidden in the tray
- *  - a system-wide quick-capture hotkey (setting, default Ctrl+Alt+Space)
+ *    or the OS shutting down (main.js tells "hide" and "quit" apart).
+ *  - "Start Todo4Me at login" (setting, default off) → starts hidden in the tray (Windows/macOS login item,
+ *    Linux XDG autostart file)
+ *  - a system-wide quick-capture hotkey (setting, default Ctrl+Alt+Space; off by default on Linux, where
+ *    Wayland does not allow global shortcuts and many tray hosts are missing)
  *  - native notifications for reminders (the page decides *when*, see js/reminders.js)
  *
  * These are machine settings, not user data: they live in <userData>/desktop-settings.json
@@ -14,6 +16,7 @@
 
 const { app, Tray, Menu, Notification, globalShortcut, nativeImage, ipcMain } = require('electron');
 const path = require('node:path');
+const os = require('node:os');
 const fs = require('node:fs');
 const T = (key, params) => require('./i18n').t(key, params);
 
@@ -26,14 +29,17 @@ const HOTKEYS = [
   { id: 'Control+Alt+T', label: 'Ctrl+Alt+T' },
   { id: 'Control+Shift+Alt+T', label: 'Ctrl+Shift+Alt+T' },
 ];
-const DEFAULTS = Object.freeze({ closeToTray: true, openAtLogin: false, hotkeyEnabled: true, hotkey: HOTKEYS[0].id, trayHintShown: false });
+// Linux: GNOME has no tray by default and Wayland blocks global shortcuts, so both are off there until the
+// user turns them on (only the defaults differ; a saved choice always wins, see sanitize()).
+const LINUX = process.platform === 'linux';
+const DEFAULTS = Object.freeze({ closeToTray: !LINUX, openAtLogin: false, hotkeyEnabled: !LINUX, hotkey: HOTKEYS[0].id, trayHintShown: false });
 const snoozeLabel = () => T('notif.snooze');
 
 let ctx = null;          // { file, iconPath, showWindow(), send(action), notificationClick(id, action), quit() }
 let settings = Object.assign({}, DEFAULTS);
 let tray = null;
 let hotkey = { registered: null, error: null };
-let loginImpl = (opts) => app.setLoginItemSettings(opts);
+let loginImpl = (opts) => (process.platform === 'linux' ? linuxAutostart(opts.openAtLogin) : app.setLoginItemSettings(opts));
 let loginSupportOverride; // tests: null = treat as supported
 const live = new Map();   // notifications must stay referenced, or their click/action events get lost
 const shown = [];         // the last notifications shown (diagnostics / tests)
@@ -61,10 +67,33 @@ function save() {
   } catch (e) { /* settings stay in memory for this session */ }
 }
 
-/* ---------- Start with Windows ---------- */
+/* ---------- Start at login ---------- */
+/* Linux: an XDG autostart entry ($XDG_CONFIG_HOME/autostart/todo4me.desktop). The path can be moved with
+ * TODO4ME_AUTOSTART_DIR (tests only). Exec is the AppImage file itself when run as AppImage (process.execPath
+ * would point into the temporary mount), otherwise the installed binary. */
+function autostartFile() {
+  const dir = process.env.TODO4ME_AUTOSTART_DIR || path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'autostart');
+  return path.join(dir, 'todo4me.desktop');
+}
+/** Desktop Entry spec: quote an Exec argument that contains spaces or reserved characters. */
+function desktopExecArg(a) {
+  a = String(a).replace(/%/g, '%%');
+  if (!/[\s"'\\><~|&;$*?#()`]/.test(a)) return a;
+  return '"' + a.replace(/(["`$\\])/g, '\\$1').replace(/\\/g, '\\\\') + '"';
+}
+function linuxAutostart(enable) {
+  const file = autostartFile();
+  if (!enable) { fs.rmSync(file, { force: true }); return; }
+  const exec = desktopExecArg(process.env.APPIMAGE || process.execPath) + ' ' + HIDDEN_ARG;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, [
+    '[Desktop Entry]', 'Type=Application', 'Name=Todo4Me', 'Comment=Tasks, weekly planner, notes and documents',
+    'Exec=' + exec, 'Icon=todo4me', 'Terminal=false', 'X-GNOME-Autostart-enabled=true', '',
+  ].join('\n'), 'utf8');
+}
 function loginUnsupportedReason() {
   if (loginSupportOverride !== undefined) return loginSupportOverride;
-  if (process.platform !== 'win32' && process.platform !== 'darwin') return T('bg.notThisSystem');
+  if (process.platform !== 'win32' && process.platform !== 'darwin' && process.platform !== 'linux') return T('bg.notThisSystem');
   if (process.env.TODO4ME_USER_DATA) return T('bg.notInTests');
   if (!app.isPackaged) return T('bg.installedOnly');
   if (process.env.PORTABLE_EXECUTABLE_DIR) return T('bg.notPortable');
@@ -82,6 +111,8 @@ function applyLogin() {
 function trayImage() {
   const src = nativeImage.createFromPath(ctx.iconPath);
   if (src.isEmpty()) return null;
+  // Linux (StatusNotifierItem) takes one PNG; the desktop scales it. 32 px stays sharp on HiDPI panels.
+  if (process.platform === 'linux') return src.resize({ width: 32, height: 32, quality: 'best' });
   const img = nativeImage.createEmpty();
   [[1, 16], [1.5, 24], [2, 32]].forEach(([scaleFactor, size]) => {
     img.addRepresentation({ scaleFactor, width: size, height: size, buffer: src.resize({ width: size, height: size, quality: 'best' }).toPNG() });
@@ -272,6 +303,7 @@ module.exports = {
   /* test hooks (used by tests/test-electron.mjs through the main-process inspector) */
   _test: {
     triggerHotkey: onHotkey,
+    linuxAutostart, sanitize,
     setLogin(fn) { loginImpl = fn; loginSupportOverride = null; },
     trayMenuLabels: () => (hasTray() ? trayMenu().items.map((i) => i.label || '---') : []),
     clickTrayItem(label) { const item = trayMenu().items.find((i) => i.label === label); if (item) item.click(); return !!item; },

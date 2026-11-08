@@ -12,6 +12,9 @@ const PRELUDE = `
   var S = () => T4.store.data;
 `;
 
+// An existing local file the app must never open (window.open / navigation / fetch).
+const FORBIDDEN_FILE = process.platform === 'win32' ? 'file:///C:/Windows/win.ini' : 'file:///etc/passwd';
+
 export default async function (b) {
   const out = [];
   const ok = (c, m) => { const r = (c ? 'PASS ' : 'FAIL ') + m; out.push(r); console.log(r); };
@@ -28,7 +31,7 @@ export default async function (b) {
     ok(window.todo4meDesktop && window.todo4meDesktop.isDesktop, 'preload bridge available');
     ok(Object.keys(window.todo4meDesktop).sort().join() === 'checkForUpdates,exportPDF,fetchCalendar,getDesktopSettings,getInfo,getUpdateState,installUpdate,isDesktop,notify,onBeforeClose,onMenuAction,onNotificationClick,onUpdateState,openFolder,openPath,platform,setDesktopSettings,setLanguage,writeBackup,writeDocBackup', 'bridge exposes only the intended API: ' + Object.keys(window.todo4meDesktop).sort().join());
     ok(document.documentElement.classList.contains('is-desktop'), 'desktop class set');
-    const w = window.open('file:///C:/Windows/win.ini');
+    const w = window.open(${JSON.stringify(FORBIDDEN_FILE)});
     ok(w === null, 'window.open is denied');
     const info = await todo4meDesktop.getInfo();
     ok(info.userData.replace(/\\\\/g, '/').toLowerCase() === ${JSON.stringify(udata.replace(/\\/g, '/').toLowerCase())}, 'userData points to isolated test folder: ' + info.userData);
@@ -39,7 +42,7 @@ export default async function (b) {
   ok(pages.filter((p) => p.type === 'page').length === 1, 'no extra window was opened');
 
   // Navigation away from the app is blocked
-  await b.evaluate(`location.href = 'file:///C:/Windows/win.ini'; true`).catch(() => {});
+  await b.evaluate(`location.href = ${JSON.stringify(FORBIDDEN_FILE)}; true`).catch(() => {});
   await b.sleep(500);
   ok((await b.evaluate('location.pathname')).endsWith('/index.html'), 'navigation to other files is blocked');
 
@@ -130,9 +133,27 @@ export default async function (b) {
   // Like clicking the window's X button (a page-side window.close() would bypass the 'close' event).
   const hideWindow = async () => { await b.mainEval(`setTimeout(() => ${E}.BrowserWindow.getAllWindows()[0].close(), 20); true`); await b.sleep(700); };
 
-  const ds = await b.evaluate('todo4meDesktop.getDesktopSettings()');
-  ok(ds.closeToTray === true && ds.openAtLogin === false && ds.hotkeyEnabled === true && ds.hotkey === 'Control+Alt+Space' && ds.tray === true, 'desktop defaults: close to tray on, start with Windows off, hotkey Ctrl+Alt+Space on');
-  ok(ds.loginSupported === false && /test/i.test(ds.loginReason || ''), 'start with Windows is never written to the registry in test runs: ' + ds.loginReason);
+  let ds = await b.evaluate('todo4meDesktop.getDesktopSettings()');
+  if (process.platform === 'linux') {
+    // Linux defaults: no tray / global hotkey until the user turns them on. The rest of this section tests the
+    // tray and hotkey, so switch both on (like the user would) once the defaults are verified.
+    ok(ds.closeToTray === false && ds.openAtLogin === false && ds.hotkeyEnabled === false && ds.tray === false && ds.hotkeyRegistered === false, 'Linux desktop defaults: close to tray off, hotkey off, no tray icon');
+    ok(await b.mainEval(`${BG}._test.sanitize(null).closeToTray === false && ${BG}._test.sanitize({}).hotkeyEnabled === false`), 'Linux defaults also apply to missing/corrupt settings');
+    await run(`
+      location.hash = '#/settings'; await wait(300);
+      ok($('#set-tray') && !$('#set-tray').checked && $('#set-hk-on') && !$('#set-hk-on').checked, 'Linux settings page shows tray and hotkey switched off by default');
+      click('#set-tray'); await wait(400); click('#set-hk-on'); await wait(400);
+      location.hash = '#/'; await wait(100);
+    `);
+    ds = await b.evaluate('todo4meDesktop.getDesktopSettings()');
+    const saved = JSON.parse(fs.readFileSync(path.join(udata, 'desktop-settings.json'), 'utf8'));
+    ok(ds.closeToTray === true && ds.hotkeyEnabled === true && saved.closeToTray === true && saved.hotkeyEnabled === true, 'Linux: an explicit "on" is saved to disk');
+    ok(await b.mainEval(`(() => { const s = ${BG}._test.sanitize(${JSON.stringify(saved)}); return s.closeToTray === true && s.hotkeyEnabled === true; })()`), 'Linux: a saved explicit true survives loading (beats the Linux default)');
+    ds = await b.evaluate('todo4meDesktop.getDesktopSettings()');
+  } else {
+    ok(ds.closeToTray === true && ds.openAtLogin === false && ds.hotkeyEnabled === true && ds.hotkey === 'Control+Alt+Space' && ds.tray === true, 'desktop defaults: close to tray on, start with Windows off, hotkey Ctrl+Alt+Space on');
+  }
+  ok(ds.loginSupported === false && /test/i.test(ds.loginReason || ''), 'start at login is never written to the registry / autostart folder in test runs: ' + ds.loginReason);
   const regSpace = await b.mainEval(`${E}.globalShortcut.isRegistered('Control+Alt+Space')`);
   ok(regSpace === ds.hotkeyRegistered && (regSpace || !!ds.hotkeyError), 'global hotkey Ctrl+Alt+Space registered: ' + regSpace + (ds.hotkeyError ? ' (' + ds.hotkeyError + ')' : ''));
   const trayInfo = await b.mainEval(`(() => { const bg = ${BG}; return { exists: !!bg.tray && !bg.tray.isDestroyed(), menu: bg._test.trayMenuLabels().join('|') }; })()`);
@@ -154,6 +175,65 @@ export default async function (b) {
   const bad = await b.evaluate(`todo4meDesktop.setDesktopSettings({ hotkey: 'Alt+F4', closeToTray: 'no', openAtLogin: true, evil: 1 })`);
   const bad2 = await b.mainEval(`${BG}.setSettings({ hotkey: 'Control+A', closeToTray: 1, hotkeyEnabled: 'yes' })`);
   ok(bad.hotkey === 'Control+Alt+T' && bad.closeToTray === true && bad.openAtLogin === false && bad2.hotkey === 'Control+Alt+T' && bad2.closeToTray === true && bad2.hotkeyEnabled === true, 'invalid desktop settings are rejected by the main process');
+
+  if (process.platform === 'linux') {
+    // Linux autostart: XDG .desktop file, redirected into the test profile (never ~/.config/autostart)
+    const realAuto = path.join(process.env.XDG_CONFIG_HOME || path.join(process.env.HOME, '.config'), 'autostart', 'todo4me.desktop');
+    const statOf = (f) => { try { const st = fs.statSync(f); return st.mtimeMs + ':' + st.size; } catch { return null; } };
+    const realBefore = statOf(realAuto);
+    const adir = path.join(udata, 'autostart-test');
+    const res = await b.mainEval(`(() => {
+      const fs = process.mainModule.require('fs'), path = process.mainModule.require('path');
+      const bg = ${BG}, dir = ${JSON.stringify(adir)}, file = path.join(dir, 'todo4me.desktop');
+      const oldDir = process.env.TODO4ME_AUTOSTART_DIR, oldImg = process.env.APPIMAGE, r = {};
+      try {
+        process.env.TODO4ME_AUTOSTART_DIR = dir; delete process.env.APPIMAGE;
+        bg._test.linuxAutostart(true);
+        r.plain = fs.readFileSync(file, 'utf8'); r.exec = process.execPath;
+        process.env.APPIMAGE = '/opt/My Apps/To"do4Me.AppImage';
+        bg._test.linuxAutostart(true);
+        r.image = fs.readFileSync(file, 'utf8');
+        bg._test.linuxAutostart(false); r.removed = !fs.existsSync(file);
+        try { bg._test.linuxAutostart(false); r.again = true; } catch (e) { r.again = false; }
+      } finally {
+        if (oldDir === undefined) delete process.env.TODO4ME_AUTOSTART_DIR; else process.env.TODO4ME_AUTOSTART_DIR = oldDir;
+        if (oldImg === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = oldImg;
+      }
+      return r;
+    })()`);
+    const line = (txt, k) => (txt.split('\n').find((l) => l.startsWith(k + '=')) || '').slice(k.length + 1);
+    const q = (p) => (/[\s"'\\><~|&;$*?#()`]/.test(p) ? '"' + p.replace(/["`$\\]/g, (c) => (c === '\\' ? '\\\\\\\\' : '\\\\' + c)) + '"' : p);
+    ok(res.plain.startsWith('[Desktop Entry]') && line(res.plain, 'Type') === 'Application' && line(res.plain, 'X-GNOME-Autostart-enabled') === 'true' && line(res.plain, 'Exec') === q(res.exec) + ' --hidden', 'Linux autostart: todo4me.desktop with Type=Application, Exec=<execPath> --hidden, autostart enabled: ' + line(res.plain, 'Exec'));
+    ok(line(res.image, 'Exec') === '"/opt/My Apps/To\\\\"do4Me.AppImage" --hidden', 'Linux autostart: AppImage path with space and quote is quoted/escaped per Desktop Entry spec: ' + line(res.image, 'Exec'));
+    ok(res.removed && res.again, 'Linux autostart: disabling removes the file; removing again does not throw');
+    ok(statOf(realAuto) === realBefore, 'Linux autostart: nothing written to the real ~/.config/autostart');
+
+    // Updater: only an AppImage self-updates; other Linux installs get the "package" explanation
+    const upd = await b.mainEval(`(async () => {
+      const upd = Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.replace(/\\\\/g, '/').endsWith('/electron/updater.js')).exports;
+      const oldUrl = process.env.TODO4ME_UPDATE_URL, oldImg = process.env.APPIMAGE, r = {};
+      try {
+        r.dev = (await upd.check(true)).reason; // unpackaged dev app: caught before the Linux branch
+        process.env.TODO4ME_UPDATE_URL = 'http://127.0.0.1:9/'; delete process.env.APPIMAGE;
+        const s = await upd.check(true); r.status = s.status; r.pkg = s.reason;
+      } finally {
+        if (oldUrl === undefined) delete process.env.TODO4ME_UPDATE_URL; else process.env.TODO4ME_UPDATE_URL = oldUrl;
+        if (oldImg === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = oldImg;
+      }
+      return r;
+    })()`);
+    ok(/only available in the installed app/.test(upd.dev), 'updater: unpackaged dev app → "installed app only": ' + upd.dev);
+    ok(upd.status === 'unsupported' && /Installed as a Linux package/.test(upd.pkg) && /releases\/latest/.test(upd.pkg), 'updater: Linux without AppImage → linuxPackage reason: ' + upd.pkg);
+
+    // UI wording: generic, not "Windows"
+    await run(`
+      location.hash = '#/settings'; await wait(300);
+      const lab = $('label[for=set-login]');
+      ok(lab && /Start Todo4Me at login/.test(lab.textContent) && !/Windows/.test(lab.textContent), 'Linux settings: generic "Start Todo4Me at login" label');
+      const rs = T4.reminders.systemStatus();
+      ok(rs.kind === 'desktop' && /system notifications/.test(rs.text) && !/Windows/.test(rs.text), 'Linux reminders: generic system-notification text: ' + rs.text);
+    `);
+  }
 
   // Closing the window hides it to the tray; the app keeps running
   await hideWindow();
