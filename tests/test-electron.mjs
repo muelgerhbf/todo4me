@@ -97,7 +97,7 @@ export default async function (b) {
     ok(e.getAttribute('aria-label') === 'Update to 9.9.9 – restarts Todo4Me' && e.title === e.getAttribute('aria-label') && e.textContent.trim() === 'Update' && e.querySelector('svg'), 'update button: icon + "Update", tooltip/aria-label with version');
     ok(parseFloat(getComputedStyle(e).borderTopLeftRadius) >= 15, 'update button is pill shaped');
     ok(!$$('.toast').some((t) => /Restart now/.test(t.textContent)), 'no "Restart now" toast any more');
-    const probe = document.createElement('i'); document.body.appendChild(probe);
+    const probe = document.createElement('i'); probe.style.transition = 'none'; document.body.appendChild(probe); // no transition: otherwise getComputedStyle returns a mid-transition color
     const accentRgb = (hex) => { probe.style.color = hex; return getComputedStyle(probe).color; };
     const fgOf = () => getComputedStyle(e).color;
     let n = 0;
@@ -224,6 +224,112 @@ export default async function (b) {
     })()`);
     ok(/only available in the installed app/.test(upd.dev), 'updater: unpackaged dev app → "installed app only": ' + upd.dev);
     ok(upd.status === 'unsupported' && /Installed as a Linux package/.test(upd.pkg) && /releases\/latest/.test(upd.pkg), 'updater: Linux without AppImage → linuxPackage reason: ' + upd.pkg);
+
+    // Updater for the deb / rpm packages: own pkexec installer (stubbed spawn, no real prompt, no real quit)
+    const UPD = `Object.values(process.mainModule.constructor._cache).find((m) => m.filename && m.filename.replace(/\\\\/g, '/').endsWith('/electron/updater.js')).exports`;
+    const pk = await b.mainEval(`(async () => {
+      const U = ${UPD}, t = U._test, M = process.mainModule;
+      const fs = M.require('fs'), os = M.require('os'), path = M.require('path'), crypto = M.require('crypto'), EventEmitter = M.require('events');
+      const eu = t.autoUpdater;
+      const oldUrl = process.env.TODO4ME_UPDATE_URL, oldImg = process.env.APPIMAGE, oldAuto = eu.autoInstallOnAppQuit, r = {};
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't4m-pkg-'));
+      const file = path.join(dir, "it's a pkg.deb"); // a quote in the path: harmless without a shell
+      fs.writeFileSync(file, 'package-bytes');
+      const sha = crypto.createHash('sha512').update('package-bytes').digest('base64');
+      const tools = { pkexec: '/usr/bin/pkexec', 'apt-get': '/usr/bin/apt-get', dpkg: '/usr/bin/dpkg', dnf: '/usr/bin/dnf', zypper: '/usr/bin/zypper', rpm: '/usr/bin/rpm' };
+      let have = Object.keys(tools);
+      t.setFindTool((n) => (have.includes(n) ? tools[n] : null));
+      const calls = [], counts = { before: 0, aborted: 0, exit: 0 };
+      let plan = { code: 0, stderr: '', delay: 0 }, statusAtSpawn = null, noticeAtSpawn = null;
+      t.setSpawn((exe, argv, opts) => {
+        calls.push({ exe, argv, shell: opts.shell, stdio: opts.stdio });
+        statusAtSpawn = U.state.status; noticeAtSpawn = U.state.notice;
+        const c = new EventEmitter(); c.stdout = new EventEmitter(); c.stderr = new EventEmitter();
+        setTimeout(() => { if (plan.stderr) c.stderr.emit('data', Buffer.from(plan.stderr)); c.emit('close', plan.code, null); }, plan.delay);
+        return c;
+      });
+      t.setExit(() => { counts.exit++; });
+      const prev = t.setHooks({ beforeInstall: async () => { counts.before++; }, installAborted: () => { counts.aborted++; } });
+      const ready = () => t.setReady({ file, sha512: sha, version: '9.9.9' });
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+      try {
+        process.env.TODO4ME_UPDATE_URL = 'http://127.0.0.1:9/'; delete process.env.APPIMAGE;
+        // supported() / autoInstallOnAppQuit per package type
+        t.setPackageType('deb'); r.supDeb = t.supported(); t.applyOptions(); r.autoDeb = eu.autoInstallOnAppQuit;
+        t.setPackageType('rpm'); r.supRpm = t.supported(); t.applyOptions(); r.autoRpm = eu.autoInstallOnAppQuit;
+        t.setPackageType(null); r.supTar = t.supported();
+        t.setPackageType('deb'); have = have.filter((x) => x !== 'pkexec'); r.supNoPk = t.supported(); have = Object.keys(tools);
+        t.setPackageType(null); process.env.APPIMAGE = '/tmp/x.AppImage'; r.supImg = t.supported(); t.applyOptions(); r.autoImg = eu.autoInstallOnAppQuit; delete process.env.APPIMAGE;
+        t.setPackageType('deb');
+        // downloaded file + sha512 from the update info
+        t.onDownloaded({ version: '9.9.9', downloadedFile: '/c/Todo4Me-9.9.9-x64.deb', files: [{ url: 'Todo4Me-9.9.9-x64.AppImage', sha512: 'IMG' }, { url: 'Todo4Me-9.9.9-x64.deb', sha512: 'DEB' }] });
+        r.dl = t.downloaded;
+        // success
+        ready(); r.ok = await U.install(); await sleep(30);
+        r.okCalls = calls.slice(); r.okExit = counts.exit; r.okStatus = statusAtSpawn; r.okNotice = noticeAtSpawn; r.okBefore = counts.before;
+        // 126 / 127 / other
+        calls.length = 0; counts.exit = 0;
+        plan = { code: 126, stderr: '', delay: 0 }; ready(); r.c126 = await U.install(); r.s126 = { status: U.state.status, notice: U.state.notice, aborted: counts.aborted };
+        plan = { code: 127, stderr: '', delay: 0 }; ready(); r.c127 = await U.install(); r.s127 = { status: U.state.status, notice: U.state.notice };
+        plan = { code: 100, stderr: 'E: Unable to locate package\\nsecond line', delay: 0 }; ready(); r.c100 = await U.install(); r.s100 = { status: U.state.status, error: U.state.error };
+        r.noExitOnFail = counts.exit;
+        // sha512 mismatch → refused, nothing spawned
+        calls.length = 0; plan = { code: 0, stderr: '', delay: 0 };
+        ready(); fs.writeFileSync(file, 'tampered'); r.bad = await U.install(); r.sBad = { status: U.state.status, error: U.state.error, spawned: calls.length }; fs.writeFileSync(file, 'package-bytes');
+        // pkexec missing → refused
+        ready(); have = have.filter((x) => x !== 'pkexec'); r.nopk = await U.install(); r.sNopk = { status: U.state.status, spawned: calls.length }; have = Object.keys(tools);
+        // double click: second call is refused while the first one waits for the password
+        calls.length = 0; counts.exit = 0; plan = { code: 0, stderr: '', delay: 120 };
+        ready(); const p1 = U.install(); const p2 = U.install(); r.dbl2 = await p2; r.dbl1 = await p1; await sleep(30); r.dblSpawns = calls.length; r.dblExit = counts.exit;
+        // argv per package manager
+        r.argvDeb = t.installCommand('deb', file);
+        have = have.filter((x) => x !== 'apt-get'); r.argvDpkg = t.installCommand('deb', file); have = Object.keys(tools);
+        r.argvDnf = t.installCommand('rpm', file);
+        have = have.filter((x) => x !== 'dnf'); r.argvZyp = t.installCommand('rpm', file);
+        have = have.filter((x) => x !== 'zypper'); r.argvRpm = t.installCommand('rpm', file);
+        have = []; r.argvNone = t.installCommand('rpm', file); have = Object.keys(tools);
+        // the real PATH scan finds pkexec only in trusted (root-owned) places
+        t.setFindTool(null); r.realPk = t.findTool('pkexec'); r.realNone = t.findTool('definitely-not-a-tool-xyz');
+      } finally {
+        if (oldUrl === undefined) delete process.env.TODO4ME_UPDATE_URL; else process.env.TODO4ME_UPDATE_URL = oldUrl;
+        if (oldImg === undefined) delete process.env.APPIMAGE; else process.env.APPIMAGE = oldImg;
+        eu.autoInstallOnAppQuit = oldAuto;
+        t.setHooks(prev); t.reset();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      return r;
+    })()`);
+    ok(pk.supDeb === null && pk.supRpm === null && pk.supImg === null, 'updater: deb, rpm (pkexec present) and AppImage can self-update');
+    ok(/Installed as a Linux package/.test(pk.supTar), 'updater: tar.gz keeps the "download manually" hint');
+    ok(/pkexec/.test(pk.supNoPk) && /releases\/latest/.test(pk.supNoPk), 'updater: deb without pkexec → manual-install hint, no install offered: ' + pk.supNoPk);
+    ok(pk.autoDeb === false && pk.autoRpm === false && pk.autoImg === true, 'updater: autoInstallOnAppQuit is off for deb/rpm, on for AppImage');
+    ok(pk.dl && pk.dl.file === '/c/Todo4Me-9.9.9-x64.deb' && pk.dl.sha512 === 'DEB', 'updater: downloaded file and its sha512 are taken from the update info');
+    const A = pk.okCalls[0] || {};
+    ok(pk.ok && pk.ok.ok === true && pk.okCalls.length === 1 && pk.okExit === 1 && pk.okBefore >= 1, 'updater: exit 0 → data saved, relaunch + quit requested once');
+    ok(A.exe === '/usr/bin/pkexec' && A.shell === false && JSON.stringify(A.argv.slice(0, 4)) === JSON.stringify(['--disable-internal-agent', '/usr/bin/apt-get', 'install', '-y']) && A.argv.length === 5 && A.argv[4].endsWith("it's a pkg.deb"), 'updater: pkexec --disable-internal-agent apt-get install -y <file>, no shell, quote in path kept as one argument');
+    ok(pk.okStatus === 'installing' && /password prompt/.test(pk.okNotice), 'updater: "installing / password prompt" state is broadcast before pkexec is spawned');
+    ok(pk.c126.ok === false && pk.s126.status === 'ready' && /cancelled/.test(pk.s126.notice) && pk.s126.aborted >= 1, 'updater: exit 126 → back to ready with "password prompt was cancelled", close handling restored');
+    ok(pk.c127.ok === false && pk.s127.status === 'ready' && /authorization failed/.test(pk.s127.notice), 'updater: exit 127 → authorization-failed message, ready again');
+    ok(pk.s100.status === 'error' && /Unable to locate package/.test(pk.s100.error) && !/second line/.test(pk.s100.error) && /exit code 100/.test(pk.s100.error) && pk.noExitOnFail === 0, 'updater: other exit code → error with first stderr line only, no quit: ' + pk.s100.error);
+    ok(pk.bad.ok === false && pk.sBad.status === 'error' && /could not be verified/.test(pk.sBad.error) && pk.sBad.spawned === 0, 'updater: sha512 mismatch right before install → refused, nothing spawned');
+    ok(pk.nopk.ok === false && /pkexec/.test(pk.nopk.error) && pk.sNopk.spawned === 0, 'updater: pkexec missing at install time → refused');
+    ok(pk.dbl2.ok === false && pk.dbl2.busy === true && pk.dbl1.ok === true && pk.dblSpawns === 1 && pk.dblExit === 1, 'updater: second click while installing is refused (one pkexec, one restart)');
+    const J = JSON.stringify;
+    ok(J(pk.argvDeb.slice(0, 2)) === J(['/usr/bin/apt-get', 'install']) && J(pk.argvDpkg.slice(0, 2)) === J(['/usr/bin/dpkg', '-i']) && pk.argvDpkg.length === 3, 'updater: deb → apt-get install -y, dpkg -i as fallback');
+    ok(J(pk.argvDnf.slice(0, 4)) === J(['/usr/bin/dnf', 'install', '-y', '--nogpgcheck']) && J(pk.argvZyp.slice(0, 4)) === J(['/usr/bin/zypper', '--non-interactive', 'install', '--allow-unsigned-rpm']) && J(pk.argvRpm.slice(0, 2)) === J(['/usr/bin/rpm', '-U']) && pk.argvNone === null, 'updater: rpm → dnf, zypper, rpm -U in that order; none → no command');
+    ok(pk.realNone === null && (pk.realPk === null || /\/pkexec$/.test(pk.realPk)), 'updater: PATH scan returns absolute trusted paths only: ' + pk.realPk);
+    await sendUpd({ status: 'installing', version: '9.9.9', notice: 'Installing the update… A system password prompt will appear', current: '2.4.0' }); await b.sleep(250);
+    await run(`
+      location.hash = '#/settings'; await wait(300);
+      ok(/password prompt will appear/.test($('#upd-text').textContent) && $('#upd-buttons button') && $('#upd-buttons button').disabled, 'settings: "installing" state shows the password hint and a disabled button');
+    `);
+    await sendUpd({ status: 'ready', version: '9.9.9', notice: 'Update not installed — the password prompt was cancelled. You can try again.', current: '2.4.0' }); await b.sleep(250);
+    await run(`
+      ok(/cancelled/.test($('#upd-text').textContent) && $('#upd-buttons button') && !$('#upd-buttons button').disabled, 'settings: cancelled prompt is explained and "Restart & install" is usable again');
+      ok($$('.toast').some((t) => /password prompt was cancelled/.test(t.textContent)), 'cancelled prompt also shown as a toast');
+      document.querySelectorAll('.toast').forEach((t) => t.remove());
+    `);
+    await sendUpd({ status: 'unsupported', reason: 'x', current: '2.4.0' }); await b.sleep(150);
 
     // UI wording: generic, not "Windows"
     await run(`

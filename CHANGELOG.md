@@ -4,6 +4,22 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.5.0] - 2026-11-08
+
+### Added
+- **Linux deb and rpm update themselves in the app**, like Windows: Todo4Me checks shortly after start and every 4 hours, downloads the new `.deb`/`.rpm` in the background (no password needed) and verifies its SHA-512 against `latest-linux.yml`. On *Restart & install* the standard polkit dialog (`pkexec`) asks for the system password, the package is installed with apt-get/dpkg (deb) or dnf/zypper/rpm (rpm), and Todo4Me restarts into the new version.
+- Developer: `node scripts/build.js deb --test-variant --version 2.5.0-test.1` builds a side-by-side test package `todo4me-test` (own `/opt` folder, own data folder `Todo4Me-Test`, own desktop entry) for end-to-end update tests with a local feed (`TODO4ME_UPDATE_URL`).
+
+### Changed
+- On Linux there is no silent install at quit (it would surprise with a password prompt); the update is installed only when you click *Restart & install*.
+- Cancelling the password dialog shows "not installed, try again later" and does not prompt again. If `pkexec` is missing (minimal systems), Todo4Me shows a hint to download the package from the releases page.
+- tar.gz is unchanged (hint to download manually); the AppImage still updates itself.
+- **One-time step:** users of the 2.4.0 deb/rpm must install 2.5.0 once manually (2.4.0 had no deb/rpm self-update). From 2.5.0 on, updates are automatic.
+
+### Security
+- The file's SHA-512 is checked again right before the elevated install.
+- The packages are not GPG-signed. Integrity relies on the SHA-512 from the GitHub release feed over HTTPS (same trust as the unsigned Windows installer, but the Linux install runs as root).
+
 ## [2.4.0] - 2026-11-08
 
 ### Added
@@ -104,6 +120,7 @@ Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `win
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.5.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.5.0
 [2.4.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.4.0
 [2.3.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.3.0
 [2.2.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.2.0

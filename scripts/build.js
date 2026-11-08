@@ -7,6 +7,13 @@
  *   node scripts/build.js dir                       -> unpacked app in ./dist/win-unpacked or ./dist/linux-unpacked
  *   node scripts/build.js linux --publish           -> same, and upload a draft GitHub release
  *   (--publish needs the GH_TOKEN environment variable)
+ *   node scripts/build.js deb --test-variant --version 2.5.0-test.1
+ *                                                   -> a separate "Todo4Me Test" package in ./dist/test-variant (Linux)
+ *
+ * --test-variant builds an isolated copy for end-to-end update tests on a real machine: package name
+ * todo4me-test, product name "Todo4Me Test", executable todo4me-test, appId com.todo4me.test, desktop entry
+ * todo4me-test.desktop and its own data folder "Todo4Me-Test" (package.json todo4meDataFolder, see electron/main.js).
+ * It installs next to — and can never replace or share data with — the real package. Never publishable.
  *
  * The platform is chosen from the target names: nsis/portable -> Windows; linux/appimage/deb/rpm/
  * tar.gz/snap -> Linux. Without target names the default is nsis + portable on Windows and all
@@ -27,10 +34,18 @@ const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const DIST = path.join(ROOT, 'dist');
+const testVariantFlag = process.argv.includes('--test-variant');
+const DIST = testVariantFlag ? path.join(ROOT, 'dist', 'test-variant') : path.join(ROOT, 'dist');
 const TMP_OUT = path.join(os.tmpdir(), 'todo4me-build');
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const vIdx = rawArgs.indexOf('--version');
+const testVersion = vIdx >= 0 ? rawArgs[vIdx + 1] : null;
+const args = rawArgs.filter((a, i) => !(i === vIdx || i === vIdx + 1 && vIdx >= 0));
 const publish = args.includes('--publish');
+const testVariant = args.includes('--test-variant');
+if (vIdx >= 0 && !/^\d+\.\d+\.\d+([-+][\w.-]+)?$/.test(testVersion || '')) { console.error('--version needs a semver value, e.g. 2.5.0-test.1'); process.exit(1); }
+if (testVariant && publish) { console.error('--test-variant can not be combined with --publish.'); process.exit(1); }
+if (vIdx >= 0 && !testVariant) { console.error('--version is only supported together with --test-variant (the release version comes from package.json).'); process.exit(1); }
 let targets = args.filter((a) => !a.startsWith('--')).map((a) => (a.toLowerCase() === 'appimage' ? 'AppImage' : a.toLowerCase()));
 const LINUX_TARGETS = ['AppImage', 'deb', 'rpm', 'tar.gz', 'snap'];
 const WIN_TARGETS = ['nsis', 'portable', 'msi', 'zip'];
@@ -54,9 +69,30 @@ delete env.ELECTRON_RUN_AS_NODE;
 
 fs.rmSync(TMP_OUT, { recursive: true, force: true });
 const cli = require.resolve('electron-builder/cli.js', { paths: [ROOT] });
-const res = spawnSync(process.execPath, [cli, platform === 'linux' ? '--linux' : '--win', ...targets, '--config.directories.output=' + TMP_OUT, '--publish', publish ? 'always' : 'never'], {
+const variantArgs = !testVariant ? [] : [
+  '--config.appId=com.todo4me.test',
+  '--config.productName=Todo4Me Test',
+  '--config.extraMetadata.name=todo4me-test',
+  '--config.extraMetadata.productName=Todo4Me Test',
+  '--config.extraMetadata.desktopName=todo4me-test.desktop',
+  '--config.extraMetadata.todo4meDataFolder=Todo4Me-Test',
+  '--config.linux.executableName=todo4me-test',
+  '--config.linux.artifactName=Todo4Me-Test-${version}-${arch}.${ext}',
+  '--config.deb.packageName=todo4me-test',
+  '--config.rpm.packageName=todo4me-test',
+  ...(testVersion ? ['--config.extraMetadata.version=' + testVersion] : []),
+];
+// electron-builder writes extraMetadata (name, version, …) into the project's own package.json when the app
+// folder is the project root. For a test variant that would silently rewrite the real file, so restore it
+// afterwards no matter how this script ends.
+const PKG = path.join(ROOT, 'package.json');
+const pkgBackup = testVariant ? fs.readFileSync(PKG) : null;
+const restorePkg = () => { if (pkgBackup && !fs.readFileSync(PKG).equals(pkgBackup)) fs.writeFileSync(PKG, pkgBackup); };
+if (testVariant) { process.on('exit', restorePkg); ['SIGINT', 'SIGTERM'].forEach((sig) => process.on(sig, () => process.exit(130))); }
+const res = spawnSync(process.execPath, [cli, platform === 'linux' ? '--linux' : '--win', ...targets, ...variantArgs, '--config.directories.output=' + TMP_OUT, '--publish', publish ? 'always' : 'never'], {
   cwd: ROOT, env, stdio: 'inherit',
 });
+restorePkg();
 if (res.status !== 0) {
   console.error('\nBuild failed (exit code ' + res.status + ').');
   process.exit(res.status || 1);

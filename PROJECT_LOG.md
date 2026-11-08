@@ -572,3 +572,29 @@ had the focus showed 10 focus/mouse failures; the immediate re-run was green (te
 
 Tests (Linux, Ubuntu 26.04, run sequentially): functional 640/640, ICS 62/62, editor 166/166, desktop (Electron) 136/136 (incl. new Linux checks: defaults, XDG autostart file and Exec quoting, updater hint for packages, generic wording), 0 page errors.
 Packages 2.4.0 built locally (AppImage, deb, rpm v4, tar.gz); each started with an isolated data folder (AppImage via `APPIMAGE_EXTRACT_AND_RUN=1`, this host has no libfuse2); deb metadata/depends, desktop file, AppArmor profile checked. Not verified here: installing deb/rpm system-wide (no root), Windows build (CI only), AppImage `--no-sandbox` branch (host has no userns restriction), AppImage self-update.
+
+### Step 28: In-app updates for Linux deb/rpm (2.5.0)
+
+**What changed**
+
+- deb and rpm installs now update themselves: check shortly after start and every 4 hours, background download, SHA-512 check against `latest-linux.yml`, install on *Restart & install* via the polkit password dialog, then restart. tar.gz (hint) and AppImage (self-update) are unchanged.
+- `scripts/build.js`: `--test-variant` and `--version` build a side-by-side package `todo4me-test` (own `/opt` folder, own data folder `Todo4Me-Test`, own desktop entry) for end-to-end tests with a local feed (`TODO4ME_UPDATE_URL`).
+- README (Linux install, Updates, test variant), CHANGELOG 2.5.0.
+
+**Decisions**
+
+- **electron-updater only for check/download/verify, own async pkexec installer.** The library's deb/rpm installer uses blocking `spawnSync` with a shell (freezes the UI, breaks on paths containing `'`), loses stderr (no useful error message), falls back to `sudo` without a TTY (fails silently), and would prompt for a password at quit.
+- **SHA-512 re-check before the elevated install** (just before the password prompt): it catches a corrupted, truncated or stale file in the user-writable cache, so root never installs a file that does not match the feed. It is *not* a defence against malware running as the same user: such code could swap the file while the prompt is open or capture the password itself; that threat is out of scope for any user-level check.
+- **Trusted tools only:** `pkexec` and the package manager are taken only from root-owned, non-group/world-writable PATH directories, so a user-writable PATH entry (e.g. a version manager's shims) can never supply the program that runs as root.
+- **Only `pkexec`** (polkit, graphical dialog). No `sudo`/`su` fallback. If it is missing, a hint to download manually is shown.
+- **Exit codes:** 126 (dialog dismissed / not authorized) is treated as "cancelled": "not installed, try again later", no repeated prompts. 127 (pkexec missing / authentication could not be performed) is treated as an error with the manual-download hint.
+- **No silent install at quit on Linux**: a password prompt at quit would be surprising; install only on click.
+- **Package manager:** apt-get/dpkg for deb; dnf, zypper or rpm for rpm.
+- **Security trade-off:** packages are not GPG-signed; integrity relies on the SHA-512 from the release feed over HTTPS (same trust as the unsigned Windows installer, but the install runs as root).
+- **One-time step:** 2.4.0 deb/rpm users install 2.5.0 manually once.
+- **Test variant** so the full flow (download, polkit, install, restart) can be tested end to end without touching a real installation.
+
+Tests (Linux, Kubuntu/Ubuntu 26.04, sequential): functional 640/640, ICS 62/62, editor 166/166, desktop (Electron) 156/156 (24 new checks: package-type detection, deb/rpm/tar.gz/AppImage support, no install at quit, pkexec missing, trusted-tool PATH scan, argv per package manager without shell, sha512 mismatch refused, exit 0/126/127/other, double-click guard, installing UI), 0 page errors. One run had the known flaky notification-focus check fail; two re-runs green.
+Fixed a racy test: the accent-colour probe was read mid CSS transition (`transition: none` on the probe); the update button itself was always correct.
+End-to-end on the user's Kubuntu (KDE, Wayland): test variant `todo4me-test` 2.5.0-test.1 installed with apt, local feed with 2.5.0-test.2 via TODO4ME_UPDATE_URL → downloaded, "Restart & install" showed the KDE polkit dialog, Cancel → "not installed" notice and the app kept working, retry with password → installed and restarted into 2.5.0-test.2. Real ~/.config/Todo4Me untouched.
+Not verified: rpm install on a real rpm distribution (argv unit checks only), Windows (unchanged; built in CI).

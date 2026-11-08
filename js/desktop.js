@@ -79,11 +79,13 @@
   /* ---------- Updates ---------- */
   let upd = { status: 'idle' };
   const notified = {};
+  let lastNotice = null;
   function updateText(s) {
     switch (s.status) {
       case 'checking': return esc(tt('dk.checking'));
       case 'downloading': return esc(tt('dk.downloading', { version: s.version || '' })) + ' ' + (s.percent ? esc(s.percent) + '%' : '');
-      case 'ready': return tt('dk.ready', { version: esc(s.version) }); // dictionary HTML, value escaped
+      case 'ready': return tt('dk.ready', { version: esc(s.version) }) + (s.notice ? ' <span class="text-danger">' + esc(s.notice) + '</span>' : ''); // dictionary HTML, values escaped
+      case 'installing': return esc(s.notice || tt('dk.restarting'));
       case 'latest': return esc(tt('dk.latest') + (s.checkedAt ? ' ' + tt('dk.lastChecked', { date: U.fmtDateTime(s.checkedAt) }) : ''));
       case 'error': return '<span class="text-danger">' + esc(s.error || tt('dk.checkFailed')) + '</span>';
       case 'unsupported': return esc(s.reason || tt('dk.noAutoUpdate'));
@@ -93,6 +95,7 @@
   function updateButtons(s) {
     if (s.status === 'ready') return '<button type="button" class="btn btn--primary" data-action="desktop-install-update">' + icon('reset') + esc(tt('dk.restartInstall')) + '</button>';
     if (s.status === 'unsupported') return '';
+    if (s.status === 'installing') return '<button type="button" class="btn btn--primary" disabled>' + icon('reset') + esc(tt('dk.restartInstall')) + '</button>';
     return '<button type="button" class="btn" data-action="desktop-check-update"' + (s.status === 'checking' || s.status === 'downloading' ? ' disabled' : '') + '>' + icon('download') + esc(tt('dk.checkUpdates')) + '</button>';
   }
   function paintUpdate() {
@@ -108,6 +111,8 @@
       notified['dl' + s.version] = true;
       ui.toast(tt('dk.updAvailable', { version: s.version }), 'info', 6000);
     }
+    if (s.status === 'ready' && s.notice && s.notice !== lastNotice) ui.toast(s.notice, 'info', 9000); // e.g. password prompt cancelled
+    lastNotice = s.status === 'ready' ? s.notice : null;
     if (s.manual) {
       if (s.status === 'latest') ui.toast(tt('dk.latestToast', { version: s.current }), 'success', 4000);
       if (s.status === 'error') ui.toast(s.error, 'error', 9000);
@@ -148,7 +153,7 @@
       ui.toast(tt('dk.restarting'), 'info', 4000);
       if (T4.editor) await T4.editor.flush();
       const res = await desktop.installUpdate();
-      if (res && !res.ok) failed(res.error || tt('dk.installFailed'));
+      if (res && !res.ok) { if (res.handled) { installing = false; if (updBtn) updBtn.disabled = false; } else failed(res.error || tt('dk.installFailed')); }
     } catch (e) { failed(tt('dk.installFailed')); }
   }
   ui.on('desktop-check-update', () => {
