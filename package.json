@@ -1,7 +1,7 @@
 {
   "name": "todo4me",
   "productName": "Todo4Me",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Personal productivity dashboard: tasks, priorities, weekly planner, weekly notes and a document editor.",
   "author": {
     "name": "Todo4Me",
@@ -54,7 +54,7 @@
       }
     ],
     "win": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -84,7 +84,7 @@
       "artifactName": "Todo4Me-${version}-portable.exe"
     },
     "linux": {
-      "icon": "build/icon.png",
+      "icon": "build/icons",
       "category": "Office;ProjectManagement;",
       "synopsis": "Personal productivity dashboard: tasks, planner, notes and documents",
       "executableName": "todo4me",

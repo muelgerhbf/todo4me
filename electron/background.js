@@ -109,15 +109,17 @@ function applyLogin() {
 
 /* ---------- Tray ---------- */
 function trayImage() {
-  const src = nativeImage.createFromPath(ctx.iconPath);
-  if (src.isEmpty()) return null;
+  // Dedicated size-specific artwork (thicker "4" cuts at small sizes) instead of resizing the big icon.
+  const dir = path.dirname(ctx.iconPath);
+  const load = (size) => nativeImage.createFromPath(path.join(dir, 'tray-' + size + '.png'));
   // Linux (StatusNotifierItem) takes one PNG; the desktop scales it. 32 px stays sharp on HiDPI panels.
-  if (process.platform === 'linux') return src.resize({ width: 32, height: 32, quality: 'best' });
+  if (process.platform === 'linux') { const i = load(32); return i.isEmpty() ? null : i; }
   const img = nativeImage.createEmpty();
   [[1, 16], [1.5, 24], [2, 32]].forEach(([scaleFactor, size]) => {
-    img.addRepresentation({ scaleFactor, width: size, height: size, buffer: src.resize({ width: size, height: size, quality: 'best' }).toPNG() });
+    const rep = load(size);
+    if (!rep.isEmpty()) img.addRepresentation({ scaleFactor, width: size, height: size, buffer: rep.toPNG() });
   });
-  return img;
+  return img.isEmpty() ? null : img;
 }
 function trayMenu() {
   return Menu.buildFromTemplate([

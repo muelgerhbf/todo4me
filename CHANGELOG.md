@@ -4,6 +4,17 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.6.0] - 2026-11-09
+
+### Changed
+- **New "Tangram" logo and app icon:** a square cut into five pieces whose gaps write a "4" (Todo4Me). The app icon is a purple tile with the mark; size-specific artwork for 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px (thinner cuts at small sizes keep it readable), matching tray icons, a new favicon and the new brand mark at the top of the in-app sidebar.
+- The README header and screenshots show the new logo.
+- Note: Windows and Linux may keep showing the old icon for a while (taskbar, shortcuts, launcher) until the icon cache refreshes; restart the app or log out and in again.
+
+### Added
+- `scripts/build-icons.mjs`: generates all icons (`build/icon.ico`, `build/icons/`, `build/icon.png`, tray icons `assets/icons/tray-*.png`) and the brand images from `build/brand/`.
+- `docs/brand/`: logo lockups for light and dark backgrounds, GitHub social preview image and the mark as SVG.
+
 ## [2.5.0] - 2026-11-08
 
 ### Added
@@ -120,6 +131,7 @@ Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `win
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.6.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.0
 [2.5.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.5.0
 [2.4.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.4.0
 [2.3.0]: https://github.com/muelgerhbf/todo4me/releases/tag/windows-v2.3.0
