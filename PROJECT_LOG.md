@@ -598,3 +598,35 @@ Tests (Linux, Kubuntu/Ubuntu 26.04, sequential): functional 640/640, ICS 62/62, 
 Fixed a racy test: the accent-colour probe was read mid CSS transition (`transition: none` on the probe); the update button itself was always correct.
 End-to-end on the user's Kubuntu (KDE, Wayland): test variant `todo4me-test` 2.5.0-test.1 installed with apt, local feed with 2.5.0-test.2 via TODO4ME_UPDATE_URL → downloaded, "Restart & install" showed the KDE polkit dialog, Cancel → "not installed" notice and the app kept working, retry with password → installed and restarted into 2.5.0-test.2. Real ~/.config/Todo4Me untouched.
 Not verified: rpm install on a real rpm distribution (argv unit checks only), Windows (unchanged; built in CI).
+
+
+---
+
+## Part 9: Brand (2026-11-09)
+
+### Step 29: Tangram logo (2.6.0)
+
+**What changed**
+
+- New brand "Tangram": a square cut into five pieces whose gaps write a "4". App icon is a purple tile with the mark (Windows `build/icon.ico`, Linux `build/icons/` 16-1024, `build/icon.png`), tray icons `assets/icons/tray-*.png`, favicon, in-app sidebar brand mark, README header and `docs/brand/` (logo-light, logo-dark, social-preview, mark.svg).
+- `scripts/build-icons.mjs` generates everything from `build/brand/` (size-specific SVGs). `package.json` points electron-builder to `build/icon.ico` (win) and `build/icons` (linux).
+- Version 2.6.0, README (header, icon/file-tree sections, versions), CHANGELOG, all README screenshots regenerated with the new logo.
+
+**Design process**
+
+1. Round 1: checkmark variants. 2. Depth/3D variants. 3. Research on how Notion, Obsidian, Raycast and Slack build their marks. 4. Original concepts. 5. Briefs per concept. 6. Finalists Tangram, Ayrac, Bayrak, Kesisim. 7. The user chose Tangram.
+
+**Decisions**
+
+- **Purple tile for the app icon**: a black mark vanishes on dark taskbars; the tile works on light and dark.
+- **Transparent cuts via an SVG mask** (cuts show the background, not a painted colour).
+- **Size-specific cut widths 3.2 / 4.5 / 6 / 9** so the "4" stays legible from 16 px to 1024 px.
+- **Generator via headless Chrome over CDP**: plain `--screenshot` dropped masked content.
+- **Manrope only in the brand images** (README lockups, social preview), not shipped with the app.
+
+**Tests** (Linux, sequential): functional 640, ICS 62, editor 166, desktop (Electron) 156, 0 page errors. The built deb contains hicolor 16-1024 with the new artwork and starts cleanly.
+
+**Open**
+
+- The Windows ICO is not verified on Windows (CI builds it).
+- The GitHub social preview must be uploaded manually (Settings -> General -> Social preview) from `docs/brand/social-preview.png`.

@@ -158,8 +158,8 @@ kbd {
 }
 .sidebar > * { flex-shrink: 0; } /* scroll instead of squashing items (e.g. Quick capture) on short windows */
 .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 6px; }
-.brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); }
-.brand-mark .icon { width: 16px; height: 16px; stroke-width: 3; }
+.brand-mark { display: block; width: 28px; height: 28px; border-radius: 6px; } /* Tangram tile art draws its own colors */
+.brand-mark .icon-tile { display: block; width: 100%; height: 100%; }
 .brand-name { font-family: var(--heading-font); font-weight: 700; font-size: calc(16px * var(--font-scale)); letter-spacing: -.01em; }
 .sidebar .sidebar__close { margin-left: auto; display: none; }
 .sidebar__capture kbd { margin-left: auto; }
