@@ -1,0 +1,28 @@
+/* Demo banner (only in the copy of the app under /app/). Fixed bar on top; the app is shifted down by --t4demo-h. */
+:root { --t4demo-h: 40px; }
+body { padding-top: var(--t4demo-h); }
+.app { min-height: calc(100vh - var(--t4demo-h)); }
+.t4demo {
+  position: fixed; z-index: 30; top: 0; left: 0; right: 0; height: var(--t4demo-h);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px;
+  background: #0E0E12; color: #f3f2fa; font: 600 13px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  border-bottom: 1px solid #272733;
+}
+.t4demo__text { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #c9c8d8; font-weight: 500; }
+.t4demo__text strong { flex: none; background: #8B72FF; color: #0E0E12; padding: 3px 8px; border-radius: 999px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.t4demo__actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.t4demo__btn { font: inherit; color: #0E0E12; background: #8B72FF; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.t4demo__btn:hover { background: #a08cff; }
+.t4demo__link { color: #f3f2fa; text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+.t4demo__link:hover { background: #272733; }
+.t4demo :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* keep the app's full-height layouts below the banner */
+.sidebar { top: var(--t4demo-h); height: calc(100vh - var(--t4demo-h)); }
+.topbar { top: var(--t4demo-h); }
+@media (max-width: 900px) {
+  .sidebar { top: 0; height: 100%; }
+}
+@media (max-width: 560px) {
+  .t4demo { padding: 0 8px; gap: 6px; }
+  .t4demo__text span { display: none; }
+}

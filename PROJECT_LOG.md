@@ -630,3 +630,19 @@ Not verified: rpm install on a real rpm distribution (argv unit checks only), Wi
 
 - The Windows ICO is not verified on Windows (CI builds it).
 - The GitHub social preview must be uploaded manually (Settings -> General -> Social preview) from `docs/brand/social-preview.png`.
+
+### Step 30: Website (GitHub Pages)
+
+**Decisions**
+
+- **EN/DE toggle** on the landing page.
+- **Live demo under `/app/`**, built as a copy of the browser app at deploy time (`scripts/build-site.mjs`); the original app files stay untouched.
+- **Self-hosted Manrope** (no external font requests).
+- **Release download links via the GitHub API**, with a static fallback if the API is unavailable.
+- **Originals untouched**: the change is purely additive (`site/`, `scripts/build-site.mjs`, `.github/workflows/pages.yml`, README line).
+
+**Tests**: site 61/61, demo 15/15, 0 console errors, 0 404s; download-link patterns verified against the real 2.6.0 assets.
+
+**Open**
+
+- Enable Pages after the merge (Settings -> Pages -> Source: GitHub Actions); the workflow then deploys on push to `main`.
