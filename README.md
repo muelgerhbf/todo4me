@@ -16,6 +16,8 @@ There is a desktop app for Windows and Linux (Electron) and a browser version.
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
 
+**Website & live demo:** https://muelgerhbf.github.io/todo4me/
+
 ![Todo4Me dashboard](docs/screenshots/dashboard-light.png)
 
 ## Download & install
@@ -458,6 +460,8 @@ Everything that enters a document (loading, pasting, import, undo) passes throug
 
 Source code: <https://github.com/muelgerhbf/todo4me> (public). Ready-made installers are in the [Releases](https://github.com/muelgerhbf/todo4me/releases) of this repository.
 Working guide for AI agents: [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
+
+Website: sources in `site/`, `node scripts/build-site.mjs` builds `dist/site/` (with a live demo of the browser app under `app/`), deployed by `.github/workflows/pages.yml`.
 
 <details>
 <summary><strong>Development and build</strong></summary>
