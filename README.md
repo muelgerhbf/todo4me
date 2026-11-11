@@ -11,7 +11,7 @@
 weekly notes, reminders, and a document editor with PDF export. Everything runs **offline on your computer**, with no account and no cloud.
 There is a desktop app for Windows and Linux (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.6.0-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.6.1-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -24,9 +24,9 @@ There is a desktop app for Windows and Linux (Electron) and a browser version.
 
 ### Windows
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.6.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.0)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.6.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.6.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.6.1](https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.1)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.6.1.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.6.1-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -38,10 +38,10 @@ From the same [release page](https://github.com/muelgerhbf/todo4me/releases/late
 
 | Distribution | File | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.6.0-amd64.deb` | `sudo apt install ./Todo4Me-2.6.0-amd64.deb` |
-| Fedora, RHEL, openSUSE | `Todo4Me-2.6.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.6.0-x86_64.rpm` |
-| Any distribution, self-updating | `Todo4Me-2.6.0-x86_64.AppImage` | `chmod +x Todo4Me-2.6.0-x86_64.AppImage && ./Todo4Me-2.6.0-x86_64.AppImage` |
-| Any distribution, no installation | `Todo4Me-2.6.0-x64.tar.gz` | `tar xzf Todo4Me-2.6.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
+| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.6.1-amd64.deb` | `sudo apt install ./Todo4Me-2.6.1-amd64.deb` |
+| Fedora, RHEL, openSUSE | `Todo4Me-2.6.1-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.6.1-x86_64.rpm` |
+| Any distribution, self-updating | `Todo4Me-2.6.1-x86_64.AppImage` | `chmod +x Todo4Me-2.6.1-x86_64.AppImage && ./Todo4Me-2.6.1-x86_64.AppImage` |
+| Any distribution, no installation | `Todo4Me-2.6.1-x64.tar.gz` | `tar xzf Todo4Me-2.6.1-x64.tar.gz`, then run `todo4me` from the extracted folder |
 
 - **AppImage needs FUSE 2.** On Ubuntu 22.04 and newer install it with `sudo apt install libfuse2t64` (older: `libfuse2`), or start the AppImage with `--appimage-extract-and-run`.
 - **Sandbox on Ubuntu 23.10+:** Ubuntu restricts unprivileged user namespaces with AppArmor. The deb and rpm packages install an AppArmor profile and keep Chromium's sandbox, which is why they are recommended there.
@@ -201,7 +201,7 @@ Without internet nothing disruptive happens: automatic checks fail silently, a m
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
 > **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
-> Install `Todo4Me-Setup-2.6.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> Install `Todo4Me-Setup-2.6.1.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
@@ -259,7 +259,8 @@ All shortcuts of the web app (`N`, `Q`, `/`, `G` + letter …) keep working. In 
 | File → Open backups folder / Open data folder | |
 | Go → Dashboard … Focus Mode / Settings | `Ctrl+1` … `Ctrl+9` / `Ctrl+,` |
 | Go → Editor | `Ctrl+Shift+D` |
-| View → Zoom, Full screen, Reload | `Ctrl+Plus/Minus/0`, `F11`, `Ctrl+R` |
+| View → Zoom in / Zoom out / Actual size | `Ctrl++` (also `Ctrl+=` and numpad `+`) / `Ctrl+-` / `Ctrl+0`; steps 50–300 %, remembered across restarts |
+| View → Full screen, Reload | `F11`, `Ctrl+R` |
 | Help → Check for updates | |
 | **System-wide** (also in other programs): Quick capture | `Ctrl+Alt+Space` (configurable) |
 
@@ -374,6 +375,7 @@ The header of the Weekly Planner has a **Days | Calendar** switch. *Days* is the
 *Calendar* shows the same week (same week start, same navigation) as an **hourly grid**, or a single day (**Day | Week**; clicking a day header opens it).
 The grid opens at 06:00 and scrolls from 00:00 to 24:00; a red line marks the current time. Your choice is remembered, and `#/planner?view=calendar` opens the view directly
 (this is what "Open calendar" in the dashboard uses). On narrow screens (≤ 760 px) the calendar always shows one day.
+The time column adapts to the text size, so the hour labels stay readable. In narrow windows the day columns keep a minimum width and the calendar scrolls sideways (the time column stays visible).
 
 | In the calendar | What happens |
 |---|---|
@@ -517,8 +519,8 @@ Releases are built by the GitHub Actions workflow `.github/workflows/release.yml
 **For every update**
 
 1. Increase the version number in `package.json` (it must **always be greater** than the last one) and add the section to `CHANGELOG.md`. Merge to `main`.
-2. Push the tag: `git tag v2.6.0 && git push origin v2.6.0` (the tag must equal `v` + the `package.json` version).
-3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.6.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
+2. Push the tag: `git tag v2.6.1 && git push origin v2.6.1` (the tag must equal `v` + the `package.json` version).
+3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.6.1* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
 4. On GitHub under *todo4me → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
 
 Running the workflow manually (*Actions → Release → Run workflow*) only builds and attaches the files as artifacts; it creates no release.

@@ -32,7 +32,7 @@ const HOTKEYS = [
 // Linux: GNOME has no tray by default and Wayland blocks global shortcuts, so both are off there until the
 // user turns them on (only the defaults differ; a saved choice always wins, see sanitize()).
 const LINUX = process.platform === 'linux';
-const DEFAULTS = Object.freeze({ closeToTray: !LINUX, openAtLogin: false, hotkeyEnabled: !LINUX, hotkey: HOTKEYS[0].id, trayHintShown: false });
+const DEFAULTS = Object.freeze({ closeToTray: !LINUX, openAtLogin: false, hotkeyEnabled: !LINUX, hotkey: HOTKEYS[0].id, trayHintShown: false, zoom: 1 });
 const snoozeLabel = () => T('notif.snooze');
 
 let ctx = null;          // { file, iconPath, showWindow(), send(action), notificationClick(id, action), quit() }
@@ -53,6 +53,7 @@ function sanitize(s) {
     hotkeyEnabled: typeof s.hotkeyEnabled === 'boolean' ? s.hotkeyEnabled : DEFAULTS.hotkeyEnabled,
     hotkey: HOTKEYS.some((h) => h.id === s.hotkey) ? s.hotkey : DEFAULTS.hotkey,
     trayHintShown: s.trayHintShown === true,
+    zoom: typeof s.zoom === 'number' && s.zoom >= 0.25 && s.zoom <= 5 ? s.zoom : DEFAULTS.zoom, // window zoom (Ctrl +/-/0), see main.js
   };
 }
 function load() {
@@ -297,8 +298,12 @@ function refreshLanguage() {
   if (tray && !tray.isDestroyed()) { try { tray.setContextMenu(trayMenu()); } catch (e) { /* ignore */ } }
 }
 
+/** Window zoom factor (1 = 100 %), saved with the other desktop prefs (not in the task data). */
+function getZoom() { return settings.zoom; }
+function setZoom(z) { settings.zoom = sanitize({ zoom: z }).zoom; save(); }
+
 module.exports = {
-  refreshLanguage, HIDDEN_ARG, HOTKEYS, init, state, setSettings, shouldHideOnClose, startHidden, onHidden, notify,
+  getZoom, setZoom, refreshLanguage, HIDDEN_ARG, HOTKEYS, init, state, setSettings, shouldHideOnClose, startHidden, onHidden, notify,
   get tray() { return tray; },
   get settings() { return Object.assign({}, settings); },
   get shown() { return shown.slice(); },

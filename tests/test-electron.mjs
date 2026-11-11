@@ -523,6 +523,53 @@ export default async function (b) {
     ok(d && d.html.includes('SHUTDOWN WORDS') && d.html.includes('LAST WORDS'), 'editor text typed before hide + shutdown is saved');
   `);
 
+  // --- Zoom: Ctrl + / - / 0 work on every layout, steps like Chrome, saved across reloads and restarts
+  const zf = () => b.mainEval(`process.mainModule.require('electron').BrowserWindow.getAllWindows()[0].webContents.getZoomFactor()`);
+  // CDP key events skip Electron's before-input-event, so the listener is fed the input object directly
+  // (key/code exactly as Chromium reports them per layout); a few real keys go through sendInputEvent below.
+  const ctrl = (key, code, mods = {}) => b.mainEval(`(() => { const w = process.mainModule.require('electron').BrowserWindow.getAllWindows()[0]; let prevented = false; w.webContents.emit('before-input-event', { preventDefault() { prevented = true; } }, Object.assign({ type: 'keyDown', key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, control: true, shift: false, alt: false, meta: false }, ${JSON.stringify(mods)})); return prevented; })()`);
+  const realKey = (keyCode, modifiers) => b.mainEval(`(() => { const w = process.mainModule.require('electron').BrowserWindow.getAllWindows()[0]; w.webContents.sendInputEvent({ type: 'keyDown', keyCode: ${JSON.stringify(keyCode)}, modifiers: ${JSON.stringify(modifiers)} }); w.webContents.sendInputEvent({ type: 'keyUp', keyCode: ${JSON.stringify(keyCode)}, modifiers: ${JSON.stringify(modifiers)} }); return true; })()`);
+  const near = (a, v) => Math.abs(a - v) < 0.005;
+  await ctrl('0', 'Digit0'); await b.sleep(150);
+  ok(near(await zf(), 1), 'Ctrl+0 resets the zoom to 100 %');
+  await ctrl('+', 'BracketRight'); await b.sleep(150);   // German layout: "+" is its own key
+  ok(near(await zf(), 1.1), 'Ctrl++ (German layout, key "+" on BracketRight) zooms in to 110 %');
+  await ctrl('=', 'Equal'); await b.sleep(150);          // US layout without Shift
+  ok(near(await zf(), 1.25), 'Ctrl+= (US layout) zooms in to 125 %');
+  await ctrl('+', 'NumpadAdd'); await b.sleep(150);
+  ok(near(await zf(), 1.5), 'Ctrl+Numpad+ zooms in to 150 %');
+  await ctrl('-', 'Minus'); await b.sleep(150);
+  ok(near(await zf(), 1.25), 'Ctrl+- zooms out to 125 %');
+  await ctrl('-', 'NumpadSubtract'); await b.sleep(150);
+  ok(near(await zf(), 1.1), 'Ctrl+Numpad- zooms out to 110 %');
+  ok(!(await ctrl('+', 'BracketRight', { control: false })) && near(await zf(), 1.1), 'plain "+" without Ctrl does not zoom and is not swallowed');
+  ok(!(await ctrl('}', 'Digit0', { alt: true })) && !(await ctrl('0', 'Digit0', { alt: true })) && near(await zf(), 1.1), 'Ctrl+Alt (AltGr, editor Ctrl+Alt+0) does not zoom');
+  ok(!(await ctrl('c', 'KeyC')) && !(await ctrl('0', 'Numpad0', { key: 'Insert' })), 'other Ctrl keys (copy, Numpad0 with NumLock off) are left alone');
+  await realKey('+', ['control', 'shift']); await b.sleep(150);
+  ok(near(await zf(), 1.25), 'real key event Ctrl+Shift+= (US layout "+") zooms in');
+  await realKey('numsub', ['control']); await b.sleep(150);
+  ok(near(await zf(), 1.1), 'real key event Ctrl+Numpad- zooms out');
+  await realKey('0', ['control']); await b.sleep(150);
+  ok(near(await zf(), 1), 'real key event Ctrl+0 resets');
+  await ctrl('+', 'BracketRight'); await b.sleep(150);
+  await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await b.sleep(200);
+  ok(near(await zf(), 3), 'zoom in clamps at 300 %');
+  for (let i = 0; i < 14; i++) await ctrl('-', 'Minus');
+  await b.sleep(200);
+  ok(near(await zf(), 0.5), 'zoom out clamps at 50 %');
+  await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await ctrl('+', 'BracketRight'); await b.sleep(150);
+  ok(near(await zf(), 0.8), 'steps 50 → 67 → 75 → 80 %');
+  await b.reload(); await b.sleep(500);
+  ok(near(await zf(), 0.8), 'zoom survives a page reload');
+  const zmenu = await b.mainEval(`(() => { const m = process.mainModule.require('electron').Menu.getApplicationMenu(); const v = m.items.find((i) => i.submenu && i.submenu.items.some((s) => s.accelerator === 'CmdOrCtrl+Plus')); v.submenu.items.find((s) => s.accelerator === 'CmdOrCtrl+Plus').click(); return true; })()`);
+  await b.sleep(150);
+  ok(zmenu && near(await zf(), 0.9), 'View → Zoom in (menu click) uses the same steps');
+  ok(near(JSON.parse(fs.readFileSync(path.join(b.env.TODO4ME_USER_DATA, 'desktop-settings.json'), 'utf8')).zoom, 0.9), 'zoom is saved in desktop-settings.json (not in the task data)');
+  await b.restartGracefully('quit'); await b.sleep(800);
+  ok(near(await zf(), 0.9), 'zoom is restored after an app restart');
+  await ctrl('0', 'Digit0'); await b.sleep(150);
+  ok(near(await zf(), 1), 'Ctrl+0 resets to 100 % again');
+
   // --- Calendar subscriptions: fetchCalendar in the main process against a local HTTPS server (tests/electron-calendar.mjs)
   await calendarFetchChecks(b, ok, run);
 
