@@ -661,3 +661,23 @@ Not verified: rpm install on a real rpm distribution (argv unit checks only), Wi
 - README (zoom shortcuts, calendar note), CHANGELOG, version 2.6.1; the two calendar screenshots were regenerated from the running app (sample data, 1440x900).
 
 **Tests** (Linux, sequential): functional 658, ICS 62, editor 166 (with `PDFTEXT=tests/pdftext.mjs`), desktop (Electron) 172, 0 failed, 0 page errors. Manual test by the user: `Ctrl++` works on a real German keyboard and the zoom level persists across restarts.
+
+### Step 32: Simple and Advanced mode (2.7.0)
+
+**Motivation**: daily users found the app click-heavy (many pages, long task form). Solution: two interface modes. A mode only hides or shows UI; data is never changed.
+
+**Implementation**
+
+- Two coders worked in parallel on a shared contract: `settings.uiMode` (`simple` | `advanced`), a body class `mode-simple` / `mode-advanced`, and the API `T4.mode` (`js/mode.js`, texts in `js/i18n/mode.js`).
+- Simple: reduced sidebar (Today as start page), "More options" in the task form (auto-expanded when used), day lists only in the planner, "Switch to Advanced" link with Undo. Hidden pages stay reachable via shortcuts, menu and links.
+- Migration: existing users (data present, no `uiMode`) stay in Advanced; new users get a first-run chooser (Simple recommended).
+- Test seeding: the harnesses define `window.__T4_FIRST_RUN_MODE = 'advanced'` before load so the chooser does not interfere; `sessionStorage['t4.test.noSeed'] = '1'` opts out (used by the modes suite).
+- Quick add: example in the placeholder and a "?" help popover, both modes.
+
+**Tests** (Linux, sequential, port 9333): functional 707, functional-modes 78 (new), ICS 62, editor 166 (`PDFTEXT=tests/pdftext.mjs`), desktop (Electron) 172, 0 failed, 0 page errors. The user clicked through the prototype.
+
+**Open**
+
+- "Daily plan" button on Today in Simple mode.
+- The quick-add example uses English date tokens and `!2`; the parser only knows English date words.
+

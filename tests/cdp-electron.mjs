@@ -53,6 +53,10 @@ function onMsg(ev) {
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 async function enable() { await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable'); }
 await enable();
+// UI modes (2.7): a fresh profile would show the first-run chooser. Tests run in 'advanced' unless a test opts out by
+// setting sessionStorage 't4.test.noSeed' = '1' (tests/functional-modes.mjs); see js/mode.js (__T4_FIRST_RUN_MODE).
+await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { if (sessionStorage.getItem('t4.test.noSeed') !== '1') window.__T4_FIRST_RUN_MODE = 'advanced'; } catch (e) {}" });
+await send('Page.reload'); await sleep(900); // the window loaded before the script could be registered
 
 async function mainEval(expr) {
   const list = await (await fetch('http://127.0.0.1:' + (PORT + 6) + '/json/list')).json();

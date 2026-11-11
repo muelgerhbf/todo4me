@@ -155,7 +155,7 @@ T4.focus = (function () {
   }
   ui.on('focus-select', (el) => { select(el.dataset.id); T4.app.render(); });
   ui.on('focus-switch', () => { select(null); T4.app.render(); });
-  ui.on('focus-exit', () => { location.hash = '#/dashboard'; });
+  ui.on('focus-exit', () => { location.hash = '#/' + T4.mode.home(); });
   ui.on('focus-subtask', (el) => store.toggleSubtask(el.dataset.id, el.dataset.sub));
   ui.on('focus-start', (el) => {
     const t = store.getTask(el.dataset.id);

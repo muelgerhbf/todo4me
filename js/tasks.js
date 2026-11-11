@@ -79,12 +79,55 @@ T4.tasks = (function () {
     return '<ul class="task-list" role="list">' + tasks.map((t) => row(t, opts)).join('') + '</ul>';
   }
 
+  /** "?" button + small popover that lists the quick-add syntax (works with the keyboard; Esc / outside click closes). */
+  let helpSeq = 0;
+  function quickHelpHtml() {
+    const id = 'qa-help-' + (++helpSeq);
+    return '<span class="qa-help"><button type="button" class="qa-help__btn" data-qa-help aria-expanded="false" aria-controls="' + id + '" title="' + esc(tt('modeui.qaHelpTitle')) + '" aria-label="' + esc(tt('modeui.qaHelpTitle')) + '">?</button>' +
+      '<div class="qa-help__pop" id="' + id + '" role="region" aria-label="' + esc(tt('modeui.qaHelpTitle')) + '" hidden>' +
+        '<strong>' + esc(tt('modeui.qaHelpTitle')) + '</strong>' +
+        '<ul><li>' + tt('modeui.qaHelpPrio') + '</li><li>' + tt('modeui.qaHelpTag') + '</li><li>' + tt('modeui.qaHelpDate') + '</li><li>' + tt('modeui.qaHelpRepeat') + '</li></ul>' + // trusted dictionary text (contains <code>)
+        '<p class="muted small">' + esc(tt('modeui.qaHelpEg')) + '</p></div></span>';
+  }
+  function closeQuickHelp(except) {
+    document.querySelectorAll('.qa-help__btn[aria-expanded="true"]').forEach((b) => {
+      if (b === except) return;
+      b.setAttribute('aria-expanded', 'false');
+      const pop = document.getElementById(b.getAttribute('aria-controls'));
+      if (pop) pop.hidden = true;
+    });
+  }
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('[data-qa-help]');
+    if (btn) {
+      closeQuickHelp(btn);
+      const pop = document.getElementById(btn.getAttribute('aria-controls'));
+      const open = pop.hidden;
+      pop.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    if (!(e.target.closest && e.target.closest('.qa-help__pop'))) closeQuickHelp(null);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('.qa-help__btn[aria-expanded="true"]');
+    if (!open) return;
+    e.preventDefault(); e.stopPropagation(); // closes the popover only, not the dialog behind it
+    closeQuickHelp(null);
+    open.focus();
+  }, true);
+
   /** Inline quick-add form. defaults is serialized onto the form. */
   function quickAddForm(defaults, placeholder, id) {
+    const base = placeholder || tt('tk.addPlaceholder');
+    // The My Tasks placeholder already carries an example; the others get the localized example appended.
+    const ph = base === tt('tk.tasksPh') ? base : base + ' ' + tt('modeui.qaEg');
     return '<form class="quick-add" data-form="quick-add" data-defaults="' + esc(JSON.stringify(defaults || {})) + '"' + (id ? ' id="' + id + '"' : '') + '>' +
       icon('plus', 'quick-add__icon') +
-      '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(placeholder || tt('tk.addPlaceholder')) + '" aria-label="' + esc(tt('tk.newTaskTitle')) + '">' +
+      '<input type="text" name="title" maxlength="500" autocomplete="off" placeholder="' + esc(ph) + '" aria-label="' + esc(tt('tk.newTaskTitle')) + '">' +
       '<span class="quick-add__hint" aria-hidden="true">' + esc(tt('tk.quickHint')) + '</span>' +
+      quickHelpHtml() +
       '<button type="submit" class="btn btn--primary btn--sm">' + esc(tt('c.add')) + '</button>' +
       '</form>';
   }
@@ -237,6 +280,10 @@ T4.tasks = (function () {
       '<p class="recur-custom__preview" id="tf-r-preview" aria-live="polite"></p></div>';
   }
 
+  // Simple/Advanced UI mode (T4.mode, see the mode switch in Settings). Without it everything behaves as Advanced.
+  const isSimple = () => document.body.classList.contains('mode-simple') || !!(T4.mode && T4.mode.get() === 'simple');
+  let moreOpenSession = false; // "More options" stays open for the rest of the session once the user opened it
+
   /** Open the task editor. existing = task or null; defaults for new tasks. */
   function openEditor(existing, defaults) {
     const t = existing || Object.assign({
@@ -254,37 +301,54 @@ T4.tasks = (function () {
       '<label class="seg__opt seg__opt--' + p + '"><input type="radio" name="priority" value="' + p + '"' + ((t.priority || 'none') === p ? ' checked' : '') + '>' +
       '<span>' + esc(p === 'none' ? tt('c.none') : PRIORITY[p].label) + '</span></label>').join('');
 
-    const body =
-      '<form id="task-form" class="form" novalidate>' +
-        (t.inbox && existing ? '<p class="callout">' + icon('inbox') + esc(tt('tk.inboxCallout')) + '</p>' : '') +
-        '<div class="field"><label for="tf-title">' + esc(tt('tk.fTitle')) + '</label>' +
+    // Field groups. Advanced shows them in the classic order; Simple moves the rarely used ones into "More options".
+    const fTitle = '<div class="field"><label for="tf-title">' + esc(tt('tk.fTitle')) + '</label>' +
           '<input id="tf-title" name="title" type="text" maxlength="500" required value="' + esc(t.title) + '" autofocus placeholder="' + esc(tt('tk.fTitlePh')) + '">' +
-          '<p class="field__error" id="tf-title-err" hidden>' + esc(tt('tk.fTitleErr')) + '</p></div>' +
-        '<div class="field"><label for="tf-desc">' + esc(tt('tk.fDesc')) + '</label>' +
-          '<textarea id="tf-desc" name="description" rows="2" placeholder="' + esc(tt('tk.fDescPh')) + '">' + esc(t.description) + '</textarea></div>' +
-        '<fieldset class="field"><legend>' + esc(tt('tk.fPriority')) + '</legend><div class="seg seg--prio">' + prioRadios + '</div></fieldset>' +
-        '<div class="grid-3">' +
-          '<div class="field"><label for="tf-date">' + esc(tt('tk.fDue')) + '</label><input id="tf-date" name="dueDate" type="date" value="' + esc(t.dueDate || '') + '"></div>' +
-          '<div class="field"><label for="tf-time">' + esc(tt('tk.fDueTime')) + ' <span class="muted">' + esc(tt('tk.optional')) + '</span></label><input id="tf-time" name="dueTime" type="time" value="' + esc(t.dueTime || '') + '"></div>' +
-          '<div class="field"><label for="tf-est">' + esc(tt('tk.fEstimate')) + ' <span class="muted">' + esc(tt('tk.minShort')) + '</span></label><input id="tf-est" name="estimate" type="number" min="1" max="1440" step="5" inputmode="numeric" value="' + esc(t.estimate || '') + '" placeholder="' + esc(tt('tk.fEstimatePh')) + '"></div>' +
-        '</div>' +
-        '<div class="grid-3">' +
-          '<div class="field"><label for="tf-status">' + esc(tt('tk.fStatus')) + '</label><select id="tf-status" name="status">' +
-            Object.keys(STATUS).map((s) => '<option value="' + s + '"' + (t.status === s ? ' selected' : '') + '>' + esc(STATUS[s]) + '</option>').join('') + '</select></div>' +
-          '<div class="field"><label for="tf-cat">' + esc(tt('tk.fCategory')) + '</label><div class="input-row"><select id="tf-cat" name="categoryId"><option value="">' + esc(tt('tk.noCategory')) + '</option>' +
+          '<p class="field__error" id="tf-title-err" hidden>' + esc(tt('tk.fTitleErr')) + '</p></div>';
+    const fDesc = '<div class="field"><label for="tf-desc">' + esc(tt('tk.fDesc')) + '</label>' +
+          '<textarea id="tf-desc" name="description" rows="2" placeholder="' + esc(tt('tk.fDescPh')) + '">' + esc(t.description) + '</textarea></div>';
+    const fPrio = '<fieldset class="field"><legend>' + esc(tt('tk.fPriority')) + '</legend><div class="seg seg--prio">' + prioRadios + '</div></fieldset>';
+    const fDate = '<div class="field"><label for="tf-date">' + esc(tt('tk.fDue')) + '</label><input id="tf-date" name="dueDate" type="date" value="' + esc(t.dueDate || '') + '"></div>';
+    const fTime = '<div class="field"><label for="tf-time">' + esc(tt('tk.fDueTime')) + ' <span class="muted">' + esc(tt('tk.optional')) + '</span></label><input id="tf-time" name="dueTime" type="time" value="' + esc(t.dueTime || '') + '"></div>';
+    const fEst = '<div class="field"><label for="tf-est">' + esc(tt('tk.fEstimate')) + ' <span class="muted">' + esc(tt('tk.minShort')) + '</span></label><input id="tf-est" name="estimate" type="number" min="1" max="1440" step="5" inputmode="numeric" value="' + esc(t.estimate || '') + '" placeholder="' + esc(tt('tk.fEstimatePh')) + '"></div>';
+    const fStatus = '<div class="field"><label for="tf-status">' + esc(tt('tk.fStatus')) + '</label><select id="tf-status" name="status">' +
+            Object.keys(STATUS).map((s) => '<option value="' + s + '"' + (t.status === s ? ' selected' : '') + '>' + esc(STATUS[s]) + '</option>').join('') + '</select></div>';
+    const fCat = '<div class="field"><label for="tf-cat">' + esc(tt('tk.fCategory')) + '</label><div class="input-row"><select id="tf-cat" name="categoryId"><option value="">' + esc(tt('tk.noCategory')) + '</option>' +
             cats.map((c) => '<option value="' + c.id + '"' + (t.categoryId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') +
             '</select><button type="button" class="icon-btn" id="tf-newcat-btn" title="' + esc(tt('tk.newCategory')) + '" aria-label="' + esc(tt('tk.newCategory')) + '" aria-expanded="false">' + icon('plus') + '</button></div>' +
-            '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="' + esc(tt('tk.categoryName')) + '" aria-label="' + esc(tt('tk.newCategoryName')) + '"><button type="button" class="btn btn--sm" id="tf-newcat-add">' + esc(tt('c.add')) + '</button></div></div>' +
-          '<div class="field"><label for="tf-recur">' + esc(tt('tk.fRepeat')) + '</label><select id="tf-recur" name="recurrence"><option value="">' + esc(tt('tk.noRepeat')) + '</option></select></div>' +
-        '</div>' + recurCustomHtml() +
-        (R ? '<div class="grid-3"><div class="field"><label for="tf-remind">' + esc(tt('tk.fReminder')) + '</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">' + esc(tt('tk.noReminder')) + '</option>' +
+            '<div class="input-row mt-xs" id="tf-newcat" hidden><input type="text" id="tf-newcat-name" maxlength="40" placeholder="' + esc(tt('tk.categoryName')) + '" aria-label="' + esc(tt('tk.newCategoryName')) + '"><button type="button" class="btn btn--sm" id="tf-newcat-add">' + esc(tt('c.add')) + '</button></div></div>';
+    const fRepeat = '<div class="field"><label for="tf-recur">' + esc(tt('tk.fRepeat')) + '</label><select id="tf-recur" name="recurrence"><option value="">' + esc(tt('tk.noRepeat')) + '</option></select></div>';
+    const fRemind = R ? '<div class="grid-3"><div class="field"><label for="tf-remind">' + esc(tt('tk.fReminder')) + '</label><select id="tf-remind" name="reminder" aria-describedby="tf-remind-hint"><option value="">' + esc(tt('tk.noReminder')) + '</option>' +
             remindOpts.map((o) => '<option value="' + o[0] + '"' + (t.reminder === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>' +
-            '<p class="field__hint" id="tf-remind-hint" aria-live="polite"></p></div></div>' : '') +
-        '<div class="field"><label for="tf-tags">' + esc(tt('tk.fTags')) + ' <span class="muted">' + esc(tt('tk.commaSeparated')) + '</span></label><input id="tf-tags" name="tags" type="text" value="' + esc(t.tags.join(', ')) + '" placeholder="' + esc(tt('tk.fTagsPh')) + '" list="tf-tag-list">' +
-          '<datalist id="tf-tag-list">' + store.allTags().map((g) => '<option value="' + esc(g) + '">').join('') + '</datalist></div>' +
-        '<div class="field"><span class="label">' + esc(tt('tk.fSubtasks')) + '</span><ul class="subtasks" id="tf-subtasks"></ul>' +
-          '<div class="input-row"><input type="text" id="tf-sub-new" maxlength="300" placeholder="' + esc(tt('tk.subtaskPh')) + '" aria-label="' + esc(tt('tk.newSubtask')) + '"><button type="button" class="btn btn--sm" id="tf-sub-add">' + esc(tt('c.add')) + '</button></div></div>' +
-        '<div class="field"><label for="tf-notes">' + esc(tt('tk.fNotes')) + '</label><textarea id="tf-notes" name="notes" rows="3" placeholder="' + esc(tt('tk.fNotesPh')) + '">' + esc(t.notes) + '</textarea></div>' +
+            '<p class="field__hint" id="tf-remind-hint" aria-live="polite"></p></div></div>' : '';
+    const fTags = '<div class="field"><label for="tf-tags">' + esc(tt('tk.fTags')) + ' <span class="muted">' + esc(tt('tk.commaSeparated')) + '</span></label><input id="tf-tags" name="tags" type="text" value="' + esc(t.tags.join(', ')) + '" placeholder="' + esc(tt('tk.fTagsPh')) + '" list="tf-tag-list">' +
+          '<datalist id="tf-tag-list">' + store.allTags().map((g) => '<option value="' + esc(g) + '">').join('') + '</datalist></div>';
+    const fSubs = '<div class="field"><span class="label">' + esc(tt('tk.fSubtasks')) + '</span><ul class="subtasks" id="tf-subtasks"></ul>' +
+          '<div class="input-row"><input type="text" id="tf-sub-new" maxlength="300" placeholder="' + esc(tt('tk.subtaskPh')) + '" aria-label="' + esc(tt('tk.newSubtask')) + '"><button type="button" class="btn btn--sm" id="tf-sub-add">' + esc(tt('c.add')) + '</button></div></div>';
+    const fNotes = '<div class="field"><label for="tf-notes">' + esc(tt('tk.fNotes')) + '</label><textarea id="tf-notes" name="notes" rows="3" placeholder="' + esc(tt('tk.fNotesPh')) + '">' + esc(t.notes) + '</textarea></div>';
+
+    // Simple mode: collapsed "More options" (the fields stay in the form, so saving never loses their values).
+    const simple = isSimple();
+    const hasHidden = !!(t.description || t.notes || t.tags.length || t.subtasks.length || t.estimate || t.recurrence || t.categoryId || (t.status && t.status !== 'todo'));
+    const moreStart = hasHidden || moreOpenSession;
+
+    let fields;
+    if (!simple) {
+      fields = fTitle + fDesc + fPrio + '<div class="grid-3">' + fDate + fTime + fEst + '</div>' +
+        '<div class="grid-3">' + fStatus + fCat + fRepeat + '</div>' + recurCustomHtml() + fRemind + fTags + fSubs + fNotes;
+    } else {
+      fields = fTitle + '<div class="grid-3">' + fDate + fTime + '</div>' + fPrio + fRemind +
+        '<button type="button" class="btn btn--ghost btn--sm more-toggle" id="tf-more-btn" aria-expanded="' + moreStart + '" aria-controls="tf-more">' +
+          icon('chevron-down', 'more-toggle__icon') + '<span>' + esc(tt('modeui.moreOptions')) + '</span></button>' +
+        '<div class="more-panel" id="tf-more" role="group" aria-label="' + esc(tt('modeui.moreOptions')) + '"' + (moreStart ? '' : ' hidden') + '>' +
+          fDesc + '<div class="grid-3">' + fEst + fStatus + fCat + '</div><div class="grid-3">' + fRepeat + '</div>' + recurCustomHtml() + fTags + fSubs + fNotes +
+        '</div>';
+    }
+
+    const body =
+      '<form id="task-form" class="form' + (simple ? ' form--simple' : '') + '" novalidate>' +
+        (t.inbox && existing ? '<p class="callout">' + icon('inbox') + esc(tt('tk.inboxCallout')) + '</p>' : '') +
+        fields +
         (existing ? '<p class="meta-line">' + esc(t.completedAt
           ? tt('tk.createdCompleted', { created: U.fmtDateTime(t.createdAt), completed: U.fmtDateTime(t.completedAt) })
           : tt('tk.created', { date: U.fmtDateTime(t.createdAt) })) + '</p>' : '') +
@@ -300,6 +364,13 @@ T4.tasks = (function () {
       body, footer, size: 'lg',
       onMount(m) {
         const form = m.querySelector('#task-form');
+        const moreBtn = m.querySelector('#tf-more-btn'), morePanel = m.querySelector('#tf-more');
+        if (moreBtn) moreBtn.addEventListener('click', () => {
+          const open = morePanel.hidden; // currently collapsed → expand
+          morePanel.hidden = !open;
+          moreBtn.setAttribute('aria-expanded', String(open));
+          moreOpenSession = open;
+        });
         const subList = m.querySelector('#tf-subtasks');
         const renderSubs = () => {
           subList.innerHTML = subtasks.map((s) =>
@@ -560,7 +631,7 @@ T4.tasks = (function () {
       body: '<form id="qc-form" class="form">' +
         '<p class="muted small">' + esc(tt('tk.qcIntro')) + '</p>' +
         '<div class="field"><label for="qc-title" class="sr-only">' + esc(tt('tk.qcTask')) + '</label>' +
-        '<input id="qc-title" type="text" maxlength="500" autocomplete="off" placeholder="' + esc(tt('tk.qcPh')) + '" autofocus></div>' +
+        '<input id="qc-title" type="text" maxlength="500" autocomplete="off" placeholder="' + esc(tt('modeui.qcPh')) + '" autofocus>' + quickHelpHtml() + '</div>' +
         '<p class="muted small">' + tt('tk.qcTip') + '</p>' + // trusted dictionary text (contains <code>)
         '</form>',
       footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(tt('c.close')) + '</button>' +
@@ -847,5 +918,5 @@ T4.tasks = (function () {
     },
   };
 
-  return { row, list, priorityBadge, categoryChip, dueChip, quickAddForm, openEditor, openQuickCapture, captureText, parseQuickAdd, confirmDelete, pageHeader, newTaskBtn, PRIORITY, STATUS };
+  return { isSimple, row, list, priorityBadge, categoryChip, dueChip, quickAddForm, openEditor, openQuickCapture, captureText, parseQuickAdd, confirmDelete, pageHeader, newTaskBtn, PRIORITY, STATUS };
 })();

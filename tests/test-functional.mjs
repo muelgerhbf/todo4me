@@ -1,5 +1,6 @@
 // Functional tests driven through the real DOM.
 import calendarChecks from './functional-calendar.mjs';
+import modesUiChecks from './functional-modes-ui.mjs';
 const PRELUDE = `
   window.__r = window.__r || [];
   var $ = (s, r) => (r || document).querySelector(s);
@@ -883,6 +884,9 @@ export default async function (b) {
 
   // Weekly Planner → Calendar view + calendar subscriptions (tests/functional-calendar.mjs)
   await calendarChecks(b, run);
+
+  // UI modes: task form, quick-add help, planner (tests/functional-modes-ui.mjs)
+  await modesUiChecks(b, run);
 
   // ---- Quick-add recurrence syntax (2.2.0) ----
   await run('recurrence-quickadd', `

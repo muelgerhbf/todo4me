@@ -29,10 +29,11 @@ Handle small things (typos, one line of config) yourself – no agent call. Do n
 ## Project rules (Todo4Me)
 - **Never touch real user data in `%APPDATA%\Todo4Me` (installed 1.0.0).** Test builds with their own data folder/appId (PROJECT_LOG Step 21).
 - Remove `ELECTRON_RUN_AS_NODE` before starting Electron. Builds only via `scripts/build.js`.
-- Tests (all 4 before merge/release):
+- Tests (all 5 before merge/release):
   - `node tests/cdp.mjs tests/test-functional.mjs`
   - `node tests/test-ics.mjs` (pure Node test, no CDP)
   - `node tests/cdp.mjs tests/test-editor.mjs`
+  - `node tests/cdp.mjs tests/functional-modes.mjs`
   - `TODO4ME_PDF_DIR=<scratch-dir> node tests/cdp-electron.mjs tests/test-electron.mjs` (without the variable the PDF check fails)
   - All use port 9333 → never run in parallel.
 - Screenshots only from the running app: `tests/test-shots.mjs` (browser, sample data), `tests/test-desktop-shots.mjs` (Electron). README images are in `docs/screenshots/`.

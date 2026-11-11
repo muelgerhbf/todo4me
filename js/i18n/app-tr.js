@@ -1090,4 +1090,17 @@ T4.i18n.add('tr', {
   'design.aubergine.tagline': 'Çalışma alanı hissi: sıcak, aydınlık bir çalışma alanının yanında koyu patlıcan moru bir kenar çubuğu.',
   'design.fjord.tagline': 'Buz mavisi, gri mavi ve kırağı tonlarında İskandinav sakinliği.',
   'design.paper.tagline': 'Sıcak sepya kâğıt ve tırnaklı bir yazı tipi; gece okuma seçeneğiyle.',
+
+  // UI modes (Simple / Advanced): task form, quick-add help, planner
+  'modeui.moreOptions': 'Daha fazla seçenek',
+  'modeui.qaEg': 'ör. Kirayı öde !2 @fri',
+  'modeui.qcPh': 'ör. Diş hekimi randevusu !2 @tomorrow',
+  'modeui.qaHelpTitle': 'Hızlı ekleme kısayolları',
+  'modeui.qaHelpPrio': '<code>!1</code>–<code>!4</code> öncelik (1 = kritik)',
+  'modeui.qaHelpTag': '<code>#iş</code> kategori veya etiket',
+  'modeui.qaHelpDate': '<code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@2026-12-24</code> bitiş tarihi',
+  'modeui.qaHelpRepeat': '<code>every monday</code>, <code>every 2 weeks</code>, <code>*daily</code> tekrar',
+  'modeui.qaHelpEg': 'Örnek: Faturayı gönder !2 #iş @fri',
+  'modeui.calendarHint': 'Takvim görünümü Gelişmiş moda aittir.',
+  'modeui.switchAdvanced': 'Gelişmiş moda geç',
 });

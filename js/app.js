@@ -21,6 +21,7 @@ T4.app = (function () {
     { id: 'settings', label: 'Settings', icon: 'settings', section: 'Do', locked: true },
   ];
   const SECTIONS = ['', 'Plan', 'Write', 'Do'];
+  const SIMPLE_NAV = ['today', 'upcoming', 'inbox', 'tasks', 'planner', 'notes', 'settings'];
   const navLabel = (n) => (T4.i18n && T4.i18n.has && T4.i18n.has('nav.' + n.id)) ? T4.i18n.t('nav.' + n.id) : n.label;
   const navSection = (s) => (s && T4.i18n && T4.i18n.has && T4.i18n.has('nav.section.' + s.toLowerCase())) ? T4.i18n.t('nav.section.' + s.toLowerCase()) : s;
 
@@ -37,7 +38,11 @@ T4.app = (function () {
       SECTIONS.forEach((sec) => out.push(...NAV.filter((n) => n.section === sec).sort((a, b) => rank(a) - rank(b))));
       return out.map(decorate);
     }
-    const visible = () => items().filter((n) => !n.hidden);
+    // Simple mode offers a fixed, short list in a fixed order (hiding is a choice made in the sidebar editor of Advanced and still applies).
+    // Hidden pages stay reachable by route, shortcut and desktop menu; only the navigation changes.
+    const visible = () => (T4.mode.get() === 'simple'
+      ? SIMPLE_NAV.map((id) => items().find((n) => n.id === id)).filter((n) => n && !n.hidden)
+      : items().filter((n) => !n.hidden));
     function setHidden(id, hide) {
       const n = NAV.find((x) => x.id === id);
       if (!n || n.locked) return false;
@@ -69,6 +74,7 @@ T4.app = (function () {
     return { items, visible, setHidden, move, setOrder, reset, isHidden: (id) => !!(items().find((x) => x.id === id) || {}).hidden };
   })();
   const BOTTOM = ['dashboard', 'today', 'planner', 'notes'];
+  const BOTTOM_SIMPLE = ['today', 'inbox', 'planner', 'notes'];
 
   const main = document.getElementById('main');
   let current = { name: null, params: {} };
@@ -82,7 +88,7 @@ T4.app = (function () {
       const [k, v] = kv.split('=');
       if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
     });
-    const name = T4.views[path] ? path : 'dashboard';
+    const name = T4.views[path] ? path : T4.mode.home();
     return { name, params };
   }
 
@@ -97,11 +103,13 @@ T4.app = (function () {
     const counts = { inbox: c.inbox, tasks: c.tasks, today: c.today, upcoming: c.upcoming, notes: c.notes };
     const overdue = store.overdueTasks().length;
     let lastSec = null;
+    const simple = T4.mode.get() === 'simple';
     document.getElementById('nav').innerHTML = '<ul role="list">' + nav.visible().map((n) => {
       let sep = '';
       if (n.section !== lastSec) {
         lastSec = n.section;
-        if (n.section) sep = '<li class="nav__sep" aria-hidden="true">' + esc(navSection(n.section)) + '</li>';
+        // In Simple, Settings would be the only entry under its heading: no heading then.
+        if (n.section && !(simple && n.id === 'settings')) sep = '<li class="nav__sep" aria-hidden="true">' + esc(navSection(n.section)) + '</li>';
       }
       const def = NAV.find((x) => x.id === n.id);
       const active = current.name === n.id;
@@ -113,7 +121,7 @@ T4.app = (function () {
         '</a></li>';
     }).join('') + '</ul>';
     const shown = nav.visible().map((n) => n.id);
-    document.getElementById('bottom-nav').innerHTML = BOTTOM.filter((id) => shown.indexOf(id) >= 0).map((id) => {
+    document.getElementById('bottom-nav').innerHTML = (simple ? BOTTOM_SIMPLE : BOTTOM).filter((id) => shown.indexOf(id) >= 0).map((id) => {
       const n = NAV.find((x) => x.id === id);
       const active = current.name === id;
       const count = n.count ? counts[n.count] : 0;
@@ -149,6 +157,7 @@ T4.app = (function () {
 
     main.innerHTML = '<div class="view view--' + current.name + '">' + view.render(current.params) + '</div>';
     document.body.className = view.bodyClass || '';
+    T4.mode.sync(); // the line above replaced all body classes, including mode-simple / mode-advanced
 
     Object.keys(drafts).forEach((id) => {
       const f = document.getElementById(id);
@@ -231,7 +240,7 @@ T4.app = (function () {
       else if (k === '/') {
         const s = main.querySelector('input[type="search"]');
         if (s) { e.preventDefault(); s.focus(); }
-      } else if (e.key === 'Escape' && current.name === 'focus') { location.hash = '#/dashboard'; }
+      } else if (e.key === 'Escape' && current.name === 'focus') { location.hash = '#/' + T4.mode.home(); }
     });
 
     window.addEventListener('hashchange', navigate);
@@ -247,6 +256,7 @@ T4.app = (function () {
   /* ---------- Boot ---------- */
   function init() {
     const res = store.init();
+    const askMode = T4.mode.init(res.firstRun); // body class + store sync; true = show the first-run chooser
     T4.settings.applyAppearance();
     store.subscribe((info) => {
       updateSaveIndicator(info);
@@ -257,14 +267,16 @@ T4.app = (function () {
     });
     bindEvents();
     current = parseRoute();
-    if (!location.hash) history.replaceState(null, '', '#/dashboard');
+    if (!location.hash) history.replaceState(null, '', '#/' + T4.mode.home());
     render();
     updateSaveIndicator();
     res.warnings.forEach((w) => ui.toast(w, 'error', 10000));
     if (res.firstRun) {
-      ui.toast(tt('app.welcome'), 'info', 9000, {
+      // Chooser first, welcome hint after it (never both at once).
+      const welcome = () => ui.toast(tt('app.welcome'), 'info', 9000, {
         label: tt('nav.settings'), fn: () => { location.hash = '#/settings'; },
       });
+      if (askMode) T4.mode.chooser(welcome); else welcome();
     }
   }
 

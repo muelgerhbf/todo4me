@@ -11,7 +11,7 @@
 weekly notes, reminders, and a document editor with PDF export. Everything runs **offline on your computer**, with no account and no cloud.
 There is a desktop app for Windows and Linux (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.6.1-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.7.0-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -24,9 +24,9 @@ There is a desktop app for Windows and Linux (Electron) and a browser version.
 
 ### Windows
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.6.1](https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.1)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.6.1.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.6.1-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.7.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.7.0)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.7.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.7.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -38,10 +38,10 @@ From the same [release page](https://github.com/muelgerhbf/todo4me/releases/late
 
 | Distribution | File | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.6.1-amd64.deb` | `sudo apt install ./Todo4Me-2.6.1-amd64.deb` |
-| Fedora, RHEL, openSUSE | `Todo4Me-2.6.1-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.6.1-x86_64.rpm` |
-| Any distribution, self-updating | `Todo4Me-2.6.1-x86_64.AppImage` | `chmod +x Todo4Me-2.6.1-x86_64.AppImage && ./Todo4Me-2.6.1-x86_64.AppImage` |
-| Any distribution, no installation | `Todo4Me-2.6.1-x64.tar.gz` | `tar xzf Todo4Me-2.6.1-x64.tar.gz`, then run `todo4me` from the extracted folder |
+| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.7.0-amd64.deb` | `sudo apt install ./Todo4Me-2.7.0-amd64.deb` |
+| Fedora, RHEL, openSUSE | `Todo4Me-2.7.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.7.0-x86_64.rpm` |
+| Any distribution, self-updating | `Todo4Me-2.7.0-x86_64.AppImage` | `chmod +x Todo4Me-2.7.0-x86_64.AppImage && ./Todo4Me-2.7.0-x86_64.AppImage` |
+| Any distribution, no installation | `Todo4Me-2.7.0-x64.tar.gz` | `tar xzf Todo4Me-2.7.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
 
 - **AppImage needs FUSE 2.** On Ubuntu 22.04 and newer install it with `sudo apt install libfuse2t64` (older: `libfuse2`), or start the AppImage with `--appimage-extract-and-run`.
 - **Sandbox on Ubuntu 23.10+:** Ubuntu restricts unprivileged user namespaces with AppArmor. The deb and rpm packages install an AppArmor profile and keep Chromium's sandbox, which is why they are recommended there.
@@ -78,6 +78,19 @@ You can also use Todo4Me in the browser without installing anything (see [Using 
 
 7. **Keep it running in the background (desktop app).** If you close the window, Todo4Me keeps running in the **tray** so reminders can appear. Press **`Ctrl+Alt+Space`** to open *Quick capture* from any program.
    To really quit: tray icon → *Quit Todo4Me*.
+
+## Simple and Advanced mode
+
+Todo4Me comes in two interface modes. You choose on first start (**Simple** is recommended) and can switch at any time at the top of *Settings*. The switch is instant and nothing is lost: a mode only hides or shows parts of the interface, your data is never changed.
+
+- **Simple**: a calm sidebar with *Today* (your start page), *Upcoming*, *Inbox*, *My Tasks*, *Weekly Planner*, *Weekly Notes* and *Settings*. The task form shows title, date/time, priority and reminder; everything else sits under *More options* (opened automatically when a task already uses those fields). The Weekly Planner shows the day lists only. *More features? Switch to Advanced* at the bottom of the sidebar changes the mode, with an *Undo*. Pages that are hidden stay reachable through keyboard shortcuts, the desktop menu and links.
+- **Advanced**: everything, as before (dashboard, daily plan, editor, focus mode, statistics, calendar view). If you used Todo4Me before 2.7.0, you stay in Advanced after the update.
+
+| First start: choose a mode | Simple mode: Today |
+|---|---|
+| ![Mode chooser on first start](docs/screenshots/mode-chooser.png) | ![Simple mode, Today page](docs/screenshots/simple-mode.png) |
+
+The "Add a task..." field shows an example of the quick-add syntax; the **`?`** button next to it opens a short help (see also [Quick-add syntax](#quick-add-syntax)). This works in both modes.
 
 ## Features at a glance
 
@@ -157,7 +170,7 @@ More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 
 ## Contents
 
-- [Download & install](#download--install) · [Getting started](#getting-started) · [Tips](#tips)
+- [Download & install](#download--install) · [Getting started](#getting-started) · [Simple and Advanced mode](#simple-and-advanced-mode) · [Tips](#tips)
 - [All features](#all-features)
 - [Updates](#updates)
 - [Using it in the browser](#using-it-in-the-browser)
@@ -201,7 +214,7 @@ Without internet nothing disruptive happens: automatic checks fail silently, a m
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
 > **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
-> Install `Todo4Me-Setup-2.6.1.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> Install `Todo4Me-Setup-2.7.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
@@ -333,7 +346,7 @@ The file is parsed in the page (`js/ics.js`, see [ICS support](#ics-support)).
 
 ### Quick-add syntax
 
-Every "Add a task…" field (and Quick capture) understands:
+Every "Add a task…" field (and Quick capture) understands (the field shows an example, the **`?`** button next to it opens this as a short help):
 
 | Token | Meaning |
 |---|---|
@@ -519,8 +532,8 @@ Releases are built by the GitHub Actions workflow `.github/workflows/release.yml
 **For every update**
 
 1. Increase the version number in `package.json` (it must **always be greater** than the last one) and add the section to `CHANGELOG.md`. Merge to `main`.
-2. Push the tag: `git tag v2.6.1 && git push origin v2.6.1` (the tag must equal `v` + the `package.json` version).
-3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.6.1* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
+2. Push the tag: `git tag v2.7.0 && git push origin v2.7.0` (the tag must equal `v` + the `package.json` version).
+3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.7.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
 4. On GitHub under *todo4me → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
 
 Running the workflow manually (*Actions → Release → Run workflow*) only builds and attaches the files as artifacts; it creates no release.
@@ -604,7 +617,9 @@ todo4me/
 │   ├── styles.css        Design tokens (light/dark), components, views, responsive rules
 │   └── editor.css        Editor page, document typography, widgets, print/PDF rules
 └── js/
+    ├── i18n/mode.js      Texts of the mode feature (EN/DE/ES/TR)
     ├── utils.js          Date helpers (local YYYY-MM-DD), HTML escaping, DOM helpers
+    ├── mode.js           Simple/Advanced interface mode: settings.uiMode, body class, first-run chooser, `T4.mode`
     ├── storage.js        Schema defaults, validation/sanitizing, storage adapter, backup, import/export/merge
     ├── store.js          In-memory state, all changes (commit → save → notify), selectors
     ├── ui.js             Action registry, modal, confirm dialog, toasts, progress components
@@ -840,6 +855,7 @@ All suites are dependency-free (Chrome or Electron via the DevTools protocol, IC
 
 ```bash
 node tests/cdp.mjs tests/test-functional.mjs           # 251 checks: all features + reminders + calendar view and .ics calendars (Chrome)
+node tests/cdp.mjs tests/functional-modes.mjs          # 78 checks: Simple/Advanced mode (chooser, migration, navigation, forms, planner, switching)
 node tests/cdp.mjs tests/test-editor.mjs               # 157 checks: editor, PDF, persistence, Markdown, security (Chrome)
 node tests/cdp-electron.mjs tests/test-functional.mjs  # the same 251 checks in the desktop app
 node tests/cdp-electron.mjs tests/test-electron.mjs    # 108 checks: security, menu, restart, backups, PDF export, saving on close, updates,
@@ -851,6 +867,7 @@ node tests/test-ics.mjs                                # 62 checks: ICS parser u
 The desktop suite needs `TODO4ME_PDF_DIR=<folder>` (so the test can export PDFs without a dialog); optionally `PDFTEXT=<script>` checks PDF text
 (page numbers, header/footer) with pdf.js. The numbers above include the `PDFTEXT` checks.
 The desktop suite shows a few real Windows notifications and registers the global shortcut while it runs; "Start with Windows" is never written to the registry in test runs (the call is replaced).
+**Test seeding for the UI mode:** a fresh profile would show the first-run mode chooser, so the harness (`tests/cdp.mjs`, `tests/cdp-electron.mjs`) defines `window.__T4_FIRST_RUN_MODE = 'advanced'` before the app loads (see `js/mode.js`). A test that needs the real first run (`tests/functional-modes.mjs`) opts out with `sessionStorage['t4.test.noSeed'] = '1'`.
 The reminder scheduler is tested with an explicit clock: `T4.reminders.check({ now })`, `setClock(fn)`, `setNotifier(fn)`.
 The calendar checks (`tests/functional-calendar.mjs`) use real mouse input (moving, resizing, dragging in from the All-day strip and the To-schedule list,
 clicking and dragging on free time) and the keyboard. The desktop calendar checks (`tests/electron-calendar.mjs`) start an HTTPS server on 127.0.0.1 with a

@@ -184,12 +184,14 @@ T4.settings = (function () {
   ui.on('reset-data', async () => {
     const ok = await ui.confirm({ title: tr('set.resetTitle'), message: tr('set.resetMsg'), confirmText: tr('set.resetConfirm'), danger: true });
     if (!ok) return;
+    const mode = T4.mode.get(); // the interface mode is not data: keep it
     store.resetAll();
+    store.updateSettings({ uiMode: mode });
     try { localStorage.removeItem('todo4me.focus.v1'); } catch (e) { /* ignore */ }
     if (T4.calfeeds) T4.calfeeds.clearAll(); // calendar subscriptions (secret links) and their cache
     applyAppearance();
     ui.toast(tr('set.resetDone'));
-    location.hash = '#/dashboard';
+    location.hash = '#/' + T4.mode.home();
   });
 
   ui.on('load-sample', async () => {
@@ -338,9 +340,10 @@ T4.settings = (function () {
         '<input type="range" id="set-scale" min="85" max="125" step="5" value="' + s.fontScale + '" data-input="scale" data-change="scale"><span class="range-row__max" aria-hidden="true">A</span>' +
         '<output id="set-scale-out" for="set-scale">' + s.fontScale + ' %</output></div></div>' +
 
-      '<div class="setting setting--stack"><span class="label">' + esc(tr('set.appearance.sidebar')) + '<span class="setting__help">' + esc(tr('set.appearance.sidebar.help')) + '</span></span>' +
+      // Simple mode has a fixed sidebar: the editor belongs to Advanced.
+      (T4.mode.get() === 'simple' ? '' : '<div class="setting setting--stack"><span class="label">' + esc(tr('set.appearance.sidebar')) + '<span class="setting__help">' + esc(tr('set.appearance.sidebar.help')) + '</span></span>' +
         '<div class="nav-edit" id="nav-edit">' + sidebar + '</div>' +
-        '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="nav-reset">' + icon('reset') + esc(tr('set.appearance.sidebar.reset')) + '</button></div></div>' +
+        '<div class="btn-row"><button type="button" class="btn btn--sm" data-action="nav-reset">' + icon('reset') + esc(tr('set.appearance.sidebar.reset')) + '</button></div></div>') +
 
       '<div class="setting"><label for="set-language">' + esc(tr('set.appearance.language')) + '</label><select id="set-language" data-change="language">' +
         '<option value="auto"' + (lang === 'auto' ? ' selected' : '') + '>' + esc(tr('set.appearance.language.auto')) + '</option>' +
@@ -359,6 +362,9 @@ T4.settings = (function () {
       const kb = (S.usageBytes() / 1024).toFixed(1);
       return '<header class="page-head"><div><h1 class="page-title">' + esc(tr('nav.settings')) + '</h1><p class="page-sub">' + esc(tr('set.sub')) + '</p></div></header>' +
         '<div class="settings">' +
+        '<section class="card settings__section" id="set-mode"><h2 class="card__title">' + icon('sparkle') + esc(tr('mode.title')) + '</h2>' +
+          '<p class="muted small">' + esc(tr('mode.settings.help')) + '</p>' + T4.mode.cards(T4.mode.get(), 'set-mode') + '</section>' +
+
         '<section class="card settings__section"><h2 class="card__title">' + esc(tr('set.profile')) + '</h2>' +
           '<div class="setting"><label for="set-name">' + esc(tr('set.yourName')) + '<span class="setting__help">' + esc(tr('set.yourNameHelp')) + '</span></label>' +
           '<input id="set-name" type="text" maxlength="60" value="' + esc(s.userName) + '" data-change="setting" data-key="userName" placeholder="' + esc(tr('ed.Optional')) + '"></div></section>' +

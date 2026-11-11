@@ -53,8 +53,12 @@ T4.calendar = (function () {
   const tt = (k, p) => T4.i18n.t(k, p);
   const range = (s, e) => fmtClock(s) + ' – ' + fmtClock(e);
 
+  // Simple UI mode: only the Days view. The stored preference is left alone, so Advanced restores the calendar.
+  const isSimple = () => document.body.classList.contains('mode-simple') || !!(T4.mode && T4.mode.get() === 'simple');
+
   /** Is the calendar shown? (?view=calendar|days in the route switches and is remembered.) */
   function active(params) {
+    if (isSimple()) return false; // lastParam stays untouched: a deep link applies once Advanced is on
     const v = params && params.view;
     if (v !== lastParam) {
       lastParam = v || null;
@@ -63,9 +67,10 @@ T4.calendar = (function () {
     return prefs.mode === 'calendar';
   }
   function leave() { lastParam = null; }
-  const isActive = () => prefs.mode === 'calendar';
+  const isActive = () => prefs.mode === 'calendar' && !isSimple();
 
   function modeToggle(mode) {
+    if (isSimple()) return '';
     const b = (m, label) => '<button type="button" class="seg__btn" data-action="planner-mode" data-mode="' + m + '" aria-pressed="' + (mode === m) + '">' + label + '</button>';
     return '<div class="seg seg--sm" role="group" aria-label="' + esc(tt('cl.plannerView')) + '">' + b('days', icon('week') + esc(tt('cl.days'))) + b('calendar', icon('clock') + esc(tt('cl.calendar'))) + '</div>';
   }
@@ -527,6 +532,7 @@ T4.calendar = (function () {
 
   /* ======================= Actions ======================= */
   ui.on('planner-mode', (el) => {
+    if (isSimple()) return;
     prefs.mode = el.dataset.mode === 'calendar' ? 'calendar' : 'days';
     savePrefs();
     T4.app.render();

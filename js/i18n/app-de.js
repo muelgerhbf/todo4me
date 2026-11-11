@@ -1090,4 +1090,17 @@ T4.i18n.add('de', {
   'design.aubergine.tagline': 'Workspace-Gefühl: eine tiefe Auberginen-Seitenleiste neben einem warmen, hellen Arbeitsbereich.',
   'design.fjord.tagline': 'Nordische Ruhe in Eisblau, Graublau und Frost.',
   'design.paper.tagline': 'Warmes Sepia-Papier und eine Serifenschrift – mit Variante zum Lesen bei Nacht.',
+
+  // UI modes (Simple / Advanced): task form, quick-add help, planner
+  'modeui.moreOptions': 'Weitere Optionen',
+  'modeui.qaEg': 'z. B. Miete zahlen !2 @fri',
+  'modeui.qcPh': 'z. B. Zahnarzttermin !2 @tomorrow',
+  'modeui.qaHelpTitle': 'Kürzel für schnelles Hinzufügen',
+  'modeui.qaHelpPrio': '<code>!1</code>–<code>!4</code> Priorität (1 = kritisch)',
+  'modeui.qaHelpTag': '<code>#arbeit</code> Kategorie oder Tag',
+  'modeui.qaHelpDate': '<code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@2026-12-24</code> Fälligkeitsdatum',
+  'modeui.qaHelpRepeat': '<code>every monday</code>, <code>every 2 weeks</code>, <code>*daily</code> Wiederholung',
+  'modeui.qaHelpEg': 'Beispiel: Rechnung senden !2 #arbeit @fri',
+  'modeui.calendarHint': 'Die Kalenderansicht gehört zum erweiterten Modus.',
+  'modeui.switchAdvanced': 'Zum erweiterten Modus wechseln',
 });

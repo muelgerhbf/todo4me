@@ -27,6 +27,7 @@ T4.storage = (function () {
   const RADII = ['design', 'sharp', 'soft', 'round'];
   const DENSITIES = ['comfortable', 'compact'];
   const LANGUAGES = ['auto', 'en', 'de', 'tr', 'es'];
+  const UI_MODES = ['simple', 'advanced'];
   const ACCENTS = ['#5b5bd6', '#0e7c86', '#2f6fed', '#d6409f', '#e5603c', '#3e9b4f', '#8e4ec6', '#5f6b7a'];
 
   const DEFAULT_CATEGORIES = [
@@ -57,6 +58,7 @@ T4.storage = (function () {
       fontScale: 100,          // percent, 85..125
       nav: { hidden: [], order: [] }, // sidebar: hidden view ids, custom order of view ids
       language: 'auto',        // 'auto' = from the system/browser language
+      uiMode: 'advanced',      // 'simple' | 'advanced' (js/mode.js); a missing value (data from before 2.7) means advanced
     };
   }
 
@@ -191,6 +193,7 @@ T4.storage = (function () {
       fontScale: intIn(s.fontScale, 85, 125, d.fontScale),
       nav: sanitizeNav(s.nav),
       language: oneOf(s.language, LANGUAGES, d.language),
+      uiMode: oneOf(s.uiMode, UI_MODES, d.uiMode),
     };
   }
 
