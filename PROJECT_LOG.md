@@ -646,3 +646,18 @@ Not verified: rpm install on a real rpm distribution (argv unit checks only), Wi
 **Open**
 
 - Enable Pages after the merge (Settings -> Pages -> Source: GitHub Actions); the workflow then deploys on push to `main`.
+
+### Step 31: Calendar at large text size, Ctrl++ zoom (2.6.1)
+
+**Root causes**
+
+- **Calendar:** the time column had a fixed width in px, so at a text size of 125 % the (larger) hour labels overflowed to the left and out of the calendar. The day columns were squeezed to whatever width was left, and the "To schedule" panel only moved below the calendar at 1100 px.
+- **Zoom:** Electron's built-in `Ctrl+Plus` accelerator does not fire on German keyboard layouts (`+` needs no Shift there), so only `Ctrl+-` and `Ctrl+0` worked.
+
+**Fixes**
+
+- Time column width scales with the text size; day columns get a minimum width and the calendar scrolls sideways with the time column kept visible (sticky); the side panel moves below the calendar up to 1280 px window width.
+- Own zoom handling for `Ctrl++`, `Ctrl+=` and numpad `+` (plus `Ctrl+-`, `Ctrl+0`), steps 50-300 % like Chrome; the View menu uses the same steps. The level is stored in `desktop-settings.json` in the data folder (not in the task data) and restored at startup.
+- README (zoom shortcuts, calendar note), CHANGELOG, version 2.6.1; the two calendar screenshots were regenerated from the running app (sample data, 1440x900).
+
+**Tests** (Linux, sequential): functional 658, ICS 62, editor 166 (with `PDFTEXT=tests/pdftext.mjs`), desktop (Electron) 172, 0 failed, 0 page errors. Manual test by the user: `Ctrl++` works on a real German keyboard and the zoom level persists across restarts.

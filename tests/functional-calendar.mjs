@@ -38,6 +38,29 @@ export default async function calendarChecks(b, run) {
     $$('.toast').forEach((t) => t.remove());
   `);
 
+  // --- Text size (Settings → Appearance): time column grows with it, labels stay inside and on their hour line
+  for (const fs of [85, 100, 125]) {
+    await run('calendar-fontscale-' + fs, `
+      const prevScale = S().settings.fontScale;
+      T4.store.updateSettings({ fontScale: ${fs} }); T4.settings.applyAppearance(); await wait(120);
+      const main = $('.cal__main').getBoundingClientRect(), grid = $('.cal__grid').getBoundingClientRect();
+      const labels = $$('.cal__hour').filter((h) => h.textContent.trim());
+      const colLeft = $('.cal__col').getBoundingClientRect().left;
+      const bad = labels.filter((h) => { const r = h.getBoundingClientRect(); return r.left < main.left + 1 || r.right > colLeft + 1; });
+      ok(labels.length === 23 && bad.length === 0, 'fontScale ${fs}: all hour labels inside the time column (' + bad.length + ' outside)');
+      const off = labels.map((h, i) => { const r = h.getBoundingClientRect(); return Math.abs((r.top + r.height / 2) - (grid.top + (i + 1) / 24 * grid.height)); });
+      ok(Math.max(...off) < 3, 'fontScale ${fs}: hour label centered on its hour line (max offset ' + Math.max(...off).toFixed(1) + 'px)');
+      ok(document.documentElement.scrollWidth <= window.innerWidth + 1, 'fontScale ${fs}: no horizontal page overflow');
+      const heads = $$('.cal__head .cal__dh').map((e) => e.getBoundingClientRect()), cols = $$('.cal__col').map((e) => e.getBoundingClientRect());
+      ok(heads.length === cols.length && heads.every((h, i) => Math.abs(h.left - cols[i].left) < 1.5 && Math.abs(h.width - cols[i].width) < 1.5), 'fontScale ${fs}: day headers aligned with day columns');
+      const ad = $$('.cal__ad').map((e) => e.getBoundingClientRect());
+      ok(ad.every((h, i) => Math.abs(h.left - cols[i].left) < 1.5), 'fontScale ${fs}: all-day strip aligned with day columns');
+      const bA = $('.cal-blk[data-id="' + window.__cal.A + '"]').getBoundingClientRect(), colA = $('.cal__col[data-cal-date="' + window.__cal.d1 + '"]').getBoundingClientRect();
+      ok(Math.abs(bA.top - colA.top - 9 * colA.height / 24) < 1.5, 'fontScale ${fs}: block still sits at 09:00');
+      T4.store.updateSettings({ fontScale: prevScale }); T4.settings.applyAppearance(); await wait(60);
+    `);
+  }
+
   // --- Real mouse: move a block to another day/time
   let c = await ids();
   let a = await box(`.cal-blk[data-id="${c.A}"]`);

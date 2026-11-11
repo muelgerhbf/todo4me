@@ -4,6 +4,12 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.6.1] - 2026-11-11
+
+### Fixed
+- **Weekly Planner calendar at large text size:** at a text size of 125 % the hour labels slid out of the calendar on the left. The time column now grows with the text size, so the labels stay inside and aligned. The day columns keep a minimum width and the calendar scrolls sideways (the time column stays visible) instead of squeezing the days. The "To schedule" panel now moves below the calendar up to a window width of 1280 px (before 1100 px), which gives the calendar more room.
+- **Desktop app zoom:** `Ctrl++` (also `Ctrl+=` and numpad `+`) now zooms in on all keyboard layouts; before, only `Ctrl+-` worked (on German keyboards, for example). `Ctrl+-` zooms out and `Ctrl+0` resets. The steps are 50 to 300 % like in Chrome, and the View menu uses the same steps. The zoom level is remembered across restarts (stored in `desktop-settings.json` in the app's data folder, not in your task data).
+
 ## [2.6.0] - 2026-11-09
 
 ### Changed
@@ -131,6 +137,7 @@ Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `win
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.6.1]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.1
 [2.6.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.0
 [2.5.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.5.0
 [2.4.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.4.0

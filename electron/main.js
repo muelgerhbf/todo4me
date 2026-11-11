@@ -231,6 +231,7 @@ function createWindow(forceShow) {
   mainWindow.on('session-end', sessionEnding);
   mainWindow.on('closed', () => { if (mainWindow === win) mainWindow = null; });
 
+  setupZoom(mainWindow);
   mainWindow.loadFile(INDEX);
   if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
 }
@@ -362,6 +363,52 @@ function pruneBackups(prefix) {
   });
 }
 
+/* ---------- Zoom (Ctrl +, Ctrl -, Ctrl 0) ---------- */
+// The built-in zoomIn role listens for CommandOrControl+Plus, which does not fire on many layouts
+// ("+" is a plain key on a German keyboard but Shift+= on a US one). So the keys are matched here on the
+// produced character (input.key), and the menu items call the same functions.
+const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+function currentWindow() {
+  const win = mainWindow || BrowserWindow.getAllWindows()[0];
+  return win && !win.isDestroyed() ? win : null;
+}
+function applyZoom(win) {
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+  try { win.webContents.setZoomFactor(background.getZoom()); } catch (e) { /* ignore */ }
+}
+/** dir: 1 = zoom in, -1 = zoom out, 0 = reset to 100 %. Moves to the next step relative to the current factor. */
+function zoomBy(dir, win) {
+  win = win || currentWindow();
+  if (!win) return;
+  const cur = background.getZoom();
+  let next = 1;
+  if (dir > 0) next = ZOOM_STEPS.find((z) => z > cur + 0.001) || ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  else if (dir < 0) next = [...ZOOM_STEPS].reverse().find((z) => z < cur - 0.001) || ZOOM_STEPS[0];
+  background.setZoom(next);
+  applyZoom(win);
+}
+/** Which zoom command a key press means (null = none). Alt is excluded (AltGr on German layouts, Ctrl+Alt+0 in the editor). */
+function zoomKeyDir(input) {
+  if (input.type !== 'keyDown' || input.alt || !(input.control || input.meta)) return null;
+  if (input.key === '+' || input.key === '=' || input.code === 'NumpadAdd') return 1;
+  if (input.key === '-' || input.key === '_' || input.code === 'NumpadSubtract') return -1;
+  if (input.key === '0' && !input.shift) return 0;
+  return null;
+}
+function setupZoom(win) {
+  const wc = win.webContents;
+  wc.on('before-input-event', (event, input) => {
+    const dir = zoomKeyDir(input);
+    if (dir === null) return;
+    event.preventDefault();
+    zoomBy(dir, win);
+  });
+  // A (re)load or navigation can reset the factor: apply the saved one again.
+  wc.on('dom-ready', () => applyZoom(win));
+  wc.on('did-finish-load', () => applyZoom(win));
+  applyZoom(win);
+}
+
 /* ---------- Menu ---------- */
 // meta.accel tells the page the command came from a keyboard shortcut (so the editor
 // can keep e.g. Ctrl+I for italic while typing).
@@ -429,9 +476,10 @@ function buildMenu() {
         viewRole('reload', 'menu.reload'),
         viewRole('toggleDevTools', 'menu.devTools'),
         { type: 'separator' },
-        viewRole('resetZoom', 'menu.resetZoom'),
-        viewRole('zoomIn', 'menu.zoomIn'),
-        viewRole('zoomOut', 'menu.zoomOut'),
+        // Keys are handled in setupZoom() (registerAccelerator: false = only show the shortcut in the label).
+        { label: T('menu.resetZoom'), accelerator: 'CmdOrCtrl+0', registerAccelerator: false, click: () => zoomBy(0) },
+        { label: T('menu.zoomIn'), accelerator: 'CmdOrCtrl+Plus', registerAccelerator: false, click: () => zoomBy(1) },
+        { label: T('menu.zoomOut'), accelerator: 'CmdOrCtrl+-', registerAccelerator: false, click: () => zoomBy(-1) },
         { type: 'separator' },
         viewRole('togglefullscreen', 'menu.fullscreen'),
       ],
