@@ -4,6 +4,17 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.7.0] - 2026-11-11
+
+### Added
+- **Simple and Advanced mode.** Todo4Me now has two interface modes, switchable at any time at the top of *Settings*, instantly and without data loss (a mode only hides or shows parts of the interface; your data is never changed). *Simple* shows a sidebar with Today (start page), Upcoming, Inbox, My Tasks, Weekly Planner, Weekly Notes and Settings, plus a "More features? Switch to Advanced" link (with Undo). The task form shows title, date/time, priority and reminder, the rest under "More options" (opened automatically when a task already uses those fields). The Weekly Planner shows the day lists only (the calendar view is Advanced). Hidden pages stay reachable through keyboard shortcuts, the desktop menu and links. *Advanced* is everything as before. Names: Einfach/Erweitert (DE), Basit/Gelişmiş (TR), Simple/Avanzado (ES).
+- **First start:** new users choose the mode (Simple recommended). Existing users stay in Advanced after the update.
+- **Quick add:** the input shows an example of the quick-add syntax and has a "?" button with a short help, in both modes.
+- New test suite `tests/functional-modes.mjs` (78 checks) and `tests/functional-modes-ui.mjs`; the test harnesses seed the mode via `window.__T4_FIRST_RUN_MODE` (opt-out: `sessionStorage['t4.test.noSeed'] = '1'`).
+
+### Changed
+- README: new section "Simple and Advanced mode", updated screenshots.
+
 ## [2.6.1] - 2026-11-11
 
 ### Fixed
@@ -137,6 +148,7 @@ Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `win
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.7.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.7.0
 [2.6.1]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.1
 [2.6.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.0
 [2.5.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.5.0

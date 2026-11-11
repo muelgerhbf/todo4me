@@ -1090,4 +1090,17 @@ T4.i18n.add('en', {
   'design.aubergine.tagline': 'Workspace feel: a deep aubergine sidebar next to a warm, bright work area.',
   'design.fjord.tagline': 'Nordic calm in ice blue, gray-blue and frost.',
   'design.paper.tagline': 'Warm sepia paper and a serif voice, with a night-reading variant.',
+
+  // UI modes (Simple / Advanced): task form, quick-add help, planner
+  'modeui.moreOptions': 'More options',
+  'modeui.qaEg': 'e.g. Pay rent !2 @fri',
+  'modeui.qcPh': 'e.g. Dentist appointment !2 @tomorrow',
+  'modeui.qaHelpTitle': 'Quick-add shortcuts',
+  'modeui.qaHelpPrio': '<code>!1</code>–<code>!4</code> priority (1 = critical)',
+  'modeui.qaHelpTag': '<code>#work</code> category or tag',
+  'modeui.qaHelpDate': '<code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@2026-12-24</code> due date',
+  'modeui.qaHelpRepeat': '<code>every monday</code>, <code>every 2 weeks</code>, <code>*daily</code> repeat',
+  'modeui.qaHelpEg': 'Example: Send invoice !2 #work @fri',
+  'modeui.calendarHint': 'The calendar view is part of Advanced mode.',
+  'modeui.switchAdvanced': 'Switch to Advanced',
 });

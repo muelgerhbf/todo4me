@@ -8,6 +8,8 @@ T4.planner = (function () {
   let weekStart = null; // null → current week
   let planDate = null;  // null → today
 
+  const isSimple = () => document.body.classList.contains('mode-simple') || !!(T4.mode && T4.mode.get() === 'simple');
+
   const currentWeek = () => weekStart || store.weekStartOf(U.today());
 
   /* ======================= Weekly planner ======================= */
@@ -46,6 +48,10 @@ T4.planner = (function () {
       const urgent = weekTasks.filter((t) => store.isOpen(t) && (t.priority === 'critical' || t.priority === 'high')).length;
       const notes = T4.notes.notesForWeek(ws);
 
+      // Simple mode: a deep link to the calendar shows the Days view plus a hint on how to get the calendar.
+      const calHint = isSimple() && params && params.view === 'calendar'
+        ? '<p class="callout mode-hint" role="note">' + icon('calendar') + '<span>' + esc(tt('modeui.calendarHint')) + ' <button type="button" class="link" data-action="modeui-advanced">' + esc(tt('modeui.switchAdvanced')) + '</button></span></p>' : '';
+
       return '<header class="page-head"><div><h1 class="page-title">' + esc(tt('nav.planner')) + '</h1>' +
           '<p class="page-sub">' + esc(U.weekRangeLabel(ws)) + (isCurrent ? ' · <span class="text-accent">' + esc(tt('pl.thisWeek')) + '</span>' : '') + '</p></div>' +
           '<div class="page-actions">' + (T4.calendar ? T4.calendar.modeToggle('days') : '') +
@@ -53,7 +59,7 @@ T4.planner = (function () {
               '<button type="button" class="btn" data-action="week-nav" data-dir="-1" aria-label="' + esc(tt('pl.prevWeek')) + '">' + icon('chevron-left') + '</button>' +
               '<button type="button" class="btn" data-action="week-nav" data-dir="0"' + (isCurrent ? ' disabled' : '') + '>' + esc(tt('pl.thisWeek')) + '</button>' +
               '<button type="button" class="btn" data-action="week-nav" data-dir="1" aria-label="' + esc(tt('pl.nextWeek')) + '">' + icon('chevron-right') + '</button>' +
-            '</div></div></header>' +
+            '</div></div></header>' + calHint +
         '<section class="week-summary">' +
           '<div class="week-summary__item"><strong>' + weekTasks.length + '</strong> ' + esc(tt('pl.scheduled')) + '</div>' +
           '<div class="week-summary__item"><strong>' + done + '</strong> ' + esc(tt('pl.completed')) + '</div>' +
@@ -72,6 +78,8 @@ T4.planner = (function () {
     mount(root) { if (T4.calendar && T4.calendar.isActive()) T4.calendar.mount(root); },
     leave() { if (T4.calendar) T4.calendar.leave(); },
   };
+
+  ui.on('modeui-advanced', () => { if (T4.mode) T4.mode.set('advanced'); });
 
   ui.on('week-nav', (el) => {
     const dir = Number(el.dataset.dir);

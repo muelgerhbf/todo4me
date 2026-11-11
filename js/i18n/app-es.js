@@ -1090,4 +1090,17 @@ T4.i18n.add('es', {
   'design.aubergine.tagline': 'Ambiente de espacio de trabajo: una barra lateral berenjena oscura junto a un área de trabajo cálida y luminosa.',
   'design.fjord.tagline': 'Calma nórdica en azul hielo, gris azulado y escarcha.',
   'design.paper.tagline': 'Papel sepia cálido y una tipografía con serifa, con variante para leer de noche.',
+
+  // UI modes (Simple / Advanced): task form, quick-add help, planner
+  'modeui.moreOptions': 'Más opciones',
+  'modeui.qaEg': 'p. ej. Pagar el alquiler !2 @fri',
+  'modeui.qcPh': 'p. ej. Cita con el dentista !2 @tomorrow',
+  'modeui.qaHelpTitle': 'Atajos para añadir rápido',
+  'modeui.qaHelpPrio': '<code>!1</code>–<code>!4</code> prioridad (1 = crítica)',
+  'modeui.qaHelpTag': '<code>#trabajo</code> categoría o etiqueta',
+  'modeui.qaHelpDate': '<code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@2026-12-24</code> fecha límite',
+  'modeui.qaHelpRepeat': '<code>every monday</code>, <code>every 2 weeks</code>, <code>*daily</code> repetición',
+  'modeui.qaHelpEg': 'Ejemplo: Enviar factura !2 #trabajo @fri',
+  'modeui.calendarHint': 'La vista de calendario forma parte del modo Avanzado.',
+  'modeui.switchAdvanced': 'Cambiar al modo Avanzado',
 });

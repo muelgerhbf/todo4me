@@ -41,6 +41,10 @@ ws.addEventListener('message', (ev) => {
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
 
+// UI modes (2.7): a fresh profile would show the first-run chooser. Tests run in 'advanced' unless a test opts out by
+// setting sessionStorage 't4.test.noSeed' = '1' (tests/functional-modes.mjs); see js/mode.js (__T4_FIRST_RUN_MODE).
+await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { if (sessionStorage.getItem('t4.test.noSeed') !== '1') window.__T4_FIRST_RUN_MODE = 'advanced'; } catch (e) {}" });
+
 const api = {
   sleep,
   errors,

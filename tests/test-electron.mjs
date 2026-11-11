@@ -74,7 +74,7 @@ export default async function (b) {
     const card = $$('.settings__section').pop();
     ok(card && /Desktop app/.test(card.textContent) && /backups/i.test(card.textContent), 'settings shows Desktop app card with backup folder');
     ok(card.textContent.includes(${JSON.stringify(JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version)}), 'version shown');
-    ok($$('.settings__section').length === 9, 'all original settings sections still present (+ Calendars + Documents + Desktop app)');
+    ok($$('.settings__section').length === 10, 'all original settings sections still present (+ Mode + Calendars + Documents + Desktop app)');
     ok(/Updates/.test(card.textContent) && /installed app|portable/i.test(card.textContent), 'update section explains why the dev build cannot self-update');
     const st = await todo4meDesktop.getUpdateState();
     ok(st.status === 'unsupported' && st.current, 'update state reported by main process: ' + st.status);
