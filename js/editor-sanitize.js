@@ -123,19 +123,24 @@ T4.edSanitize = (function () {
     return null;
   }
 
+  // Rules registered by feature modules (js/editor-registry.js). Looked up at use time; the registry is loaded before this file.
+  const X = () => T4.edx;
+  const SX = () => (T4.edx && T4.edx.sanitizer.hasRules() ? T4.edx.sanitizer : null);
+
   /* ---------- Widget validation is delegated to the widget module (if loaded). ---------- */
   function validWidget(el) {
     const type = el.getAttribute('data-w');
-    if (!WIDGETS.includes(type)) return null;
+    if (!WIDGETS.includes(type) && !(X() && X().widgets.has(type))) return null;
     let props = {};
     try { props = JSON.parse(el.getAttribute('data-p') || '{}'); } catch (e) { return null; }
     if (!props || typeof props !== 'object' || Array.isArray(props)) return null;
-    const v = T4.edw && T4.edw.validate ? T4.edw.validate(type, props) : props;
+    const reg = X() && !WIDGETS.includes(type);
+    const v = reg ? T4.edx.widgets.validate(type, props) : T4.edw && T4.edw.validate ? T4.edw.validate(type, props) : props;
     return v ? { type, props: v } : null;
   }
 
   function buildWidget(doc, src, w) {
-    const inline = w.type === 'math' && src.tagName === 'SPAN';
+    const inline = (w.type === 'math' && src.tagName === 'SPAN') || (!WIDGETS.includes(w.type) && X().widgets.isInline(w.type));
     const el = doc.createElement(inline ? 'span' : 'figure');
     el.className = 't4-w';
     el.setAttribute('data-w', w.type);
@@ -191,7 +196,10 @@ T4.edSanitize = (function () {
       dst.appendChild(el);
       return;
     }
-    if (tag === 'DIV' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'MAIN' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE' || tag === 'NAV' || tag === 'BODY' || tag === 'HTML' || tag === 'CENTER' || tag === 'ADDRESS' || tag === 'DETAILS' || tag === 'SUMMARY' || tag === 'FIGURE' || tag === 'DL' || tag === 'DT' || tag === 'DD') {
+    const rs = SX();
+    let rk = rs ? rs.tagKind(tag) : null;
+    if (rk === 'container' && !rs.isContainer(n)) rk = null;
+    if (!rk && (tag === 'DIV' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'MAIN' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE' || tag === 'NAV' || tag === 'BODY' || tag === 'HTML' || tag === 'CENTER' || tag === 'ADDRESS' || tag === 'DETAILS' || tag === 'SUMMARY' || tag === 'FIGURE' || tag === 'DL' || tag === 'DT' || tag === 'DD')) {
       // Containers: keep block children; wrap loose inline content in paragraphs.
       const hasBlock = Array.from(n.children).some((c) => BLOCKS.has(c.tagName) || /^(DIV|PRE|FIGURE|SECTION|ARTICLE)$/.test(c.tagName) || (c.classList && c.classList.contains('t4-w')));
       if (hasBlock || ctx.inline) { cleanChildren(n, dst, doc, ctx); return; }
@@ -199,11 +207,15 @@ T4.edSanitize = (function () {
       if (tag === 'P' && dst.nodeType === 1 && /^(P|H[1-6]|LI|TD|TH)$/.test(dst.tagName)) { cleanChildren(n, dst, doc, ctx); return; }
     }
     if (RENAME[tag]) tag = RENAME[tag];
-    if (!BLOCKS.has(tag) && !INLINE.has(tag)) { cleanChildren(n, dst, doc, ctx); return; }
+    if (rk && (BLOCKS.has(tag) || INLINE.has(tag))) rk = null; // built-in tags keep their built-in handling
+    if (!BLOCKS.has(tag) && !INLINE.has(tag) && !rk) { cleanChildren(n, dst, doc, ctx); return; }
 
     const el = doc.createElement(tag);
     let style = '';
-    if (tag === 'SPAN' || tag === 'MARK' || tag === 'B' || tag === 'STRONG' || tag === 'I' || tag === 'EM' || tag === 'U' || tag === 'S' || tag === 'A' || tag === 'CODE') {
+    if (rk === 'inline') style = cleanStyle(n, STYLE_RULES);
+    else if (rk === 'block') style = cleanStyle(n, BLOCK_STYLE_RULES);
+    else if (rk === 'container') style = '';
+    else if (tag === 'SPAN' || tag === 'MARK' || tag === 'B' || tag === 'STRONG' || tag === 'I' || tag === 'EM' || tag === 'U' || tag === 'S' || tag === 'A' || tag === 'CODE') {
       style = cleanStyle(n, STYLE_RULES);
       if (n.tagName === 'FONT') {
         const parts = [];
@@ -219,7 +231,15 @@ T4.edSanitize = (function () {
     } else if (BLOCKS.has(tag) && tag !== 'HR' && tag !== 'TABLE' && tag !== 'TBODY' && tag !== 'THEAD' && tag !== 'TR') {
       style = cleanStyle(n, BLOCK_STYLE_RULES);
     }
+    if (rs) {
+      const extra = rs.styleRules(tag);
+      if (extra) {
+        const more = cleanStyle(n, extra);
+        style = [style, more].filter(Boolean).join('; ');
+      }
+    }
     if (style) el.setAttribute('style', style);
+    if (rs && rs.hasAttrRules(tag)) rs.applyAttrs(n, el, tag);
 
     if (tag === 'A') {
       const href = safeHref(n.getAttribute('href'));
@@ -242,16 +262,16 @@ T4.edSanitize = (function () {
     if (tag === 'HR') { dst.appendChild(el); return; }
     if (tag === 'BR') { dst.appendChild(el); return; }
 
-    const childCtx = (tag === 'P' || /^H[1-6]$/.test(tag)) ? Object.assign({}, ctx, { inline: true }) : ctx;
+    const childCtx = (tag === 'P' || /^H[1-6]$/.test(tag) || rk === 'inline' || rk === 'block') ? Object.assign({}, ctx, { inline: true }) : ctx;
     cleanChildren(n, el, doc, childCtx);
     // Drop formatting wrappers that ended up empty (but keep empty paragraphs/cells).
-    if (INLINE.has(tag) && tag !== 'BR' && !el.childNodes.length) return;
-    if (tag === 'SPAN' && !el.getAttribute('style')) { while (el.firstChild) dst.appendChild(el.firstChild); return; }
+    if ((INLINE.has(tag) || rk === 'inline') && tag !== 'BR' && !el.childNodes.length) return;
+    if (tag === 'SPAN' && !el.attributes.length) { while (el.firstChild) dst.appendChild(el.firstChild); return; }
     dst.appendChild(el);
   }
 
   /* ---------- Structural normalization ---------- */
-  const isBlockNode = (n) => n.nodeType === 1 && (BLOCKS.has(n.tagName) || (n.tagName === 'FIGURE' && n.classList.contains('t4-w')));
+  const isBlockNode = (n) => n.nodeType === 1 && (BLOCKS.has(n.tagName) || (n.tagName === 'FIGURE' && n.classList.contains('t4-w')) || (!!SX() && (SX().isContainer(n) || SX().tagKind(n.tagName) === 'block')));
 
   function normalize(root, doc) {
     // 1) block widgets and blocks must not sit inside paragraphs/headings
@@ -300,8 +320,25 @@ T4.edSanitize = (function () {
       if (!para) { para = doc.createElement('p'); root.insertBefore(para, c); }
       para.appendChild(c);
     });
+    // 4b) registered block containers hold blocks: loose inline content is wrapped, an empty one gets a paragraph
+    const rs = SX();
+    const csel = rs ? rs.containerSelector() : '';
+    if (csel) {
+      Array.from(root.querySelectorAll(csel)).reverse().forEach((c) => {
+        if (!rs.isContainer(c)) return;
+        let p2 = null;
+        Array.from(c.childNodes).forEach((k) => {
+          if (isBlockNode(k) || (k.nodeType === 1 && k.tagName === 'SUMMARY')) { p2 = null; return; }
+          if (k.nodeType === 3 && !k.nodeValue.trim() && !p2) { k.remove(); return; }
+          if (!p2) { p2 = doc.createElement('p'); c.insertBefore(p2, k); }
+          p2.appendChild(k);
+        });
+        if (!Array.from(c.children).some((k) => k.tagName !== 'SUMMARY' && isBlockNode(k))) { const p3 = doc.createElement('p'); p3.appendChild(doc.createElement('br')); c.appendChild(p3); }
+      });
+    }
     // 5) empty paragraphs/headings need a <br> to stay editable
-    root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote').forEach((b) => {
+    const bsel = rs ? rs.blockSelector() : '';
+    root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote' + (bsel ? ', ' + bsel : '')).forEach((b) => {
       if (!b.childNodes.length) b.appendChild(doc.createElement('br'));
     });
     if (!root.childNodes.length) root.appendChild(doc.createElement('p')).appendChild(doc.createElement('br'));
@@ -345,5 +382,5 @@ T4.edSanitize = (function () {
     return d.innerHTML;
   }
 
-  return { sanitize, sanitizeToString, safeHref, canonicalFont, FONTS, FONT_STACK, WIDGETS };
+  return { sanitize, sanitizeToString, neutralizeHandlers, safeHref, canonicalFont, FONTS, FONT_STACK, WIDGETS };
 })();

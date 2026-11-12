@@ -50,6 +50,7 @@ const SHOTS = [
   'editor-light.png', 'editor-dark.png', 'tasks-light.png', 'notes-light.png', 'planner-days-light.png',
   'statistics-light.png', 'focus-dark.png', 'repeat-editor-light.png', 'mobile-menu.png',
   'designs/tokio-dark-dashboard.png', 'designs/paper-light-planner.png', 'designs/development-dark-editor.png',
+  'editor-workspace-light.png', 'editor-graph.png',
 ];
 for (const f of SHOTS) cp(path.join(ROOT, 'docs', 'screenshots', f), path.join(OUT, 'img', 'screenshots', f));
 cp(path.join(ROOT, 'docs', 'brand', 'mark.svg'), path.join(OUT, 'img', 'brand', 'mark.svg'));

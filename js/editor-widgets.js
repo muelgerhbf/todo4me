@@ -120,7 +120,7 @@ T4.edw = (function () {
         return { h, shapes, al: oneOf(p.al, ['center', 'left', 'right'], 'center') };
       }
       default:
-        return null;
+        return T4.edx.widgets.validate(type, p); // widget types registered by feature modules (js/editor-registry.js)
     }
   }
 
@@ -128,6 +128,7 @@ T4.edw = (function () {
   function create(type, props, inline) {
     const v = validate(type, props);
     if (!v) return null;
+    if (inline == null && T4.edx.widgets.has(type)) inline = T4.edx.widgets.isInline(type);
     const el = document.createElement(inline ? 'span' : 'figure');
     el.className = 't4-w';
     el.setAttribute('data-w', type);
@@ -156,6 +157,7 @@ T4.edw = (function () {
       case 'chart': return renderChart(el, p);
       case 'draw': return renderDrawing(el, p);
       case 'pagebreak': el.innerHTML = '<span class="w-pb ed-ui" aria-hidden="true">Page break</span>'; return;
+      default: T4.edx.widgets.render(type, el, p);
     }
   }
 

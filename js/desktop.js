@@ -16,6 +16,10 @@
   /* ---------- Application menu → existing actions ---------- */
   const ROUTES = ['dashboard', 'inbox', 'tasks', 'today', 'upcoming', 'planner', 'plan', 'notes', 'editor', 'focus', 'stats', 'settings'];
   // While typing in a document, Ctrl+I / Ctrl+E / Ctrl+N belong to the editor (italic, …), not to the menu.
+  // Editor shortcuts registered by feature modules (edx.shortcuts.add: Ctrl+F, Ctrl+H, Ctrl+Shift+P, Ctrl+Shift+O, …) need no entry here: the
+  // editor's keydown handler consumes them (preventDefault), so the menu accelerator never fires. Combos that ARE menu accelerators
+  // (Ctrl+N, Ctrl+Shift+N, Ctrl+Alt+N, Ctrl+Shift+Space, Ctrl+1..9, Ctrl+Shift+D, Ctrl+0/+/-, Ctrl+R, Ctrl+Shift+I, F11, …) are
+  // reserved: edx.shortcuts.add refuses them (see docs/EDITOR-EXTENSIONS.md).
   const EDITOR_KEYS = ['new-task', 'quick-capture', 'new-note', 'export-data', 'import-data'];
   desktop.onMenuAction((action, meta) => {
     if (meta && meta.accel && T4.editor && T4.editor.hasFocus && EDITOR_KEYS.includes(action)) {

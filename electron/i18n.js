@@ -56,6 +56,15 @@ const T = {
   // Native dialogs
   'dlg.saveMarkdown': ['Save Markdown file', 'Markdown-Datei speichern', 'Markdown dosyasını kaydet', 'Guardar archivo Markdown'],
   'dlg.saveBackup': ['Save Todo4Me backup', 'Todo4Me-Sicherung speichern', 'Todo4Me yedeğini kaydet', 'Guardar copia de seguridad de Todo4Me'],
+  'dlg.saveWord': ['Save Word document', 'Word-Dokument speichern', 'Word belgesini kaydet', 'Guardar documento de Word'],
+  'dlg.saveHtml': ['Save HTML file', 'HTML-Datei speichern', 'HTML dosyasını kaydet', 'Guardar archivo HTML'],
+  'dlg.saveText': ['Save text file', 'Textdatei speichern', 'Metin dosyasını kaydet', 'Guardar archivo de texto'],
+  'dlg.saveRtf': ['Save Rich Text file', 'Rich-Text-Datei speichern', 'Zengin Metin dosyasını kaydet', 'Guardar archivo de texto enriquecido'],
+  'flt.rtf': ['Rich Text Format', 'Rich Text Format', 'Zengin Metin Biçimi', 'Formato de texto enriquecido'],
+  'dlg.saveFile': ['Save file', 'Datei speichern', 'Dosyayı kaydet', 'Guardar archivo'],
+  'flt.word': ['Word document', 'Word-Dokument', 'Word belgesi', 'Documento de Word'],
+  'flt.text': ['Text', 'Text', 'Metin', 'Texto'],
+  'flt.all': ['All files', 'Alle Dateien', 'Tüm dosyalar', 'Todos los archivos'],
   'dlg.exportPdf': ['Export as PDF', 'Als PDF exportieren', 'PDF olarak dışa aktar', 'Exportar como PDF'],
 
   // Tray, notifications

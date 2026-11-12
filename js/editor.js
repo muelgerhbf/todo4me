@@ -7,7 +7,7 @@
  * storage in docstore.js. */
 T4.editor = (function () {
   'use strict';
-  const U = T4.util, ui = T4.ui, DS = T4.docstore, W = T4.edw, core = T4.edcore, SAN = T4.edSanitize;
+  const U = T4.util, ui = T4.ui, DS = T4.docstore, W = T4.edw, core = T4.edcore, SAN = T4.edSanitize, X = T4.edx;
   const { esc, icon } = U;
   // Editor texts use the English text as key part: E('Bold (Ctrl+B)') → dictionary key 'ed.Bold (Ctrl+B)'; falls back to the text itself.
   const E = (s, p) => {
@@ -19,14 +19,15 @@ T4.editor = (function () {
   const desktop = window.todo4meDesktop && window.todo4meDesktop.isDesktop ? window.todo4meDesktop : null;
 
   const UI_KEY = 'todo4me.editor.ui';
+  const IMPORT_ACCEPT = '.md,.markdown,.txt,.html,.htm,.json,text/markdown,text/plain,text/html,application/json';
   const FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
   const ZOOMS = [25, 33, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300];
   const SW_MAX = 20; // shape outline / line width, as allowed by the drawing widget
   const STYLES = [['p', 'Normal text'], ['h1', 'Heading 1'], ['h2', 'Heading 2'], ['h3', 'Heading 3'], ['h4', 'Heading 4'], ['h5', 'Heading 5'], ['h6', 'Heading 6'], ['blockquote', 'Quote']];
   const TEXT_COLORS = ['#1f2330', '#4a4f5c', '#7a7f8c', '#b0b4bd', '#ffffff', '#c62828', '#e5603c', '#c98a12', '#2f9e55', '#0e7c86', '#2f6fed', '#4f46e5', '#8e4ec6', '#d6409f', '#795548'];
   const MARKERS = [['#fff176', 'Yellow'], ['#b9f6ca', 'Green'], ['#80deea', 'Cyan'], ['#ffcdd2', 'Pink'], ['#ffd8a8', 'Orange'], ['#e1bee7', 'Purple'], ['#e0e0e0', 'Gray']];
-  const PAGE_SIZES = { A4: [210, 297], Letter: [215.9, 279.4], A5: [148, 210], Legal: [215.9, 355.6] };
-  const MARGINS = { normal: [25.4, 25.4, 25.4, 25.4], narrow: [12.7, 12.7, 12.7, 12.7], moderate: [25.4, 19.05, 25.4, 19.05], wide: [25.4, 50.8, 25.4, 50.8] };
+  const PAGE_SIZES = DS.PAGE_SIZES; // A4 A3 A5 Letter Legal in mm; 'Custom' comes from the page's customW/customH (see DS.pageGeometry)
+  const MARGINS = DS.PAGE_MARGINS;
 
   /* ====================== State ====================== */
   const st = {
@@ -39,9 +40,10 @@ T4.editor = (function () {
     readonly: false,
     prefs: loadPrefs(),
     usage: null,
+    extra: null, // results of extra search providers for the current query: { q, map: id → result }
   };
   function loadPrefs() {
-    try { return Object.assign({ zoom: 100, side: true }, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return { zoom: 100, side: true }; }
+    try { return Object.assign({ zoom: 100, side: true, panel: '', lpanel: '', lastPanel: '' }, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return { zoom: 100, side: true, panel: '', lpanel: '', lastPanel: '' }; }
   }
   function savePrefs() { try { localStorage.setItem(UI_KEY, JSON.stringify(st.prefs)); } catch (e) { /* convenience only */ } }
 
@@ -75,13 +77,14 @@ T4.editor = (function () {
     shell.id = 'ed';
     shell.innerHTML =
       '<aside class="ed-side" id="ed-side" aria-label="' + esc(E('Documents')) + '">' +
+        '<div class="ed-side__tabs" id="ed-side-tabs" role="tablist" hidden></div>' +
         '<div class="ed-side__head"><h2 class="ed-side__title">' + esc(E('Documents')) + '</h2>' +
           '<button type="button" class="btn btn--primary btn--sm" data-cmd="new-doc" title="' + esc(E('New document (Ctrl+Alt+N)')) + '">' + icon('plus') + esc(E('New')) + '</button></div>' +
         '<label class="search ed-side__search">' + icon('search') + '<span class="sr-only">' + esc(E('Search documents')) + '</span><input type="search" id="ed-search" placeholder="' + esc(E('Search documents…')) + '" autocomplete="off"></label>' +
-        '<div class="seg seg--sm ed-side__views" role="radiogroup" aria-label="' + esc(E('Show')) + '">' +
-          '<button type="button" class="seg__btn" role="radio" data-view="all">' + esc(E('All')) + '</button><button type="button" class="seg__btn" role="radio" data-view="pinned">' + icon('pin') + esc(E('Pinned')) + '</button><button type="button" class="seg__btn" role="radio" data-view="trash">' + icon('trash') + esc(E('Trash')) + '</button></div>' +
+        '<div class="seg seg--sm ed-side__views" id="ed-views" role="radiogroup" aria-label="' + esc(E('Show')) + '"></div>' +
         '<div class="ed-list" id="ed-list" role="list"></div>' +
         '<p class="ed-side__note muted small" id="ed-side-note"></p>' +
+        '<div class="ed-side__panelhost" id="ed-side-panelhost" hidden></div>' +
       '</aside>' +
       '<div class="ed-scrim" data-cmd="toggle-side" aria-hidden="true"></div>' +
       '<section class="ed-main">' +
@@ -91,6 +94,7 @@ T4.editor = (function () {
             '<button type="button" class="icon-btn" data-cmd="toggle-side" title="' + esc(E('Show/hide document list')) + '" aria-label="' + esc(E('Show or hide document list')) + '">' + icon('panel') + '</button>' +
             '<input type="text" class="ed-title" id="ed-title" maxlength="200" placeholder="' + esc(E('Untitled document')) + '" aria-label="' + esc(E('Document title')) + '" autocomplete="off" spellcheck="false">' +
             '<span class="ed-status" id="ed-status" aria-live="polite"></span>' +
+            '<button type="button" class="icon-btn ed-bar__panel" id="ed-panel-btn" data-cmd="toggle-panel" title="' + esc(E('Show or hide side panel')) + '" aria-label="' + esc(E('Show or hide side panel')) + '" aria-expanded="false" hidden>' + icon('panel') + '</button>' +
             '<div class="ed-bar__menus">' +
               '<button type="button" class="btn btn--ghost btn--sm" data-cmd="menu-file" aria-haspopup="menu">' + esc(E('File')) + '</button>' +
               '<button type="button" class="btn btn--ghost btn--sm" data-cmd="menu-insert" aria-haspopup="menu">' + esc(E('Insert')) + '</button>' +
@@ -98,6 +102,7 @@ T4.editor = (function () {
             '<button type="button" class="btn btn--primary btn--sm ed-bar__pdf" data-cmd="export-pdf" title="' + esc(E('Export as PDF (Ctrl+P)')) + '">' + icon('pdf') + '<span>' + esc(E('Export PDF')) + '</span></button>' +
           '</header>' +
           '<div class="ed-banner" id="ed-banner" hidden></div>' +
+          '<div class="ed-banners" id="ed-banners"></div>' + // module banners (edx.editor.banner)
           '<div class="ed-toolbar" id="ed-toolbar" role="toolbar" aria-label="' + esc(E('Formatting')) + '">' +
             '<div class="tb-group">' + tb('undo', 'undo', E('Undo (Ctrl+Z)')) + tb('redo', 'redo', E('Redo (Ctrl+Y)')) + '</div>' +
             '<div class="tb-group">' + dd('style', E('Normal text'), E('Paragraph style'), 'tb-dd--style') + dd('font', 'Calibri', E('Font'), 'tb-dd--font') + dd('size', '11', E('Font size'), 'tb-dd--size') + '</div>' +
@@ -116,6 +121,7 @@ T4.editor = (function () {
               '<button type="button" class="tb-btn" data-cmd="charts" title="' + esc(E('Insert chart')) + '" aria-label="' + esc(E('Insert chart')) + '" aria-haspopup="menu">' + icon('chart') + '</button>' +
               tb('formula', 'sigma', E('Formula (Ctrl+M)')) + tb('code', 'code', E('Code block')) + '</div>' +
             '<div class="tb-group">' + '<button type="button" class="tb-btn" data-cmd="more" title="' + esc(E('More formatting')) + '" aria-label="' + esc(E('More formatting')) + '" aria-haspopup="menu">' + icon('more') + '</button>' + '</div>' +
+            '<div class="tb-ext" id="ed-tb-ext" hidden></div>' + // reserved for edx.toolbar.add
           '</div>' +
           '<div class="ed-scroll" id="ed-scroll">' +
             '<div class="ed-ctx" id="ed-ctx" role="toolbar" aria-label="' + esc(E('Element options')) + '" hidden></div>' +
@@ -131,11 +137,19 @@ T4.editor = (function () {
             '<button type="button" class="icon-btn icon-btn--sm" data-cmd="zoom-in" aria-label="' + esc(E('Zoom in')) + '">' + icon('plus') + '</button></span></footer>' +
         '</div>' +
       '</section>' +
+      '<aside class="ed-panel" id="ed-panel" aria-label="' + esc(E('Side panel')) + '"><div class="ed-panel__head" id="ed-panel-head" role="tablist"></div><div class="ed-panel__body" id="ed-panel-body"></div></aside>' +
+      '<div class="ed-pscrim" data-cmd="toggle-panel" aria-hidden="true"></div>' +
       '<input type="file" id="ed-file-image" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" multiple hidden>' +
-      '<input type="file" id="ed-file-import" accept=".md,.markdown,.txt,.html,.htm,.json,text/markdown,text/plain,text/html,application/json" multiple hidden>';
+      '<input type="file" id="ed-file-import" accept="' + IMPORT_ACCEPT + '" multiple hidden>';
 
-    ['side', 'list', 'home', 'work', 'title', 'status', 'banner', 'toolbar', 'scroll', 'ctx', 'page', 'doc', 'count', 'pagesinfo', 'zoom', 'search', 'side-note', 'hf-head', 'hf-foot', 'color-bar', 'mark-bar', 'file-image', 'file-import']
+    ['side', 'list', 'home', 'work', 'title', 'status', 'banner', 'banners', 'toolbar', 'scroll', 'ctx', 'page', 'doc', 'count', 'pagesinfo', 'zoom', 'search', 'side-note', 'hf-head', 'hf-foot', 'color-bar', 'mark-bar', 'file-image', 'file-import',
+      'views', 'tb-ext', 'side-tabs', 'side-panelhost', 'panel', 'panel-head', 'panel-body', 'panel-btn']
       .forEach((k) => { el[k.replace(/-(\w)/g, (m, c) => c.toUpperCase())] = shell.querySelector('#ed-' + k); });
+    pnl.shown = { right: '', left: '' };
+    pnl.rendered = {};
+    pnl.hosts = new Map();
+    pnl.right = wideScreen() ? st.prefs.panel || '' : ''; // a drawer never opens by itself on small screens
+    pnl.left = st.prefs.lpanel || '';
 
     core.init(el.doc, {
       change: onDocChange,
@@ -145,14 +159,16 @@ T4.editor = (function () {
       toast: (m, t) => ui.toast(m, t || 'info'),
       shortcut: onShortcut,
     });
+    el.doc.addEventListener('contextmenu', onContextMenu);
+    shell.addEventListener('keydown', onShellKeyDown);
 
     // Keep the editor selection when clicking toolbar/menu buttons.
     shell.addEventListener('mousedown', (e) => {
-      const b = e.target.closest('.ed-toolbar button, .ed-ctx button, .ed-bar__menus button, .ed-bar__pdf');
+      const b = e.target.closest('.ed-toolbar button, .ed-ctx button, .ed-bar__menus button, .ed-bar__pdf, .ed-bar__panel');
       if (b) e.preventDefault();
     });
     shell.addEventListener('click', onShellClick);
-    el.search.addEventListener('input', U.debounce(() => { st.q = el.search.value; renderList(); }, 120));
+    el.search.addEventListener('input', U.debounce(() => { st.q = el.search.value; st.extra = null; renderList(); runExtraSearch(); }, 120));
     el.title.addEventListener('input', () => { if (st.cur && !st.readonly) { markDirty(); document.title = docTitle({ title: el.title.value, text: st.cur.meta.text }) + ' · Todo4Me'; } });
     el.title.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); core.restore(); } });
     el.fileImage.addEventListener('change', () => {
@@ -165,6 +181,10 @@ T4.editor = (function () {
       el.fileImport.value = '';
       importFiles(files);
     });
+    renderViewButtons();
+    renderExtToolbar();
+    renderPanelUI();
+    updateImportAccept();
     el.scroll.addEventListener('scroll', () => { positionCtx(); st.scrollTop = el.scroll.scrollTop; }, { passive: true });
     el.scroll.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('resize', U.debounce(positionCtx, 100));
@@ -172,6 +192,7 @@ T4.editor = (function () {
     shell.addEventListener('focusin', () => { shell._hadFocus = true; });
     shell.addEventListener('focusout', (e) => { if (shell.isConnected && !(e.relatedTarget && shell.contains(e.relatedTarget))) shell._hadFocus = false; });
     applyZoom();
+    X.events.emit('shell-built', { root: shell });
   }
 
   // The editor's DOM is built once with the texts of the language at that time: after a language change
@@ -180,9 +201,18 @@ T4.editor = (function () {
     if (!shell) return;
     if (st.cur && st.dirty && !st.readonly) doSave();
     closeMenu(); closeSlash(); hideCtx();
+    teardownPanels();
     shell.remove();
-    shell = null; el = {}; st.cur = null; st.dirty = false;
+    shell = null; el = {}; setCur(null); st.dirty = false;
   });
+
+  /** The only place that changes the open document: announces the previous one as closed. */
+  function setCur(c) {
+    const prev = st.cur;
+    st.cur = c;
+    if ((!prev || !c || prev.id !== c.id) && el && el.banners) el.banners.textContent = ''; // module banners belong to one document
+    if (prev && (!c || c.id !== prev.id)) X.events.emit('doc-close', { id: prev.id });
+  }
 
   /* ====================== View integration ====================== */
   T4.views.editor = {
@@ -229,17 +259,47 @@ T4.editor = (function () {
   }
   async function refreshDocs() {
     st.docs = await DS.list();
+    if (st.cur) { // registered meta fields may have changed through edx.docs.updateMeta / another module
+      const fresh = st.docs.find((d) => d.id === st.cur.id);
+      if (fresh) X.meta.fields().forEach((f) => { if (!st.dirty) st.cur.meta[f] = fresh[f]; });
+    }
     renderList();
     if (!st.cur && el.home && !el.home.hidden) renderHome();
+    X.events.emit('docs-changed', { docs: st.docs });
   }
 
   /* ====================== Document list ====================== */
+  const BUILTIN_VIEWS = ['all', 'pinned', 'trash'];
+  const matchesQuery = (d, q) => docTitle(d).toLowerCase().includes(q) || d.text.toLowerCase().includes(q);
+  const extraHit = (d) => (st.extra && st.extra.q === st.q.trim().toLowerCase() ? st.extra.map.get(d.id) : null);
   function filteredDocs() {
     const q = st.q.trim().toLowerCase();
+    const vd = BUILTIN_VIEWS.includes(st.view) ? null : X.docList.getView(st.view);
     let list = st.docs.filter((d) => (st.view === 'trash' ? d.deletedAt : !d.deletedAt));
     if (st.view === 'pinned') list = list.filter((d) => d.pinned);
-    if (q) list = list.filter((d) => docTitle(d).toLowerCase().includes(q) || d.text.toLowerCase().includes(q));
+    if (vd) list = list.filter((d) => { try { return vd.filter(d); } catch (e) { return false; } });
+    if (q) list = list.filter((d) => matchesQuery(d, q) || extraHit(d));
+    st.hiddenByFilter = 0;
+    if (X.docList.hasFilters()) {
+      const fctx = { view: st.view, q: st.q };
+      const n = list.length;
+      list = list.filter((d) => X.docList.passes(d, fctx));
+      st.hiddenByFilter = n - list.length;
+    }
+    if (vd && vd.sort) return list.sort((a, b) => { try { return vd.sort(a, b); } catch (e) { return 0; } });
     return list.sort((a, b) => (st.view === 'trash' ? (b.deletedAt || '').localeCompare(a.deletedAt || '') : (b.pinned - a.pinned) || b.updatedAt.localeCompare(a.updatedAt)));
+  }
+  /** Extra search providers (edx.search.register) run asynchronously; their matches are merged into the list when they arrive. */
+  let searchSeq = 0;
+  function runExtraSearch() {
+    const q = st.q.trim().toLowerCase();
+    const seq = ++searchSeq;
+    if (!q || X.search.list().length < 2) return; // only the built-in provider: the sync path is enough
+    X.search.query(st.q.trim(), { docs: st.docs }).then((res) => {
+      if (seq !== searchSeq || st.q.trim().toLowerCase() !== q) return;
+      st.extra = { q, map: new Map(res.map((r) => [r.id, r])) };
+      renderList();
+    }).catch(() => {});
   }
   function snippet(d) {
     const q = st.q.trim().toLowerCase();
@@ -250,22 +310,30 @@ T4.editor = (function () {
         const from = Math.max(0, i - 30);
         return (from ? '…' : '') + esc(text.slice(from, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length, i + q.length + 60));
       }
+      const hit = extraHit(d);
+      if (hit && hit.snippet) return esc(String(hit.snippet).slice(0, 160));
     }
     const t = docTitle(d);
     return esc(text.startsWith(t) ? text.slice(t.length).trim().slice(0, 90) : text.slice(0, 90));
   }
+  function badgesHTML(d) {
+    const b = X.docList.badges(d);
+    return b ? '<span class="ed-item__badges">' + b + '</span>' : '';
+  }
   function renderList() {
     if (!shell) return;
+    if (!BUILTIN_VIEWS.includes(st.view) && !X.docList.getView(st.view)) st.view = 'all'; // the view's module is gone
     const list = filteredDocs();
+    const vd = BUILTIN_VIEWS.includes(st.view) ? null : X.docList.getView(st.view);
     const active = st.cur && st.cur.id;
     if (!list.length) {
-      el.list.innerHTML = '<p class="ed-list__empty muted small">' + esc(st.q ? E('No documents match “{q}”.', { q: st.q }) : st.view === 'trash' ? E('Trash is empty. Deleted documents stay here for {n} days.', { n: DS.TRASH_DAYS }) : st.view === 'pinned' ? E('No pinned documents.') : E('No documents yet.')) + '</p>' +
+      el.list.innerHTML = '<p class="ed-list__empty muted small">' + esc(st.q ? E('No documents match “{q}”.', { q: st.q }) : st.view === 'trash' ? E('Trash is empty. Deleted documents stay here for {n} days.', { n: DS.TRASH_DAYS }) : st.view === 'pinned' ? E('No pinned documents.') : st.hiddenByFilter && X.docList.filterNote() ? X.docList.filterNote() : vd && vd.empty ? X.text(vd, 'empty') : E('No documents yet.')) + '</p>' +
         (st.view === 'trash' || st.q ? '' : '<button type="button" class="btn btn--sm" data-cmd="new-doc">' + icon('plus') + esc(E('New document')) + '</button>');
     } else {
       el.list.innerHTML = list.map((d) =>
         '<div class="ed-item' + (d.id === active ? ' is-active' : '') + '" role="listitem">' +
           '<button type="button" class="ed-item__open" data-open="' + d.id + '"' + (d.id === active ? ' aria-current="true"' : '') + '>' +
-            '<span class="ed-item__title">' + (d.pinned ? icon('pin', 'ed-item__pin') : '') + esc(docTitle(d)) + '</span>' +
+            '<span class="ed-item__title">' + (d.pinned ? icon('pin', 'ed-item__pin') : '') + esc(docTitle(d)) + badgesHTML(d) + '</span>' +
             '<span class="ed-item__meta">' + esc(st.view === 'trash' ? E('Deleted {time}', { time: relTime(d.deletedAt) }) : relTime(d.updatedAt)) + (d.words ? ' · ' + esc(tt('ed.words', { count: d.words })) : '') + '</span>' +
             (snippet(d) ? '<span class="ed-item__snip">' + snippet(d) + '</span>' : '') +
           '</button>' +
@@ -274,9 +342,23 @@ T4.editor = (function () {
     }
     renderSideViews();
   }
+  function renderViewButtons() {
+    if (!shell) return;
+    const extra = X.docList.views();
+    el.views.classList.toggle('has-extra', extra.length > 0);
+    el.views.innerHTML = '<button type="button" class="seg__btn" role="radio" data-view="all">' + esc(E('All')) + '</button><button type="button" class="seg__btn" role="radio" data-view="pinned">' + icon('pin') + esc(E('Pinned')) + '</button><button type="button" class="seg__btn" role="radio" data-view="trash">' + icon('trash') + esc(E('Trash')) + '</button>' +
+      extra.map((v) => '<button type="button" class="seg__btn" role="radio" data-view="' + esc(v.id) + '">' + (v.icon ? icon(v.icon) : '') + esc(X.text(v)) + '</button>').join('');
+    renderSideViews();
+  }
   function renderSideViews() {
     if (!shell) return;
     shell.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.view === st.view)));
+  }
+  X._watch('docviews', () => { if (shell) { renderViewButtons(); renderList(); } });
+  X._watch('search', () => { if (shell && st.q) runExtraSearch(); });
+  X._watch('importers', () => updateImportAccept());
+  function updateImportAccept() {
+    if (shell && el.fileImport) el.fileImport.accept = IMPORT_ACCEPT + (X.importers.list().length ? ',' + X.importers.accept() : '');
   }
 
   /* ====================== Start page ====================== */
@@ -289,6 +371,7 @@ T4.editor = (function () {
   function showHome() {
     el.work.hidden = true;
     el.home.hidden = false;
+    syncPanelState();
     renderHome();
     document.title = tt('nav.editor') + ' · Todo4Me';
   }
@@ -318,7 +401,7 @@ T4.editor = (function () {
     const d = await DS.get(id);
     if (seq !== openSeq) return;
     if (!d) { ui.toast(E('This document does not exist anymore.'), 'error'); location.hash = '#/editor'; return; }
-    st.cur = { id, meta: d.meta };
+    setCur({ id, meta: d.meta });
     st.dirty = false;
     el.home.hidden = true;
     el.work.hidden = false;
@@ -342,14 +425,18 @@ T4.editor = (function () {
       else { el.doc.focus({ preventScroll: true }); const s = window.getSelection(); const r = document.createRange(); r.selectNodeContents(el.doc.firstElementChild || el.doc); r.collapse(true); s.removeAllRanges(); s.addRange(r); }
     }
     if (window.matchMedia('(max-width: 900px)').matches) setSide(false);
+    syncPanelState();
+    notifyPanels();
+    X.events.emit('doc-open', { id, meta: d.meta });
   }
   async function closeDoc() {
     await flush();
-    st.cur = null;
+    setCur(null);
     core.clearWidget();
     hideCtx();
     showHome();
     renderList();
+    notifyPanels();
   }
   function setReadonly(on) {
     st.readonly = on;
@@ -384,6 +471,8 @@ T4.editor = (function () {
         upsertDoc(meta);
         setStatus(st.dirty ? 'dirty' : 'saved');
         updateCounts(snap.words, snap.chars);
+        X.events.emit('doc-saved', { id, meta, html: snap.html });
+        notifyPanels();
       })
       .catch((err) => {
         console.error('[Todo4Me] document save failed', err);
@@ -437,6 +526,7 @@ T4.editor = (function () {
   /* ====================== Editor callbacks ====================== */
   function onDocChange(info) {
     markDirty();
+    X.events.emit('content-change', info || {});
     if (info && info.history) updateCountsSoon();
     updateUndo();
   }
@@ -444,7 +534,7 @@ T4.editor = (function () {
   let selRaf = 0;
   function onSelection() {
     if (selRaf) return;
-    selRaf = requestAnimationFrame(() => { selRaf = 0; updateToolbar(); updateCtx(); });
+    selRaf = requestAnimationFrame(() => { selRaf = 0; updateToolbar(); updateCtx(); X.events.emit('selection-change', {}); });
   }
   function updateUndo() {
     if (!shell) return;
@@ -465,12 +555,13 @@ T4.editor = (function () {
       el.toolbar.querySelector('[data-cmd="font"] .tb-dd__label').textContent = s.font;
       el.toolbar.querySelector('[data-cmd="size"] .tb-dd__label').textContent = String(s.size);
     }
+    updateExtToolbar();
     updateUndo();
   }
 
   /* ====================== Commands ====================== */
   function cmd(name, btn) {
-    if (st.readonly && !/^(toggle-side|new-doc|import|zoom|menu-file|export-pdf|restore-current)/.test(name)) return;
+    if (st.readonly && !/^(toggle-side|new-doc|import|zoom|menu-file|export-pdf|restore-current|toggle-panel|panel-tab|ltab|ext:)/.test(name)) return;
     switch (name) {
       case 'undo': core.undo(); break;
       case 'redo': core.redo(); break;
@@ -510,9 +601,18 @@ T4.editor = (function () {
       case 'zoom-out': setZoom(-1); break;
       case 'zoom-reset': st.prefs.zoom = 100; applyZoom(); break;
       case 'restore-current': if (st.cur) DS.restore(st.cur.id).then(() => openDoc(st.cur.id)); break;
+      case 'toggle-panel': togglePanelButton(); break;
+      case 'panel-tab': if (btn) openPanel(btn.dataset.panel); break;
+      case 'ltab': if (btn) setPanel('left', btn.dataset.panel || ''); break;
+      default:
+        if (name.indexOf('ext:') === 0) runToolbarExt(name.slice(4));
     }
   }
   function onShellClick(e) {
+    // Document content and module panels are not part of the editor's own command surface.
+    if (e.target.closest('.ed-doc')) return;
+    const tab = e.target.closest('[data-cmd="panel-tab"], [data-cmd="ltab"]');
+    if (!tab && e.target.closest('.ed-panel__body, .ed-side__panelhost')) return;
     const view = e.target.closest('[data-view]');
     if (view) { st.view = view.dataset.view; renderList(); return; }
     const open = e.target.closest('[data-open]');
@@ -570,18 +670,27 @@ T4.editor = (function () {
     positionCtx();
   }
 
-  async function newDocument(template) {
+  /** newDocument(templateId) from the UI, or newDocument({ title, html, meta }) from modules (html is sanitized; meta: registered fields, page, pinned). Resolves to the new meta. */
+  async function newDocument(arg) {
     await boot();
-    const t = template && template !== 'blank' ? templateContent(template) : { title: '', html: '<p><br></p>' };
     try {
-      const meta = await DS.create(Object.assign({ title: t.title, html: t.html }, core.statsOf(t.html)));
+      let t, extra = {};
+      if (arg && typeof arg === 'object') {
+        t = { title: String(arg.title || ''), html: arg.html == null ? '<p><br></p>' : await sanitizeWithImages(arg.html) };
+        const m = arg.meta || {};
+        extra = Object.assign(X.meta.pick(m), m.page ? { page: m.page } : {}, m.pinned ? { pinned: true } : {});
+      } else t = arg && arg !== 'blank' ? templateContent(arg) : { title: '', html: '<p><br></p>' };
+      const meta = await DS.create(Object.assign({ title: t.title, html: t.html }, core.statsOf(t.html), extra));
       st.docs.push(meta);
       st.view = 'all';
       st.q = '';
+      st.extra = null;
       if (el.search) el.search.value = '';
       location.hash = '#/editor?doc=' + meta.id;
+      return meta;
     } catch (e) {
       ui.toast(E('Could not create the document: {msg}', { msg: e.message }), 'error');
+      return null;
     }
   }
 
@@ -589,60 +698,114 @@ T4.editor = (function () {
   let menu = null;
   function closeMenu() {
     if (!menu) return;
+    if (menu.sub) menu.sub.el.remove();
     menu.el.remove();
-    if (menu.anchor) menu.anchor.setAttribute('aria-expanded', 'false');
+    if (menu.temp) menu.temp.remove();
+    else if (menu.anchor) menu.anchor.setAttribute('aria-expanded', 'false');
     document.removeEventListener('mousedown', menu.outside, true);
     window.removeEventListener('blur', closeMenu);
     menu = null;
   }
-  /** items: [{ label, icon, kbd, run, checked, disabled, danger, style } | { sep: true } | { heading } | { html, mount(menuEl) }] */
-  function openMenu(anchor, items, opts) {
-    const same = menu && menu.anchor === anchor;
-    closeMenu();
-    if (same) return null;
-    opts = opts || {};
-    const m = document.createElement('div');
-    m.className = 'ed-menu' + (opts.cls ? ' ' + opts.cls : '');
-    m.setAttribute('role', 'menu');
-    m.innerHTML = items.map((it, i) => {
+  function closeSub() {
+    if (menu && menu.sub) { menu.sub.btn.setAttribute('aria-expanded', 'false'); menu.sub.el.remove(); menu.sub = null; }
+  }
+  function menuHTML(items) {
+    return items.map((it, i) => {
       if (it.sep) return '<div class="ed-menu__sep" role="separator"></div>';
       if (it.heading) return '<div class="ed-menu__heading">' + esc(it.heading) + '</div>';
       if (it.html != null) return '<div class="ed-menu__custom">' + it.html + '</div>';
-      return '<button type="button" class="ed-menu__item' + (it.danger ? ' is-danger' : '') + (it.checked ? ' is-checked' : '') + '" role="menuitem" data-mi="' + i + '"' + (it.disabled ? ' disabled' : '') + (it.style ? ' style="' + esc(it.style) + '"' : '') + '>' +
-        '<span class="ed-menu__icon">' + (it.checked ? icon('check') : it.icon ? icon(it.icon) : '') + '</span><span class="ed-menu__label">' + esc(it.label) + '</span>' + (it.kbd ? '<kbd>' + esc(it.kbd) + '</kbd>' : '') + '</button>';
+      return '<button type="button" class="ed-menu__item' + (it.danger ? ' is-danger' : '') + (it.checked ? ' is-checked' : '') + '" role="menuitem" data-mi="' + i + '"' + (it.disabled ? ' disabled' : '') + (it.items ? ' aria-haspopup="menu" aria-expanded="false" data-sub="1"' : '') + (it.style ? ' style="' + esc(it.style) + '"' : '') + '>' +
+        '<span class="ed-menu__icon">' + (it.checked ? icon('check') : it.icon ? icon(it.icon) : '') + '</span><span class="ed-menu__label">' + esc(it.label) + '</span>' + (it.items ? icon('chevron-right', 'ed-menu__chev') : it.kbd ? '<kbd>' + esc(it.kbd) + '</kbd>' : '') + '</button>';
     }).join('');
+  }
+  /** items: [{ label, icon, kbd, run, checked, disabled, danger, style, items: [submenu] } | { sep: true } | { heading } | { html, mount(menuEl) }]
+   *  opts: { cls, focusFirst, at: { x, y } (open at a point instead of below the anchor; anchor may be null) } */
+  function openMenu(anchor, items, opts) {
+    opts = opts || {};
+    const same = menu && anchor && menu.anchor === anchor && !opts.at;
+    closeMenu();
+    if (same) return null;
+    let temp = null;
+    if (opts.at) {
+      temp = document.createElement('span');
+      temp.className = 'ed-menu-anchor';
+      temp.style.cssText = 'position:fixed;width:0;height:0;left:' + opts.at.x + 'px;top:' + opts.at.y + 'px';
+      document.body.appendChild(temp);
+      anchor = temp;
+    }
+    const m = document.createElement('div');
+    m.className = 'ed-menu' + (opts.cls ? ' ' + opts.cls : '');
+    m.setAttribute('role', 'menu');
+    m.innerHTML = menuHTML(items);
     document.body.appendChild(m);
     const r = anchor.getBoundingClientRect();
     const mw = m.offsetWidth, mh = m.offsetHeight;
     let left = Math.min(r.left, window.innerWidth - mw - 8);
-    let top = r.bottom + 4;
-    if (top + mh > window.innerHeight - 8 && r.top - mh - 4 > 8) top = r.top - mh - 4;
+    let top = temp ? r.top : r.bottom + 4;
+    if (top + mh > window.innerHeight - 8 && (temp || r.top - mh - 4 > 8)) top = temp ? r.top - mh : r.top - mh - 4;
     m.style.left = Math.max(8, left) + 'px';
     m.style.top = Math.max(8, Math.min(top, window.innerHeight - mh - 8)) + 'px';
-    anchor.setAttribute('aria-expanded', 'true');
+    if (!temp) anchor.setAttribute('aria-expanded', 'true');
     m.addEventListener('mousedown', (e) => { if (!e.target.closest('input, select, textarea')) e.preventDefault(); });
-    m.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-mi]');
-      if (!b || b.disabled) return;
-      const it = items[+b.dataset.mi];
-      closeMenu();
-      it.run();
-    });
-    m.addEventListener('keydown', (e) => {
-      const btns = Array.from(m.querySelectorAll('[data-mi]:not([disabled]), .ed-menu__custom button'));
-      const i = btns.indexOf(document.activeElement);
-      if (e.key === 'ArrowDown') { e.preventDefault(); (btns[i + 1] || btns[0]).focus(); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); (btns[i - 1] || btns[btns.length - 1]).focus(); }
-      else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); anchor.focus ? core.restore() : null; }
-      else if (e.key === 'Tab') closeMenu();
-    });
-    const outside = (e) => { if (!m.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) closeMenu(); };
+    const bindItems = (host, list, sub) => {
+      host.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-mi]');
+        if (!b || b.disabled) return;
+        const it = list[+b.dataset.mi];
+        if (it.items) { if (!sub) openSub(b, it.items, opts.focusFirst); return; }
+        closeMenu();
+        it.run();
+      });
+      host.addEventListener('keydown', (e) => {
+        const btns = Array.from(host.querySelectorAll('[data-mi]:not([disabled]), .ed-menu__custom button'));
+        const i = btns.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') { e.preventDefault(); (btns[i + 1] || btns[0]).focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); (btns[i - 1] || btns[btns.length - 1]).focus(); }
+        else if (e.key === 'ArrowRight' && !sub && document.activeElement && document.activeElement.dataset.sub) { e.preventDefault(); openSub(document.activeElement, list[+document.activeElement.dataset.mi].items, true); }
+        else if (e.key === 'ArrowLeft' && sub) { e.preventDefault(); const b = menu && menu.sub && menu.sub.btn; closeSub(); if (b) b.focus(); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); core.restore(); }
+        else if (e.key === 'Tab') closeMenu();
+      });
+    };
+    const openSub = (btn, subItems, focusFirst) => {
+      if (menu && menu.sub && menu.sub.btn === btn) { closeSub(); return; }
+      closeSub();
+      const sm = document.createElement('div');
+      sm.className = 'ed-menu ed-menu--sub';
+      sm.setAttribute('role', 'menu');
+      sm.innerHTML = menuHTML(subItems);
+      document.body.appendChild(sm);
+      const br = btn.getBoundingClientRect(), sw = sm.offsetWidth, sh = sm.offsetHeight;
+      let sl = br.right + 2;
+      if (sl + sw > window.innerWidth - 8) sl = Math.max(8, br.left - sw - 2);
+      sm.style.left = sl + 'px';
+      sm.style.top = Math.max(8, Math.min(br.top - 4, window.innerHeight - sh - 8)) + 'px';
+      sm.addEventListener('mousedown', (e) => { if (!e.target.closest('input, select, textarea')) e.preventDefault(); });
+      bindItems(sm, subItems, true);
+      btn.setAttribute('aria-expanded', 'true');
+      menu.sub = { el: sm, btn };
+      subItems.forEach((it) => { if (it.mount) it.mount(sm); });
+      if (focusFirst) { const f = sm.querySelector('[data-mi]'); if (f) f.focus(); }
+    };
+    bindItems(m, items, false);
+    const outside = (e) => { if (!m.contains(e.target) && !(menu && menu.sub && menu.sub.el.contains(e.target)) && e.target !== anchor && !anchor.contains(e.target)) closeMenu(); };
     document.addEventListener('mousedown', outside, true);
     window.addEventListener('blur', closeMenu);
-    menu = { el: m, anchor, outside };
+    menu = { el: m, anchor, outside, temp, sub: null };
     items.forEach((it) => { if (it.mount) it.mount(m); });
-    if (opts.focusFirst) { const f = m.querySelector('[data-mi]'); if (f) f.focus(); }
+    if (opts.focusFirst) { const f = m.querySelector('[data-mi]:not([disabled])'); if (f) f.focus(); }
     return m;
+  }
+  /** Registered items for a menu, preceded by a separator (empty when nothing is registered). */
+  function extraMenuItems(where, ctx) {
+    const items = X.menus.items(where, ctx);
+    return items.length ? [{ sep: true }].concat(items) : [];
+  }
+  /** "Export as…" submenu with every registered exporter (nothing when none is registered). */
+  function exporterMenuItem(docId) {
+    const list = X.exporters.list();
+    if (!list.length) return [];
+    return [{ label: E('Export as…'), icon: 'download', items: list.map((ex) => ({ label: X.text(ex) + ' (.' + ex.ext + ')', icon: ex.icon || 'download', run: () => exportWith(ex.id, docId) })) }];
   }
 
   function styleMenu(btn) {
@@ -729,7 +892,7 @@ T4.editor = (function () {
       { label: E('Page break'), icon: 'pagebreak', kbd: 'Ctrl+Enter', run: insertPageBreak },
       { sep: true },
       { label: E('Clear formatting'), icon: 'eraser', kbd: 'Ctrl+\\', run: () => core.clearFormatting() },
-    ]);
+    ].concat(extraMenuItems('more', menuCtx('more'))));
   }
   function insertMenu(btn) {
     openMenu(btn, [
@@ -748,7 +911,11 @@ T4.editor = (function () {
       { sep: true },
       { label: E('Horizontal line'), icon: 'minus', run: () => core.insertBlock(document.createElement('hr')) },
       { label: E('Page break'), icon: 'pagebreak', kbd: 'Ctrl+Enter', run: insertPageBreak },
-    ]));
+    ], extraMenuItems('insert', menuCtx('insert'))));
+  }
+  /** Context passed to registered menu items and providers. */
+  function menuCtx(where, extra) {
+    return Object.assign({ where, editor: X.editor, doc: st.cur ? { id: st.cur.id, meta: st.cur.meta } : null, readonly: st.readonly }, extra);
   }
   function fileMenu(btn) {
     const ro = st.readonly;
@@ -762,11 +929,13 @@ T4.editor = (function () {
       { label: E('Export as PDF…'), icon: 'pdf', kbd: 'Ctrl+P', run: exportPDF },
       { label: E('Export as Markdown (.md)'), icon: 'markdown', run: () => exportMarkdown(st.cur.id) },
       { label: E('Export as Todo4Me document (.json)'), icon: 'download', run: () => exportJSON([st.cur.id]) },
+    ].concat(exporterMenuItem(st.cur.id), [
       { label: E('Import…'), icon: 'upload', run: () => el.fileImport.click() },
+    ], extraMenuItems('file', menuCtx('file')), [
       { sep: true },
       { label: E('Close document'), icon: 'x', run: () => { location.hash = '#/editor'; } },
       { label: E('Move to trash'), icon: 'trash', danger: true, disabled: ro, run: () => trashDoc(st.cur.id) },
-    ]);
+    ]));
   }
   function docMenu(btn, id) {
     const d = st.docs.find((x) => x.id === id);
@@ -789,9 +958,10 @@ T4.editor = (function () {
       { label: E('Export as PDF…'), icon: 'pdf', run: () => exportPDFOf(id) },
       { label: E('Export as Markdown'), icon: 'markdown', run: () => exportMarkdown(id) },
       { label: E('Export as Todo4Me document'), icon: 'download', run: () => exportJSON([id]) },
+    ].concat(exporterMenuItem(id), extraMenuItems('doc', menuCtx('doc', { docId: id, docMeta: d })), [
       { sep: true },
       { label: E('Move to trash'), icon: 'trash', danger: true, run: () => trashDoc(id) },
-    ]);
+    ]));
   }
 
   /* ====================== Document actions ====================== */
@@ -811,7 +981,7 @@ T4.editor = (function () {
     const d = st.docs.find((x) => x.id === id);
     const ok = await ui.confirm({ title: E('Move document to trash?'), message: E('“{title}” will be moved to the trash. You can restore it there for {n} days.', { title: docTitle(d), n: DS.TRASH_DAYS }), confirmText: E('Move to trash'), danger: true });
     if (!ok) return;
-    if (st.cur && st.cur.id === id) { await flush(); st.cur = null; location.hash = '#/editor'; }
+    if (st.cur && st.cur.id === id) { await flush(); setCur(null); location.hash = '#/editor'; }
     await DS.trash(id);
     ui.toast(E('Moved to trash'), 'success', 6000, { label: tt('c.undo'), fn: () => DS.restore(id).then(() => ui.toast(E('Document restored'))) });
   }
@@ -819,7 +989,7 @@ T4.editor = (function () {
     const d = st.docs.find((x) => x.id === id);
     const ok = await ui.confirm({ title: E('Delete permanently?'), message: E('“{title}” will be deleted for good. This cannot be undone.', { title: docTitle(d) }), confirmText: E('Delete permanently'), danger: true });
     if (!ok) return;
-    if (st.cur && st.cur.id === id) { st.cur = null; location.hash = '#/editor'; }
+    if (st.cur && st.cur.id === id) { setCur(null); location.hash = '#/editor'; }
     await DS.destroy(id);
     ui.toast(E('Document deleted'));
   }
@@ -881,6 +1051,7 @@ T4.editor = (function () {
       case 'chart': W.chartDialog({ props: W.getProps(w), onSave: (p) => { core.run(() => W.setProps(w, p), { keepFocus: true }); core.selectWidget(w); } }); break;
       case 'img': captionDialog(w); break;
       case 'code': { const ta = w.querySelector('textarea'); if (ta) ta.focus(); break; }
+      default: X.widgets.edit(w); // widget types registered by feature modules
     }
   }
 
@@ -1014,12 +1185,32 @@ T4.editor = (function () {
 
   /* ====================== Page setup ====================== */
   function pageDims(p) {
-    const [w, h] = PAGE_SIZES[p.size] || PAGE_SIZES.A4;
-    return p.orientation === 'landscape' ? [h, w] : [w, h];
+    const g = DS.pageGeometry(p);
+    return [g.widthMm, g.heightMm];
   }
-  const pageMargins = (p) => MARGINS[p.margins] || MARGINS.normal;
+  const pageMargins = (p) => { const m = DS.pageGeometry(p).margins; return [m.t, m.r, m.b, m.l]; };
   function fillTokens(s, meta) {
     return String(s || '').replace(/\{title\}/gi, docTitle(meta)).replace(/\{date\}/gi, new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date()));
+  }
+  /** Text of a header/footer slot as parts: plain strings and { n: 'page' | 'pages' } counters ({title}/{date} are filled in; the title is never re-scanned for tokens). */
+  function slotParts(text, meta) {
+    return String(text || '').split(/(\{pages?\})/i).filter(Boolean).map((part) => (/^\{pages?\}$/i.test(part) ? { n: part.length > 6 ? 'pages' : 'page' } : fillTokens(part, meta)));
+  }
+  function numberParts(p) {
+    if (p.numberFormat === 'plain') return [{ n: 'page' }];
+    if (p.numberFormat === 'slash') return [{ n: 'page' }, ' / ', { n: 'pages' }];
+    return E('Page {a} of {b}').split(/(\{a\}|\{b\})/).filter(Boolean).map((part) => (part === '{a}' ? { n: 'page' } : part === '{b}' ? { n: 'pages' } : part));
+  }
+  /** The six margin boxes of the page: { tl, tc, tr, bl, bc, br } → { parts, text } (text = parts without the page number, for the first page). */
+  function hfBoxes(p, meta) {
+    const slots = { tl: p.headerL, tc: p.header, tr: p.headerR, bl: p.footer, bc: p.footerC, br: p.footerR };
+    const numBox = { 'bottom-center': 'bc', 'bottom-right': 'br', 'top-right': 'tr' }[p.pageNumbers];
+    const out = {};
+    Object.keys(slots).forEach((k) => {
+      const text = slotParts(slots[k], meta);
+      out[k] = { text, parts: k === numBox ? (text.length ? text.concat([' · '], numberParts(p)) : numberParts(p)) : text, num: k === numBox };
+    });
+    return out;
   }
   function applyPage() {
     if (!st.cur) return;
@@ -1030,35 +1221,67 @@ T4.editor = (function () {
     s.setProperty('--page-w', w + 'mm');
     s.setProperty('--page-h', h + 'mm');
     s.setProperty('--m-t', m[0] + 'mm'); s.setProperty('--m-r', m[1] + 'mm'); s.setProperty('--m-b', m[2] + 'mm'); s.setProperty('--m-l', m[3] + 'mm');
-    el.hfHead.textContent = fillTokens(p.header, st.cur.meta) + (p.pageNumbers === 'top-right' ? '' : '');
-    el.hfHead.dataset.num = p.pageNumbers === 'top-right' ? numberSample(p) : '';
-    el.hfFoot.textContent = fillTokens(p.footer, st.cur.meta);
-    el.hfFoot.dataset.num = p.pageNumbers.startsWith('bottom') ? numberSample(p) : '';
-    el.hfFoot.dataset.pos = p.pageNumbers;
+    s.backgroundColor = p.bg || '';
+    // Header/footer on the paper: three slots each (left, centre, right); counters show the first page / the page count.
+    const pages = parseInt(s.getPropertyValue('--pages'), 10) || 1;
+    const boxes = hfBoxes(p, st.cur.meta);
+    const fill = (host, keys) => {
+      host.textContent = '';
+      host.removeAttribute('data-num'); host.removeAttribute('data-pos');
+      keys.forEach((k, i) => {
+        const span = document.createElement('span');
+        span.className = 'ed-hf__' + ['l', 'c', 'r'][i];
+        span.textContent = boxes[k].parts.map((x) => (typeof x === 'string' ? x : x.n === 'page' ? '1' : String(pages))).join('');
+        host.appendChild(span);
+      });
+    };
+    fill(el.hfHead, ['tl', 'tc', 'tr']);
+    fill(el.hfFoot, ['bl', 'bc', 'br']);
   }
-  const numberSample = (p) => (p.numberFormat === 'plain' ? '1' : p.numberFormat === 'slash' ? '1 / N' : E('Page 1 of N'));
   function pageDialog() {
     const p = Object.assign({}, st.cur.meta.page);
+    const T = (k, f) => esc(X.t('edx.layout.' + k, f));
     const opt = (v, l, cur) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + l + '</option>';
+    const mmInput = (id, v, label, min, max) => '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" type="number" min="' + min + '" max="' + max + '" step="0.1" value="' + v + '" inputmode="decimal"></div>';
+    const slot = (id, label, v, ph) => '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" type="text" maxlength="200" value="' + esc(v) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '></div>';
+    const sizes = Object.keys(PAGE_SIZES).concat(['Custom']);
     ui.openModal({
       title: E('Page setup'),
       body: '<form id="page-form" class="form">' +
-        '<div class="grid-3"><div class="field"><label for="pg-size">' + esc(E('Paper size')) + '</label><select id="pg-size">' + Object.keys(PAGE_SIZES).map((k) => opt(k, k, p.size)).join('') + '</select></div>' +
+        '<div class="grid-3"><div class="field"><label for="pg-size">' + esc(E('Paper size')) + '</label><select id="pg-size">' + sizes.map((k) => opt(k, k === 'Custom' ? T('page.custom', 'Custom…') : k, p.size)).join('') + '</select></div>' +
         '<div class="field"><label for="pg-or">' + esc(E('Orientation')) + '</label><select id="pg-or">' + opt('portrait', esc(E('Portrait')), p.orientation) + opt('landscape', esc(E('Landscape')), p.orientation) + '</select></div>' +
-        '<div class="field"><label for="pg-m">' + esc(E('Margins')) + '</label><select id="pg-m">' + opt('normal', esc(E('Normal (2.54 cm)')), p.margins) + opt('narrow', esc(E('Narrow (1.27 cm)')), p.margins) + opt('moderate', esc(E('Moderate')), p.margins) + opt('wide', esc(E('Wide')), p.margins) + '</select></div></div>' +
-        '<div class="field"><label for="pg-h">' + esc(E('Header')) + '</label><input id="pg-h" type="text" maxlength="200" value="' + esc(p.header) + '" placeholder="' + esc(E('e.g. {title}')) + '"></div>' +
-        '<div class="field"><label for="pg-f">' + esc(E('Footer')) + '</label><input id="pg-f" type="text" maxlength="200" value="' + esc(p.footer) + '" placeholder="' + esc(E('e.g. Confidential · {date}')) + '">' +
-          '<p class="field__help">' + E('Placeholders: <code>{title}</code> document title, <code>{date}</code> export date.') + '</p></div>' + // dictionary HTML, no values
+        '<div class="field"><label for="pg-m">' + esc(E('Margins')) + '</label><select id="pg-m">' + opt('normal', esc(E('Normal (2.54 cm)')), p.margins) + opt('narrow', esc(E('Narrow (1.27 cm)')), p.margins) + opt('moderate', esc(E('Moderate')), p.margins) + opt('wide', esc(E('Wide')), p.margins) + opt('custom', T('page.custom', 'Custom…'), p.margins) + '</select></div></div>' +
+        '<div class="grid-2" id="pg-custom-size"' + (p.size === 'Custom' ? '' : ' hidden') + '>' + mmInput('pg-cw', p.customW, T('page.width', 'Width (mm)'), 50, 1000) + mmInput('pg-ch', p.customH, T('page.height', 'Height (mm)'), 50, 1000) + '</div>' +
+        '<div class="ed-ly-grid4" id="pg-custom-margins"' + (p.margins === 'custom' ? '' : ' hidden') + '>' +
+          mmInput('pg-mt', p.marginsMm.t, T('page.mTop', 'Top (mm)'), 0, 100) + mmInput('pg-mr', p.marginsMm.r, T('page.mRight', 'Right (mm)'), 0, 100) + mmInput('pg-mb', p.marginsMm.b, T('page.mBottom', 'Bottom (mm)'), 0, 100) + mmInput('pg-ml', p.marginsMm.l, T('page.mLeft', 'Left (mm)'), 0, 100) + '</div>' +
+        '<div class="grid-3">' + slot('pg-hl', T('page.headerLeft', 'Header, left'), p.headerL) + slot('pg-h', T('page.headerCenter', 'Header, centre'), p.header, E('e.g. {title}')) + slot('pg-hr', T('page.headerRight', 'Header, right'), p.headerR) + '</div>' +
+        '<div class="grid-3">' + slot('pg-f', T('page.footerLeft', 'Footer, left'), p.footer, E('e.g. Confidential · {date}')) + slot('pg-fc', T('page.footerCenter', 'Footer, centre'), p.footerC) + slot('pg-fr', T('page.footerRight', 'Footer, right'), p.footerR) + '</div>' +
+        '<p class="field__help">' + T('page.placeholders', 'Placeholders: {title} document title, {date} export date, {page} page number, {pages} page count.') + '</p>' +
         '<div class="grid-2"><div class="field"><label for="pg-n">' + esc(E('Page numbers')) + '</label><select id="pg-n">' + opt('none', esc(E('None')), p.pageNumbers) + opt('bottom-center', esc(E('Bottom, centered')), p.pageNumbers) + opt('bottom-right', esc(E('Bottom right')), p.pageNumbers) + opt('top-right', esc(E('Top right')), p.pageNumbers) + '</select></div>' +
         '<div class="field"><label for="pg-nf">' + esc(E('Format')) + '</label><select id="pg-nf">' + opt('page-of', esc(E('Page 1 of 3')), p.numberFormat) + opt('slash', '1 / 3', p.numberFormat) + opt('plain', '1', p.numberFormat) + '</select></div></div>' +
         '<label class="checkbox"><input type="checkbox" id="pg-first"' + (p.firstPageHeader ? '' : ' checked') + '><span>' + esc(E('No header and page number on the first page')) + '</span></label>' +
+        '<div class="field ed-ly-bgrow"><label class="checkbox"><input type="checkbox" id="pg-bgon"' + (p.bg ? ' checked' : '') + '><span>' + T('page.bg', 'Page colour (light colours only, printed)') + '</span></label>' +
+          '<input id="pg-bg" type="color" value="' + (p.bg || '#fffbe6') + '" aria-label="' + T('page.bgPick', 'Page colour') + '"' + (p.bg ? '' : ' disabled') + '></div>' +
         '</form>',
       footer: '<button type="button" class="btn btn--ghost" data-action="modal-close">' + esc(tt('c.cancel')) + '</button><button type="submit" class="btn btn--primary" form="page-form">' + esc(E('Apply')) + '</button>',
       onMount(m) {
-        m.querySelector('#page-form').addEventListener('submit', (e) => {
+        const q = (id) => m.querySelector(id);
+        const sync = () => {
+          q('#pg-custom-size').hidden = q('#pg-size').value !== 'Custom';
+          q('#pg-custom-margins').hidden = q('#pg-m').value !== 'custom';
+          q('#pg-bg').disabled = !q('#pg-bgon').checked;
+        };
+        ['#pg-size', '#pg-m', '#pg-bgon'].forEach((id) => q(id).addEventListener('change', sync));
+        sync();
+        q('#page-form').addEventListener('submit', (e) => {
           e.preventDefault();
-          const v = (id) => m.querySelector(id).value;
-          st.cur.meta.page = DS.cleanPage({ size: v('#pg-size'), orientation: v('#pg-or'), margins: v('#pg-m'), header: v('#pg-h'), footer: v('#pg-f'), pageNumbers: v('#pg-n'), numberFormat: v('#pg-nf'), firstPageHeader: !m.querySelector('#pg-first').checked });
+          const v = (id) => q(id).value;
+          st.cur.meta.page = DS.cleanPage({
+            size: v('#pg-size'), orientation: v('#pg-or'), margins: v('#pg-m'), customW: v('#pg-cw'), customH: v('#pg-ch'),
+            marginsMm: { t: v('#pg-mt'), r: v('#pg-mr'), b: v('#pg-mb'), l: v('#pg-ml') },
+            header: v('#pg-h'), headerL: v('#pg-hl'), headerR: v('#pg-hr'), footer: v('#pg-f'), footerC: v('#pg-fc'), footerR: v('#pg-fr'),
+            pageNumbers: v('#pg-n'), numberFormat: v('#pg-nf'), firstPageHeader: !q('#pg-first').checked, bg: q('#pg-bgon').checked ? v('#pg-bg') : '',
+          });
           ui.closeModal(true);
           applyPage();
           markDirty();
@@ -1123,6 +1346,7 @@ T4.editor = (function () {
         case 'pagebreak':
           html = '<span class="ctx-label">' + esc(E('Page break')) + '</span>' + cbi('delete', 'trash', E('Remove page break'));
           break;
+        default: html = registeredCtxHTML(w, p); if (!html) target = null; // registered widget without a context bar
       }
     } else {
       const s = core.state();
@@ -1147,6 +1371,24 @@ T4.editor = (function () {
     }
     el.ctx.hidden = false;
     positionCtx();
+  }
+  /** Context bar of a widget type registered with edx.widgets.register({ ctxBar }). Actions are routed back through ctxAction as 'x:<action>'. */
+  function registeredCtxHTML(w, p) {
+    const bar = X.widgets.ctxBar(w.getAttribute('data-w'));
+    if (!bar) return '';
+    if (typeof bar.html === 'function') {
+      try { return String(bar.html(w, p) || ''); } catch (e) { return ''; }
+    }
+    let items = [];
+    try { items = typeof bar.items === 'function' ? bar.items(w, p) : bar.items || []; } catch (e) { items = []; }
+    const label = bar.label ? X.text(bar) : w.getAttribute('data-w');
+    return '<span class="ctx-label">' + esc(label) + '</span>' + items.map((it) => {
+      if (it.sep) return sep;
+      if (it.hint) return '<span class="ctx-hint">' + esc(X.text(it, 'hint')) + '</span>';
+      const act = it.builtin ? it.builtin : 'x:' + it.action;
+      const lbl = X.text(it);
+      return it.icon && !it.text ? cbi(act, it.icon, lbl, it.on) : cb(act, it.icon, lbl);
+    }).join('');
   }
   function positionCtx() {
     if (!ctxTarget || !el.ctx || el.ctx.hidden || !ctxTarget.isConnected) return;
@@ -1212,6 +1454,12 @@ T4.editor = (function () {
       case 'draw-dup': W.drawing.action(w, 'duplicate'); break;
       case 'draw-del': W.drawing.action(w, 'delete-shape'); break;
       case 'draw-al': W.drawing.action(w, 'align', val); break;
+      case 'x': if (w && X.widgets.ctxBar(w.getAttribute('data-w')) && X.widgets.ctxBar(w.getAttribute('data-w')).onAction) X.widgets.ctxBar(w.getAttribute('data-w')).onAction(action.slice(2), {
+        el: w, props: p, btn,
+        setProps: (patch) => { core.run(() => W.setProps(w, Object.assign(W.getProps(w), patch)), { keepFocus: true }); core.selectWidget(w); },
+        remove: () => core.removeWidget(w),
+        edit: () => editWidget(w),
+      }); break;
       case 'link-open': openLink(core.state().link); break;
       case 'link-edit': linkDialog(core.state().link); break;
       case 'link-remove': core.removeLink(core.state().link); break;
@@ -1243,28 +1491,52 @@ T4.editor = (function () {
   }
 
   /* ====================== Slash menu ("/" at the start of an empty line) ====================== */
+  // Built-in slash entries [label, keywords, icon, run, group] — grouped (headings in the menu); ids are 'builtin.<label slug>'.
   const SLASH = [
-    ['Text', 'paragraph normal', 'doc', () => core.setBlockType('p')],
-    ['Heading 1', 'h1 title', 'heading', () => core.setBlockType('h1')],
-    ['Heading 2', 'h2', 'heading', () => core.setBlockType('h2')],
-    ['Heading 3', 'h3', 'heading', () => core.setBlockType('h3')],
-    ['Bulleted list', 'ul bullet', 'list-ul', () => core.exec('insertUnorderedList')],
-    ['Numbered list', 'ol numbered', 'list-ol', () => core.exec('insertOrderedList')],
-    ['Quote', 'blockquote citation', 'quote', () => core.setBlockType('blockquote')],
-    ['Table', 'grid', 'table', () => core.insertTable(3, 3, true)],
-    ['Image', 'picture photo', 'image', () => el.fileImage.click()],
-    ['Code block', 'snippet program', 'code', insertCode],
-    ['Formula', 'math latex equation', 'sigma', () => formulaDialog(null, true)],
-    ['Bar chart', 'diagram graph', 'chart', () => insertChart('bar')],
-    ['Line chart', 'diagram graph', 'line-chart', () => insertChart('line')],
-    ['Pie chart', 'diagram graph', 'pie', () => insertChart('pie')],
-    ['Rectangle', 'shape box', 'rect', () => insertShape('rect')],
-    ['Circle', 'shape ellipse', 'circle', () => insertShape('ellipse')],
-    ['Arrow', 'shape', 'arrow-shape', () => insertShape('arrow')],
-    ['Divider', 'hr horizontal line', 'minus', () => core.insertBlock(document.createElement('hr'))],
-    ['Page break', 'new page', 'pagebreak', insertPageBreak],
-    ['Link', 'url', 'link', () => linkDialog()],
+    ['Text', 'paragraph normal', 'doc', () => core.setBlockType('p'), 'Basic'],
+    ['Heading 1', 'h1 title', 'heading', () => core.setBlockType('h1'), 'Basic'],
+    ['Heading 2', 'h2', 'heading', () => core.setBlockType('h2'), 'Basic'],
+    ['Heading 3', 'h3', 'heading', () => core.setBlockType('h3'), 'Basic'],
+    ['Bulleted list', 'ul bullet', 'list-ul', () => core.exec('insertUnorderedList'), 'Basic'],
+    ['Numbered list', 'ol numbered', 'list-ol', () => core.exec('insertOrderedList'), 'Basic'],
+    ['Quote', 'blockquote citation', 'quote', () => core.setBlockType('blockquote'), 'Basic'],
+    ['Divider', 'hr horizontal line', 'minus', () => core.insertBlock(document.createElement('hr')), 'Basic'],
+    ['Page break', 'new page', 'pagebreak', insertPageBreak, 'Basic'],
+    ['Link', 'url', 'link', () => linkDialog(), 'Basic'],
+    ['Table', 'grid', 'table', () => core.insertTable(3, 3, true), 'Media'],
+    ['Image', 'picture photo', 'image', () => el.fileImage.click(), 'Media'],
+    ['Bar chart', 'diagram graph', 'chart', () => insertChart('bar'), 'Media'],
+    ['Line chart', 'diagram graph', 'line-chart', () => insertChart('line'), 'Media'],
+    ['Pie chart', 'diagram graph', 'pie', () => insertChart('pie'), 'Media'],
+    ['Rectangle', 'shape box', 'rect', () => insertShape('rect'), 'Media'],
+    ['Circle', 'shape ellipse', 'circle', () => insertShape('ellipse'), 'Media'],
+    ['Arrow', 'shape', 'arrow-shape', () => insertShape('arrow'), 'Media'],
+    ['Code block', 'snippet program', 'code', insertCode, 'Advanced'],
+    ['Formula', 'math latex equation', 'sigma', () => formulaDialog(null, true), 'Advanced'],
   ];
+  /** Built-in entries + entries registered with edx.slash.add: [label, keywords, icon, run, group, registered] */
+  /** Menu entries: [label, keywords, icon, run, group, registered, id]. */
+  function slashItems() {
+    const builtin = SLASH.map((r) => [r[0], r[1], r[2], r[3], E(r[4]), false, 'builtin.' + r[0].toLowerCase().replace(/[^a-z0-9]+/g, '-')]);
+    const extra = X.slash.list().map((sp) => {
+      const kw = Array.isArray(sp.keywords) ? sp.keywords.join(' ') : String(sp.keywords || '');
+      return [X.text(sp), kw, sp.icon || 'sparkle', () => sp.run({ editor: X.editor, edx: X }), sp.group ? X.text(sp, 'group') : E('More'), true, sp.id];
+    });
+    return builtin.concat(extra);
+  }
+  /** Entries matching the text after "/" — plain substring match, or the ranker of edx.slash.setRanker (fuzzy, recently used, …). */
+  function rankedSlash(q) {
+    const all = slashItems();
+    const rk = X.slash.ranker();
+    if (rk) {
+      try {
+        const descs = all.map((it) => ({ id: it[6], label: it[5] ? it[0] : E(it[0]), keywords: it[1], icon: it[2], group: it[4], builtin: !it[5], _entry: it }));
+        const out = rk(descs, q);
+        if (Array.isArray(out)) return out.filter((d) => d && d._entry).map((d) => d._entry);
+      } catch (e) { console.error('[Todo4Me editor] slash ranker failed', e); }
+    }
+    return all.filter(([label, kw]) => !q || (E(label) + ' ' + label + ' ' + kw).toLowerCase().includes(q));
+  }
   let slash = null;
   function onDocInput(e) {
     if (slash) { updateSlash(); return; }
@@ -1278,7 +1550,7 @@ T4.editor = (function () {
     m.className = 'ed-menu ed-slash';
     m.setAttribute('role', 'listbox');
     document.body.appendChild(m);
-    slash = { block, el: m, items: SLASH, i: 0 };
+    slash = { block, el: m, items: rankedSlash(''), i: 0 };
     m.addEventListener('mousedown', (e) => e.preventDefault());
     m.addEventListener('click', (e) => { const b = e.target.closest('[data-si]'); if (b) runSlash(+b.dataset.si); });
     paintSlash();
@@ -1289,15 +1561,19 @@ T4.editor = (function () {
     const cur = core.currentBlock();
     if (!t.startsWith('/') || cur !== b || t.length > 24) { closeSlash(); return; }
     const q = t.slice(1).toLowerCase();
-    slash.items = SLASH.filter(([label, kw]) => !q || (E(label) + ' ' + label + ' ' + kw).toLowerCase().includes(q));
+    slash.items = rankedSlash(q);
     slash.i = 0;
     if (!slash.items.length) { closeSlash(); return; }
     paintSlash();
   }
   function paintSlash() {
     const m = slash.el;
-    m.innerHTML = '<div class="ed-menu__heading">' + esc(E('Insert')) + '</div>' + slash.items.map(([label, , ic], i) =>
-      '<button type="button" class="ed-menu__item' + (i === slash.i ? ' is-active' : '') + '" data-si="' + i + '" role="option" aria-selected="' + (i === slash.i) + '"><span class="ed-menu__icon">' + icon(ic) + '</span><span class="ed-menu__label">' + esc(E(label)) + '</span></button>').join('');
+    let lastGroup = '';
+    m.innerHTML = '<div class="ed-menu__heading">' + esc(E('Insert')) + '</div>' + slash.items.map(([label, , ic, , group, registered], i) => {
+      const head = group && group !== lastGroup ? '<div class="ed-menu__heading">' + esc(group) + '</div>' : '';
+      lastGroup = group || lastGroup;
+      return head + '<button type="button" class="ed-menu__item' + (i === slash.i ? ' is-active' : '') + '" data-si="' + i + '" role="option" aria-selected="' + (i === slash.i) + '"><span class="ed-menu__icon">' + icon(ic) + '</span><span class="ed-menu__label">' + esc(registered ? label : E(label)) + '</span></button>';
+    }).join('');
     const s = window.getSelection();
     const r = s.rangeCount ? s.getRangeAt(0).getBoundingClientRect() : slash.block.getBoundingClientRect();
     const rect = r.height ? r : slash.block.getBoundingClientRect();
@@ -1316,6 +1592,7 @@ T4.editor = (function () {
     const b = slash.block;
     closeSlash();
     if (!item || !b.isConnected) return;
+    X.slash.picked(item[6]);
     core.run(() => {
       b.innerHTML = '<br>';
       const r = document.createRange(); r.setStart(b, 0); r.collapse(true);
@@ -1324,6 +1601,12 @@ T4.editor = (function () {
     item[3]();
   }
   function onDocKeyDown(e) {
+    if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey && !e.ctrlKey && !e.altKey)) { // keyboard way to our context menu (also in the browser, where right-click stays native)
+      const r = window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).getBoundingClientRect() : null;
+      const b = r && (r.height || r.width) ? r : (core.currentBlock() || el.doc).getBoundingClientRect();
+      openContextMenu(b.left, b.bottom, e.target, true);
+      return true;
+    }
     if (!slash) return false;
     if (e.key === 'ArrowDown') { slash.i = (slash.i + 1) % slash.items.length; paintSlash(); return true; }
     if (e.key === 'ArrowUp') { slash.i = (slash.i - 1 + slash.items.length) % slash.items.length; paintSlash(); return true; }
@@ -1345,13 +1628,63 @@ T4.editor = (function () {
     }
     return false;
   }
+  /** Registered shortcuts for key presses outside the document text (title field, widget inputs, panels): Ctrl/Alt/F-key combos only. */
+  function onShellKeyDown(e) {
+    if (e.defaultPrevented || !st.cur) return;
+    if (e.target.closest && e.target.closest('dialog')) return;
+    X.shortcuts.dispatch(e);
+  }
+
+  /* ====================== Context menu ====================== */
+  async function pasteFromClipboard(plain) {
+    core.restore();
+    try {
+      if (!plain && navigator.clipboard && navigator.clipboard.read) {
+        for (const item of await navigator.clipboard.read()) {
+          if (item.types.includes('text/html')) { const html = await (await item.getType('text/html')).text(); core.restore(); core.insertSanitized(html); return; }
+        }
+      }
+      const text = await navigator.clipboard.readText();
+      core.restore();
+      core.insertPlainText(text, !plain);
+    } catch (e) {
+      ui.toast(E('Paste is not available here. Use Ctrl+V.'), 'info');
+    }
+  }
+  function openContextMenu(x, y, target, focusFirst) {
+    if (!st.cur) return;
+    const sel = window.getSelection();
+    const hasSel = !!(sel.rangeCount && !sel.isCollapsed && el.doc.contains(sel.anchorNode));
+    const ro = st.readonly;
+    const ctx = menuCtx('context', { target, widget: core.selectedWidget || (target && target.closest ? target.closest('.t4-w') : null), link: core.state().link || null, hasSelection: hasSel, selectedText: hasSel ? sel.toString() : '' });
+    const items = [
+      { label: E('Cut'), kbd: 'Ctrl+X', disabled: ro || !hasSel, run: () => { core.restore(); document.execCommand('cut'); } },
+      { label: E('Copy'), kbd: 'Ctrl+C', disabled: !hasSel, run: () => { core.restore(); document.execCommand('copy'); } },
+      { label: E('Paste'), kbd: 'Ctrl+V', disabled: ro, run: () => pasteFromClipboard(false) },
+      { label: E('Paste as plain text'), kbd: 'Ctrl+Shift+V', disabled: ro, run: () => pasteFromClipboard(true) },
+      { sep: true },
+      { label: E('Select all'), kbd: 'Ctrl+A', run: () => { core.restore(); document.execCommand('selectAll'); } },
+    ].concat(extraMenuItems('context', ctx));
+    openMenu(null, items, { at: { x, y }, focusFirst: !!focusFirst });
+  }
+  /** Right-click. The desktop app has no native context menu at all, so ours is shown there. In the browser the native menu stays (spell-check
+   *  suggestions, translate, …) except over widgets and horizontal lines; Shift+F10 / the menu key open ours everywhere. */
+  function onContextMenu(e) {
+    if (!st.cur || e.target.closest('textarea, input, select')) return;
+    const onWidget = e.target.closest && e.target.closest('.t4-w, hr');
+    if (!desktop && !onWidget) return;
+    e.preventDefault();
+    const w = e.target.closest('.t4-w');
+    if (w && !st.readonly) core.selectWidget(w);
+    openContextMenu(e.clientX, e.clientY, e.target, false);
+  }
 
   /* ====================== Export / import ====================== */
   function waitForImages() {
     const imgs = Array.from(el.doc.querySelectorAll('img')).filter((i) => !i.complete);
     return Promise.all(imgs.map((i) => new Promise((r) => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); setTimeout(r, 5000); })));
   }
-  function cssString(s) { return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\n\r]+/g, ' ') + '"'; }
+  function cssString(s) { return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\n\r\f]+/g, ' ') + '"'; }
   /** @page rules: paper size, margins, header/footer and page numbers (CSS paged media margin boxes). */
   function printCSS(meta) {
     const p = meta.page;
@@ -1359,19 +1692,21 @@ T4.editor = (function () {
     const m = pageMargins(p);
     // Header, footer and page numbers sit halfway into the margin, where the editor page shows them.
     const box = 'font-family: Calibri, Carlito, "Segoe UI", sans-serif; font-size: 9pt; color: #6b7080; vertical-align: middle;';
-    const cssPageOf = () => E('Page {a} of {b}').split(/(\{a\}|\{b\})/).filter(Boolean).map((part) => (part === '{a}' ? 'counter(page)' : part === '{b}' ? 'counter(pages)' : cssString(part))).join(' ');
-    const num = p.numberFormat === 'plain' ? 'counter(page)' : p.numberFormat === 'slash' ? 'counter(page) " / " counter(pages)' : cssPageOf();
-    // White paper: the margins must not show the app's (or the window's) background color.
-    let css = 'html, body.print-doc { background: #fff !important; } @page { size: ' + w + 'mm ' + h + 'mm; margin: ' + m[0] + 'mm ' + m[1] + 'mm ' + m[2] + 'mm ' + m[3] + 'mm; background: #fff;';
-    if (p.header) css += ' @top-center { content: ' + cssString(fillTokens(p.header, meta)) + '; ' + box + ' }';
-    if (p.footer) css += ' @bottom-left { content: ' + cssString(fillTokens(p.footer, meta)) + '; ' + box + ' }';
-    if (p.pageNumbers !== 'none') {
-      const pos = { 'bottom-center': '@bottom-center', 'bottom-right': '@bottom-right', 'top-right': '@top-right' }[p.pageNumbers];
-      css += ' ' + pos + ' { content: ' + num + '; ' + box + ' }';
-    }
+    const content = (parts) => (parts.length ? parts.map((x) => (typeof x === 'string' ? cssString(x) : 'counter(' + x.n + ')')).join(' ') : 'none');
+    const boxes = hfBoxes(p, meta);
+    const at = { tl: '@top-left', tc: '@top-center', tr: '@top-right', bl: '@bottom-left', bc: '@bottom-center', br: '@bottom-right' };
+    const paper = p.bg || '#fff';
+    // The paper colour (white by default) must not show the app's (or the window's) background color, also not in the page margins.
+    let css = 'html, body.print-doc { background: ' + paper + ' !important; } @page { size: ' + w + 'mm ' + h + 'mm; margin: ' + m[0] + 'mm ' + m[1] + 'mm ' + m[2] + 'mm ' + m[3] + 'mm; background: ' + paper + ';';
+    Object.keys(at).forEach((k) => { if (boxes[k].parts.length) css += ' ' + at[k] + ' { content: ' + content(boxes[k].parts) + '; ' + box + ' }'; });
     css += ' }';
-    if (!p.firstPageHeader) css += ' @page :first { @top-center { content: none; } @top-right { content: none; } @bottom-center { content: none; } @bottom-right { content: none; } }';
-    return css;
+    if (!p.firstPageHeader) {
+      // First page: no header; the page number goes, a footer text of the same box stays.
+      let first = '';
+      Object.keys(at).forEach((k) => { if (k[0] === 't' ? boxes[k].parts.length : boxes[k].num) first += ' ' + at[k] + ' { content: ' + (k[0] === 't' ? 'none' : content(boxes[k].text)) + '; }'; });
+      if (first) css += ' @page :first {' + first + ' }';
+    }
+    return css + X.print.css(meta);
   }
   let exporting = false;
   async function exportPDF() {
@@ -1380,6 +1715,9 @@ T4.editor = (function () {
     exporting = true;
     await flush();
     const title = docTitle(st.cur.meta);
+    const printCtx = { meta: st.cur.meta, root: el.doc };
+    X.events.emit('before-export', { format: 'pdf', id: st.cur.id });
+    await X.print.runBefore(printCtx);
     core.clearWidget();
     closeMenu();
     closeSlash();
@@ -1415,6 +1753,8 @@ T4.editor = (function () {
       style.remove();
       document.body.classList.remove('print-doc');
       document.title = prevTitle;
+      await X.print.runAfter(printCtx);
+      X.events.emit('after-export', { format: 'pdf', id: printCtx.meta.id });
       setStatus(st.dirty ? 'dirty' : 'saved');
       exporting = false;
       if (hadFocus) core.restore();
@@ -1432,23 +1772,66 @@ T4.editor = (function () {
     if (st.cur && st.cur.id === id) await flush();
     const d = await DS.get(id);
     if (!d) return;
+    X.events.emit('before-export', { format: 'md', id });
     const md = await T4.edmd.toMarkdown(d.html, { title: d.meta.title });
     U.download(fileName(docTitle(d.meta)) + '.md', md, 'text/markdown');
     ui.toast(E('Markdown file exported'));
+    X.events.emit('after-export', { format: 'md', id, ok: true });
   }
   async function exportJSON(ids) {
     if (st.cur && ids && ids.includes(st.cur.id)) await flush();
+    X.events.emit('before-export', { format: 'json', id: ids && ids.length === 1 ? ids[0] : null });
     const bundle = await DS.exportBundle(ids);
     const name = ids && ids.length === 1 ? fileName(docTitle(bundle.documents[0])) + '.todo4me-doc.json' : 'todo4me-documents-' + U.today() + '.json';
     U.download(name, JSON.stringify(bundle), 'application/json');
     ui.toast(ids && ids.length === 1 ? E('Document exported') : tt('ed.docsExported', { count: bundle.documents.length }));
+    X.events.emit('after-export', { format: 'json', id: ids && ids.length === 1 ? ids[0] : null, ok: true });
+  }
+  /** Export a stored document with a registered exporter (edx.exporters.register). */
+  async function exportWith(id, docId) {
+    const ex = X.exporters.get(id);
+    if (!ex) throw new Error('Unknown exporter ' + id);
+    docId = docId || (st.cur && st.cur.id);
+    if (!docId) return false;
+    if (st.cur && st.cur.id === docId) await flush();
+    const d = await DS.get(docId);
+    if (!d) return false;
+    X.events.emit('before-export', { format: ex.id, id: docId });
+    let ok = false;
+    try {
+      const out = await ex.run({ id: docId, meta: d.meta, html: d.html });
+      const data = out instanceof Blob || out instanceof ArrayBuffer || ArrayBuffer.isView(out) || typeof out === 'string';
+      if (data) {
+        const name = X.download(out, fileName(docTitle(d.meta)) + '.' + ex.ext, ex.mime);
+        ui.toast(E('Exported {name}', { name }));
+      } // anything else: the exporter handled the output itself (dialog, clipboard, …)
+      ok = true;
+    } catch (e) {
+      ui.toast(E('Export failed: {reason}', { reason: e && e.message ? e.message : String(e) }), 'error', 8000);
+    }
+    X.events.emit('after-export', { format: ex.id, id: docId, ok });
+    return ok;
   }
   async function importFiles(files) {
     await boot();
     let created = 0, last = null;
+    const reports = [];
     for (const f of files) {
       try {
         if (f.size > 200 * 1024 * 1024) throw new Error(E('file is too large'));
+        const importer = X.importers.forFile(f);
+        if (importer) {
+          // Feature-module importer (e.g. .docx): its HTML is sanitized like any other import; notes are shown, never dropped silently.
+          const res = await importer.run(f);
+          if (!res || typeof res.html !== 'string') throw new Error(E('the importer returned no document'));
+          const clean = await sanitizeWithImages(res.html);
+          const extra = res.meta && typeof res.meta === 'object' ? Object.assign(X.meta.pick(res.meta), res.meta.page ? { page: res.meta.page } : {}) : {};
+          const meta = await DS.create(Object.assign({ title: String(res.title || f.name.replace(/\.[^.]+$/, '')).slice(0, 200), html: clean }, core.statsOf(clean), extra));
+          created++;
+          last = meta.id;
+          if (res.report && res.report.length) { reports.push({ heading: f.name }); res.report.forEach((r) => reports.push(r)); }
+          continue;
+        }
         const text = await f.text();
         const base = f.name.replace(/\.(md|markdown|txt|html?|json|todo4me-doc\.json)$/i, '').replace(/\.todo4me-doc$/i, '');
         if (/\.json$/i.test(f.name)) {
@@ -1474,6 +1857,11 @@ T4.editor = (function () {
       await refreshDocs();
       ui.toast(tt('ed.docsImported', { count: created }));
       if (last && files.length === 1) location.hash = '#/editor?doc=' + last;
+    }
+    if (reports.length) {
+      // The route change to the new document closes open dialogs: show the notes once it is open.
+      if (last && files.length === 1) for (let i = 0; i < 60 && !(st.cur && st.cur.id === last); i++) await new Promise((r) => setTimeout(r, 50));
+      X.report(E('Import notes'), reports);
     }
   }
   /** Sanitize imported HTML; embedded data-URL images become stored image assets. */
@@ -1539,6 +1927,257 @@ T4.editor = (function () {
       ] }) +
       '<h2>Export</h2><p>Use <strong>Export PDF</strong> at the top right. Page size, margins, header, footer and page numbers are set in <strong>File → Page setup</strong>.</p>' };
   }
+
+  /* ====================== Extension toolbar group (edx.toolbar) ====================== */
+  function renderExtToolbar() {
+    if (!shell || !el.tbExt) return;
+    const items = X.toolbar.list();
+    el.tbExt.hidden = !items.length;
+    if (!items.length) { el.tbExt.innerHTML = ''; return; }
+    // One visual group per distinct `group` value, in registration order.
+    const groups = [];
+    items.forEach((it) => { const g = it.group || 'more'; let grp = groups.find((x) => x.name === g); if (!grp) groups.push(grp = { name: g, items: [] }); grp.items.push(it); });
+    el.tbExt.innerHTML = groups.map((g) => '<div class="tb-group tb-group--ext" data-group="' + esc(g.name) + '">' + g.items.map((it) => {
+      const label = X.text(it) + (it.kbd ? ' (' + (X.shortcuts.normalize(it.kbd) ? X.shortcuts.label(X.shortcuts.normalize(it.kbd)) : it.kbd) + ')' : '');
+      return tb('ext:' + esc(it.id), it.icon, label);
+    }).join('') + '</div>').join('');
+    updateExtToolbar();
+  }
+  X._watch('toolbar', renderExtToolbar);
+  function updateExtToolbar() {
+    if (!shell || !el.tbExt || el.tbExt.hidden) return;
+    X.toolbar.list().forEach((it) => {
+      if (!it.isActive) return;
+      const b = el.tbExt.querySelector('[data-cmd="ext:' + CSS.escape(it.id) + '"]');
+      if (!b) return;
+      let on = false;
+      try { on = !!it.isActive(); } catch (e) { on = false; }
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function runToolbarExt(id) {
+    const it = X.toolbar.get(id);
+    if (!it || (st.readonly && !it.readonlyOk)) return;
+    try { it.run({ editor: X.editor, edx: X, source: 'toolbar' }); } catch (e) { console.error('[Todo4Me editor] toolbar item ' + id + ' failed', e); }
+  }
+
+  /* ====================== Panels (edx.panels) ====================== */
+  // pnl.right / pnl.left = wanted panel id per side; pnl.shown = what is actually visible (right needs an open document).
+  const pnl = { right: '', left: '', shown: { right: '', left: '' }, rendered: {}, hosts: new Map() };
+  const wideScreen = () => window.matchMedia('(min-width: 1101px)').matches;
+  const curDoc = () => (st.cur ? { id: st.cur.id, meta: st.cur.meta } : null);
+  function callPanel(id, hook, arg) {
+    const def = X.panels.get(id);
+    if (!def || typeof def[hook] !== 'function') return;
+    try { def[hook](arg); } catch (e) { console.error('[Todo4Me editor] panel ' + id + ' ' + hook + ' failed', e); }
+  }
+  function hostFor(def) {
+    let h = pnl.hosts.get(def.id);
+    if (!h) {
+      h = document.createElement('div');
+      h.className = 'ed-panel__host';
+      h.setAttribute('role', 'tabpanel');
+      h.hidden = true;
+      (def.side === 'right' ? el.panelBody : el.sidePanelhost).appendChild(h);
+      pnl.hosts.set(def.id, h);
+    }
+    return h;
+  }
+  function ensureRendered(id) {
+    if (pnl.rendered[id]) return;
+    const def = X.panels.get(id);
+    const host = hostFor(def);
+    pnl.rendered[id] = true;
+    try {
+      def.render(host, { id, host, edx: X, editor: X.editor, close: () => setPanel(def.side, '') });
+    } catch (e) { console.error('[Todo4Me editor] panel ' + id + ' render failed', e); host.textContent = E('This panel could not be shown.'); }
+  }
+  function notifyPanels() {
+    if (!shell) return;
+    Object.keys(pnl.rendered).forEach((id) => callPanel(id, 'onDocChange', curDoc()));
+  }
+  /** Reconcile what is wanted with what is shown; fires onClose/onOpen and updates the DOM. */
+  function syncPanelState() {
+    if (!shell) return;
+    ['right', 'left'].forEach((side) => {
+      const want = side === 'right' ? (st.cur ? pnl.right : '') : pnl.left;
+      const def = want && X.panels.get(want);
+      const target = def && def.side === side ? want : '';
+      if (pnl.shown[side] === target) return;
+      const old = pnl.shown[side];
+      pnl.shown[side] = target;
+      if (old) callPanel(old, 'onClose');
+      if (target) { ensureRendered(target); callPanel(target, 'onOpen'); callPanel(target, 'onDocChange', curDoc()); }
+    });
+    pnl.hosts.forEach((h, id) => { h.hidden = !(pnl.shown.right === id || pnl.shown.left === id); });
+    shell.classList.toggle('panel-open', !!pnl.shown.right);
+    el.side.classList.toggle('is-panel', !!pnl.shown.left);
+    el.sidePanelhost.hidden = !pnl.shown.left;
+    if (el.panelBtn) { el.panelBtn.setAttribute('aria-expanded', String(!!pnl.shown.right)); el.panelBtn.classList.toggle('is-on', !!pnl.shown.right); }
+    shell.querySelectorAll('[data-cmd="panel-tab"]').forEach((b) => { const on = b.dataset.panel === pnl.shown.right; b.setAttribute('aria-selected', String(on)); b.classList.toggle('is-on', on); });
+    shell.querySelectorAll('[data-cmd="ltab"]').forEach((b) => { const on = (b.dataset.panel || '') === pnl.shown.left; b.setAttribute('aria-selected', String(on)); b.classList.toggle('is-on', on); });
+    positionCtx();
+  }
+  function setPanel(side, id) {
+    if (!shell) return false;
+    pnl[side] = id || '';
+    if (side === 'right') {
+      if (id) st.prefs.lastPanel = id;
+      if (wideScreen() || !id) st.prefs.panel = id || ''; // a drawer on a small screen is not remembered as "open"
+    } else st.prefs.lpanel = id || '';
+    savePrefs();
+    syncPanelState();
+    return true;
+  }
+  function openPanel(id) {
+    const def = X.panels.get(id);
+    return def ? setPanel(def.side, id) : false;
+  }
+  function togglePanelButton() {
+    if (pnl.shown.right) { setPanel('right', ''); return; }
+    const rights = X.panels.list('right');
+    if (!rights.length) return;
+    const id = rights.some((p) => p.id === st.prefs.lastPanel) ? st.prefs.lastPanel : rights[0].id;
+    setPanel('right', id);
+  }
+  function renderPanelUI() {
+    if (!shell) return;
+    const rights = X.panels.list('right'), lefts = X.panels.list('left');
+    el.panelBtn.hidden = !rights.length;
+    const tabHTML = (p) => '<button type="button" class="ed-panel__tab" role="tab" data-cmd="panel-tab" data-panel="' + esc(p.id) + '" aria-selected="false" title="' + esc(X.text(p)) + '">' + (p.icon ? icon(p.icon) : '') + '<span>' + esc(X.text(p)) + '</span></button>';
+    el.panelHead.innerHTML = '<div class="ed-panel__tabs">' + rights.map(tabHTML).join('') + '</div><button type="button" class="icon-btn icon-btn--sm" data-cmd="toggle-panel" aria-label="' + esc(E('Close panel')) + '">' + icon('x') + '</button>';
+    el.sideTabs.hidden = !lefts.length;
+    el.sideTabs.innerHTML = lefts.length ? '<button type="button" class="ed-panel__tab" role="tab" data-cmd="ltab" data-panel="" aria-selected="true">' + icon('doc') + '<span>' + esc(E('Documents')) + '</span></button>' +
+      lefts.map((p) => tabHTML(p).replace('data-cmd="panel-tab"', 'data-cmd="ltab"')).join('') : '';
+    // drop hosts of panels that are gone
+    pnl.hosts.forEach((h, id) => { if (!X.panels.get(id)) { callPanel(id, 'onClose'); h.remove(); pnl.hosts.delete(id); delete pnl.rendered[id]; ['right', 'left'].forEach((sd) => { if (pnl.shown[sd] === id) pnl.shown[sd] = ''; }); } });
+    syncPanelState();
+  }
+  X._watch('panels', renderPanelUI);
+  function teardownPanels() {
+    ['right', 'left'].forEach((side) => { if (pnl.shown[side]) callPanel(pnl.shown[side], 'onClose'); pnl.shown[side] = ''; });
+    pnl.rendered = {};
+    pnl.hosts = new Map();
+  }
+  X.panels._bind({
+    open: openPanel,
+    close: (side) => setPanel(side || 'right', ''),
+    toggle: (id) => { const def = X.panels.get(id); if (!def) return false; return pnl.shown[def.side] === id ? setPanel(def.side, '') : setPanel(def.side, id); },
+    active: (side) => pnl.shown[side] || null,
+    rendered: (id) => !!pnl.rendered[id],
+  });
+
+  /* ====================== Facade for modules (edx.editor) ====================== */
+  /** Module banner above the toolbar: showBanner(id, text | Node, { icon, role, html, actions: [{ id, label, primary, ghost, run }] }). Same id replaces. */
+  function showBanner(id, content, opts) {
+    if (!shell || !el.banners || !st.cur) return null;
+    opts = opts || {};
+    let b = Array.from(el.banners.children).find((x) => x.dataset.banner === id);
+    if (!b) { b = document.createElement('div'); b.dataset.banner = id; el.banners.appendChild(b); }
+    b.className = 'ed-banner ed-banner--mod' + (opts.cls ? ' ' + opts.cls : '');
+    b.setAttribute('role', opts.role || 'status');
+    b.textContent = '';
+    if (opts.icon) b.insertAdjacentHTML('beforeend', icon(opts.icon));
+    const msg = document.createElement('span');
+    msg.className = 'ed-banner__msg';
+    if (content && content.nodeType) msg.appendChild(content);
+    else if (opts.html) msg.innerHTML = X.safeHTML(content);
+    else msg.textContent = String(content == null ? '' : content);
+    b.appendChild(msg);
+    if (opts.actions && opts.actions.length) {
+      const wrap = document.createElement('span');
+      wrap.className = 'ed-banner__btns';
+      opts.actions.forEach((a, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn--sm' + (a.primary ? ' btn--primary' : a.ghost ? ' btn--ghost' : '');
+        btn.dataset.bannerAction = a.id || String(i);
+        btn.textContent = X.text(a);
+        btn.addEventListener('click', () => { try { a.run(b); } catch (e) { console.error('[Todo4Me editor] banner action failed', e); } });
+        wrap.appendChild(btn);
+      });
+      b.appendChild(wrap);
+    }
+    return b;
+  }
+  function clearBanner(id) {
+    if (!el || !el.banners) return;
+    Array.from(el.banners.children).forEach((x) => { if (!id || x.dataset.banner === id) x.remove(); });
+  }
+  function toBlock(elm) { return elm && elm.nodeType === 1 ? elm : null; }
+  async function updateMeta(id, patch) {
+    if (st.cur && st.cur.id === id) await flush();
+    const meta = await DS.touch(id, patch || {});
+    if (meta && st.cur && st.cur.id === id) { st.cur.meta = Object.assign(st.cur.meta, X.meta.pick(meta), { pinned: meta.pinned }); }
+    if (meta) X.events.emit('doc-meta', { id, meta, patch: patch || {} });
+    return meta;
+  }
+  X._bindEditor({
+    current: () => (st.cur ? { id: st.cur.id, meta: st.cur.meta } : null),
+    root: () => (el && el.doc) || null,
+    readonly: () => st.readonly,
+    run: (fn, opts) => core.run(fn, opts),
+    insertBlock: (node, opts) => core.insertBlock(node, opts),
+    insertInlineWidget: (node) => core.insertInlineWidget(node),
+    insertHTML: (html) => core.insertSanitized(html),
+    insertText: (text) => core.insertPlainText(String(text), false),
+    getSel: () => core.getSel(),
+    setSel: (sel) => core.setSel(sel),
+    rememberSelection: () => core.rememberSelection(),
+    restore: () => core.restore(),
+    selectedText: () => { const sel = window.getSelection(); return sel.rangeCount && el.doc && el.doc.contains(sel.anchorNode) ? sel.toString() : ''; },
+    textOf: (node) => core.textOf(node || el.doc),
+    snapshot: () => core.snapshot(),
+    setHtml: (html) => core.run(() => {
+      core.load(html);
+      const r = document.createRange(); r.setStart(el.doc, 0); r.collapse(true);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }),
+    openDoc: async (id, opts) => {
+      // Normally a hash change opens the document. When the hash already points at it (nothing would happen) or a reload is asked for
+      // ({ reload: true }, e.g. after the stored content was replaced), open it directly.
+      const target = '#/editor?doc=' + encodeURIComponent(id);
+      const here = st.cur && st.cur.id === id;
+      if (here && !(opts && opts.reload)) return true;
+      if (shell && (here || location.hash === target)) await openDoc(id);
+      else location.hash = target;
+      for (let i = 0; i < 100 && !(st.cur && st.cur.id === id && el.work && !el.work.hidden); i++) await new Promise((r) => setTimeout(r, 50));
+      return !!(st.cur && st.cur.id === id);
+    },
+    newDocument: (arg) => newDocument(arg),
+    flush: () => flush(),
+    toast: (msg, kind, ms, action) => ui.toast(msg, kind || 'info', ms, action),
+    openMenu: (anchor, items, opts) => openMenu(anchor, items, opts),
+    closeMenu: () => closeMenu(),
+    openModal: (opts) => ui.openModal(opts),
+    closeModal: (silent) => ui.closeModal(silent),
+    confirm: (opts) => ui.confirm(opts),
+    scrollToBlock: (node, opts) => {
+      node = toBlock(node);
+      if (!node || !node.isConnected) return false;
+      opts = opts || {};
+      node.scrollIntoView({ block: opts.block || 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      if (opts.flash !== false) { node.classList.add('ed-flash'); setTimeout(() => node.classList.remove('ed-flash'), 1600); }
+      if (opts.caret) { const r = document.createRange(); r.selectNodeContents(node); r.collapse(true); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+      return true;
+    },
+    banner: (id, content, opts) => showBanner(id, content, opts),
+    clearBanner: (id) => clearBanner(id),
+    headings: () => Array.from((el && el.doc ? el.doc : document.createElement('div')).querySelectorAll('h1, h2, h3, h4, h5, h6')).map((h, index) => ({ level: +h.tagName[1], text: (h.textContent || '').replace(/\u200B/g, '').trim(), el: h, index })),
+    exportWith: (id, docId) => exportWith(id, docId),
+    ready: () => boot(),
+    cachedDocs: () => st.docs.slice(),
+    updateMeta,
+  });
+  // Built-in actions that have no other scriptable entry point (so palettes need not click menu items by label).
+  const builtinCmd = (id, label, ic, run, extra) => X.commands.register(id, Object.assign({ label: () => E(label), group: () => E('File'), icon: ic, run, order: 200 }, extra));
+  builtinCmd('editor.page-setup', 'Page setup…', 'page', () => pageDialog(), { when: () => !!st.cur && !st.readonly });
+  builtinCmd('editor.export-markdown', 'Export as Markdown (.md)', 'markdown', () => exportMarkdown(st.cur.id), { readonlyOk: true, when: () => !!st.cur });
+  builtinCmd('editor.export-json', 'Export as Todo4Me document (.json)', 'download', () => exportJSON([st.cur.id]), { readonlyOk: true, when: () => !!st.cur });
+  builtinCmd('editor.import', 'Import…', 'upload', () => el.fileImport.click(), { readonlyOk: true, global: true, when: () => !!shell });
+  // The built-in title/text search is a provider like any other (extras are merged into the list asynchronously).
+  X.search.register({ id: 'builtin', order: 0, query: (q) => { const ql = q.toLowerCase(); return st.docs.filter((d) => !d.deletedAt && matchesQuery(d, ql)).map((d) => ({ id: d.id, score: 10 })); } });
 
   /* ====================== Settings card ====================== */
   const baseSettings = T4.views.settings.render;

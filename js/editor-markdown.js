@@ -24,6 +24,7 @@ T4.edmd = (function () {
       const t = n.tagName;
       if (t === 'BR') { out += ctx.table ? '<br>' : '  \n'; return; }
       if (n.classList.contains('t4-w') && n.getAttribute('data-w') === 'math') { out += '$' + (props(n).tex || '') + '$'; return; }
+      if (n.classList.contains('t4-w') && T4.edx.widgets.has(n.getAttribute('data-w'))) { out += n.getAttribute('data-md') || ''; return; } // filled in by toMarkdown()
       if (t === 'CODE') { const c = n.textContent; const fence = c.includes('`') ? '``' : '`'; out += fence + c + fence; return; }
       if (t === 'A') { out += '[' + inline(n, ctx) + '](' + (n.getAttribute('href') || '').replace(/\)/g, '%29') + ')'; return; }
       let inner = inline(n, ctx);
@@ -69,11 +70,24 @@ T4.edmd = (function () {
           return '![' + (el.getAttribute('data-w') === 'chart' ? mdEscape(v.title || 'Chart') : 'Drawing') + '](data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))) + ')';
         }
       }
-      return '';
+      // Widget types registered by feature modules.
+      return T4.edx.widgets.has(el.getAttribute('data-w')) ? T4.edx.widgets.toMarkdown(el.getAttribute('data-w'), p, ctx) : '';
     }
     if (/^H[1-6]$/.test(t)) return '#'.repeat(+t[1]) + ' ' + inline(el, ctx).trim();
     if (t === 'P') return inline(el, ctx).trim();
     if (t === 'HR') return '---';
+    if (t === 'BLOCKQUOTE' && el.classList.contains('t4-callout')) {
+      // Obsidian callout: > [!type] Title, then the body quoted (layout module markup: first paragraph = <strong>title</strong>)
+      const ty = (el.className.match(/t4-callout--([a-z]+)/) || [])[1] || 'note';
+      const kids = Array.from(el.children);
+      const f = kids[0];
+      let title = '', rest = kids;
+      if (f && f.tagName === 'P' && f.children.length === 1 && f.firstElementChild.tagName === 'STRONG' && f.textContent.trim() === f.firstElementChild.textContent.trim()) { title = f.textContent.replace(/\s+/g, ' ').trim(); rest = kids.slice(1); }
+      const tmp = document.createElement('div');
+      rest.forEach((k) => tmp.appendChild(k.cloneNode(true)));
+      const inner = await blocks(tmp, ctx, depth);
+      return ['> [!' + ty + ']' + (title ? ' ' + title : '')].concat(inner ? inner.split('\n').map((l) => (l ? '> ' + l : '>')) : []).join('\n');
+    }
     if (t === 'BLOCKQUOTE') {
       const hasBlocks = Array.from(el.children).some((c) => /^(P|H[1-6]|UL|OL|BLOCKQUOTE|TABLE)$/.test(c.tagName));
       const inner = hasBlocks ? (await blocks(el, ctx, depth)) : inline(el, ctx).trim();
@@ -84,7 +98,8 @@ T4.edmd = (function () {
       let i = parseInt(el.getAttribute('start'), 10) || 1;
       for (const li of Array.from(el.children)) {
         if (li.tagName !== 'LI') { if (/^(UL|OL)$/.test(li.tagName)) lines.push(await block(li, ctx, depth + 1)); continue; }
-        const marker = t === 'OL' ? (i++) + '. ' : '- ';
+        const check = t === 'UL' && el.classList.contains('t4-check');
+        const marker = t === 'OL' ? (i++) + '. ' : check ? (li.getAttribute('data-x-check') === '1' ? '- [x] ' : '- [ ] ') : '- ';
         const pad = '  '.repeat(depth);
         const textPart = document.createElement('div');
         const nested = [];
@@ -119,6 +134,11 @@ T4.edmd = (function () {
   async function toMarkdown(html, opts) {
     const root = document.createElement('div');
     root.innerHTML = html;
+    // Inline widgets of registered types are converted up front (inline() is synchronous).
+    for (const w of Array.from(root.querySelectorAll('span.t4-w'))) {
+      const type = w.getAttribute('data-w');
+      if (T4.edx.widgets.has(type) && !w.hasAttribute('data-md')) w.setAttribute('data-md', await T4.edx.widgets.toMarkdown(type, props(w), { inline: true, images: !(opts && opts.images === false) }));
+    }
     const title = opts && opts.title ? '# ' + opts.title + '\n\n' : '';
     return title + (await blocks(root, { images: !(opts && opts.images === false) })).replace(/\n{3,}/g, '\n\n') + '\n';
   }
@@ -126,10 +146,19 @@ T4.edmd = (function () {
   /* ====================== Markdown → HTML ====================== */
   const mathSpan = (tex) => '<span class="t4-w" data-w="math" data-p="' + esc(JSON.stringify({ tex })) + '"></span>';
 
+  // The layout module (checklists, callouts, footnotes) registers its sanitizer rules and the footnote widget; without it the old fallbacks apply.
+  const hasLayout = () => !!T4.edx.layout;
+  const hasFootnote = () => hasLayout() && T4.edx.widgets.has('footnote');
+  const CALLOUT_TYPES = { note: 'note', abstract: 'note', summary: 'note', tldr: 'note', quote: 'note', cite: 'note', tip: 'tip', hint: 'tip', important: 'tip', success: 'tip', check: 'tip', done: 'tip',
+    info: 'info', todo: 'info', question: 'info', help: 'info', faq: 'info', example: 'info', warning: 'warning', caution: 'warning', attention: 'warning',
+    danger: 'danger', error: 'danger', failure: 'danger', fail: 'danger', missing: 'danger', bug: 'danger' };
+
   function inlineMd(src) {
     const keep = [];
     const stash = (html) => { keep.push(html); return '\u0000' + (keep.length - 1) + '\u0000'; };
     let s = src;
+    // Pandoc inline notes ^[text] → footnote widget
+    if (hasFootnote()) s = s.replace(/\^\[((?:\\.|[^\]\\])*)\]/g, (m, txt) => stash('<span class="t4-w" data-w="footnote" data-p="' + esc(JSON.stringify({ text: txt.replace(/\\(.)/g, '$1') })) + '"></span>'));
     // escapes first
     s = s.replace(/\\([\\`*_{}[\]()#+\-.!|$=~<>])/g, (m, c) => stash(esc(c)));
     s = s.replace(/(`+)([\s\S]*?[^`])\1(?!`)/g, (m, f, code) => stash('<code>' + esc(code.trim()) + '</code>'));
@@ -198,7 +227,15 @@ T4.edmd = (function () {
       if (/^\s*>/.test(line)) {
         const body = [];
         while (i < lines.length && /^\s*>/.test(lines[i])) body.push(lines[i++].replace(/^\s*>\s?/, ''));
-        // Obsidian callouts: > [!note] Title
+        // Obsidian callouts: > [!note] Title → layout callout (title line in bold, body below)
+        const co = hasLayout() && body[0] && body[0].match(/^\[!([\w-]+)\][-+]?[ \t]*(.*)$/);
+        if (co) {
+          const ty = CALLOUT_TYPES[co[1].toLowerCase()] || 'note';
+          const title = co[2].trim() || co[1].charAt(0).toUpperCase() + co[1].slice(1).toLowerCase();
+          out.push('<blockquote class="t4-callout t4-callout--' + ty + '"><p><strong>' + inlineMd(title) + '</strong></p>' + parseBlocks(body.slice(1)) + '</blockquote>');
+          continue;
+        }
+        // Without the layout module: [!note] becomes a bold prefix
         if (body[0] && /^\[![\w-]+\]/.test(body[0])) body[0] = '**' + body[0].replace(/^\[!([\w-]+)\][-+]?\s*/, (mm, k) => k.charAt(0).toUpperCase() + k.slice(1) + ': ') + '**';
         out.push('<blockquote>' + parseBlocks(body) + '</blockquote>');
         continue;
@@ -241,15 +278,19 @@ T4.edmd = (function () {
     if (from >= to) return '';
     const base = items[from].indent;
     const ordered = items[from].ordered;
-    let html = ordered ? '<ol' + (items[from].start > 1 ? ' start="' + items[from].start + '"' : '') + '>' : '<ul>';
+    // A bullet list whose items are all "[ ]" / "[x]" tasks becomes a checklist (layout module); otherwise the old ☐/☑ characters are used.
+    let items1 = [];
+    for (let k = 0; k < to; k++) if (k >= from && items[k].indent === base) items1.push(items[k]);
+    const checklist = !ordered && hasLayout() && items1.length > 0 && items1.every((x) => /^\[[ xX]\]\s+/.test(x.text));
+    let html = ordered ? '<ol' + (items[from].start > 1 ? ' start="' + items[from].start + '"' : '') + '>' : checklist ? '<ul class="t4-check">' : '<ul>';
     let i = from;
     while (i < to) {
       const it = items[i];
       let j = i + 1;
       while (j < to && items[j].indent > base) j++;
       const task = it.text.match(/^\[([ xX])\]\s+(.*)$/);
-      const text = task ? (task[1] === ' ' ? '☐ ' : '☑ ') + task[2] : it.text;
-      html += '<li>' + inlineMd(text) + buildList(items, i + 1, j) + '</li>';
+      const text = task ? (checklist ? task[2] : (task[1] === ' ' ? '☐ ' : '☑ ') + task[2]) : it.text;
+      html += (checklist ? '<li data-x-check="' + (task[1] === ' ' ? '0' : '1') + '">' : '<li>') + inlineMd(text) + buildList(items, i + 1, j) + '</li>';
       i = j;
     }
     return html + (ordered ? '</ol>' : '</ul>');

@@ -46,6 +46,36 @@ export default async function (b) {
   await b.sleep(500);
   ok((await b.evaluate('location.pathname')).endsWith('/index.html'), 'navigation to other files is blocked');
 
+  // --- Downloads: the save dialog gets a typed filter per file extension (strict allowlist; fake download items, no dialog is shown)
+  const dl = JSON.parse(await b.mainEval(`(() => {
+    const ses = process.mainModule.require('electron').session.defaultSession; const out = {};
+    ['a.docx', 'b.html', 'c.txt', 'd.md', 'e.json', 'f.xyz', 'G.DOCX', 'h.php', 'noext', 'x.docx.exe', 'y.html.json', 'r.rtf'].forEach((f) => {
+      let o = null; ses.emit('will-download', {}, { getFilename: () => f, setSaveDialogOptions: (x) => { o = x; } }); out[f] = o;
+    });
+    return JSON.stringify(out);
+  })()`));
+  const flt = (f) => (dl[f] && dl[f].filters && dl[f].filters[0]) || {};
+  ok(['docx', 'html', 'txt', 'md', 'json'].every((e, i) => { const f = ['a.docx', 'b.html', 'c.txt', 'd.md', 'e.json'][i]; return flt(f).extensions && flt(f).extensions.join() === e && flt(f).name; }), 'download filters: docx / html / txt / md / json each get exactly their own extension and a name: ' + ['a.docx', 'b.html', 'c.txt', 'd.md', 'e.json'].map((f) => flt(f).name).join(','));
+  ok(flt('a.docx').name !== flt('e.json').name && flt('c.txt').name !== flt('d.md').name, 'download filter names differ per type (Word document, HTML, Text, Markdown, JSON)');
+  ok(flt('r.rtf').extensions.join() === 'rtf' && /Rich Text/.test(flt('r.rtf').name) && /Rich/.test(dl['r.rtf'].title), 'download filter for .rtf (Rich Text Format)');
+  ok(flt('G.DOCX').extensions.join() === 'docx', 'extension match is case-insensitive');
+  ok(['f.xyz', 'h.php', 'noext'].every((f) => flt(f).extensions && flt(f).extensions.join() === '*'), 'unknown extensions get only "All files" (the filter never echoes arbitrary extensions)');
+  ok(flt('x.docx.exe').extensions.join() === '*' && flt('y.html.json').extensions.join() === 'json', 'only the last extension counts');
+  ok(Object.values(dl).every((o) => o && o.defaultPath && o.title) && dl['a.docx'].defaultPath.endsWith('a.docx') && dl['a.docx'].title !== dl['e.json'].title, 'save dialog has title and default path in Documents');
+
+  // --- Permissions: everything stays denied except 'fullscreen' for the app's own page (the editor's full-screen mode)
+  const fs1 = await b.mainEval(`(async () => {
+    const wc = process.mainModule.require('electron').BrowserWindow.getAllWindows()[0].webContents;
+    const r = {};
+    r.denied = await wc.executeJavaScript("Promise.all([navigator.permissions.query({ name: 'geolocation' }), navigator.permissions.query({ name: 'notifications' })]).then((l) => l.map((x) => x.state).join())", true);
+    r.entered = await wc.executeJavaScript("document.documentElement.requestFullscreen().then(() => !!document.fullscreenElement, (e) => 'rejected: ' + e.message)", true);
+    r.exited = await wc.executeJavaScript("(document.fullscreenElement ? document.exitFullscreen() : Promise.resolve()).then(() => new Promise((res) => setTimeout(() => res(!document.fullscreenElement), 300)))", true);
+    return JSON.stringify(r);
+  })()`);
+  const fsr = JSON.parse(fs1);
+  ok(/^(denied|prompt),(denied|prompt)$/.test(fsr.denied) && !/granted/.test(fsr.denied), 'geolocation / notifications stay denied: ' + fsr.denied);
+  ok(fsr.entered === true && fsr.exited === true, 'fullscreen permission is granted for the app page (requestFullscreen works, and can be left): ' + fsr.entered);
+
   // --- Menu actions (sent from the main process like a real menu click)
   const sendMenu = (a) => b.mainEval(`process.mainModule.require('electron').BrowserWindow.getAllWindows()[0].webContents.send('menu:action', ${JSON.stringify(a)}); true`);
   await sendMenu('go:planner'); await b.sleep(150);

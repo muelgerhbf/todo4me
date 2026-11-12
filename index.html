@@ -184,6 +184,7 @@
   <script src="js/i18n/app-tr.js"></script>
   <script src="js/i18n/app-es.js"></script>
   <script src="js/i18n/mode.js"></script>
+  <script src="js/i18n/ed-foundation.js"></script>
   <script src="js/recur.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/store.js"></script>
@@ -200,12 +201,59 @@
   <script src="js/stats.js"></script>
   <script src="js/settings.js"></script>
   <!-- Editor (new page; KaTeX and Prism are loaded on demand from vendor/) -->
+  <script src="js/editor-registry.js"></script>
   <script src="js/editor-sanitize.js"></script>
   <script src="js/docstore.js"></script>
   <script src="js/editor-widgets.js"></script>
   <script src="js/editor-markdown.js"></script>
   <script src="js/editor-core.js"></script>
   <script src="js/editor.js"></script>
+  <!-- Editor modules (see docs/EDITOR-EXTENSIONS.md). Each module owns exactly one anchor pair: its <script> tags (i18n file, code) and its
+       stylesheet link (css/ed-MODULE.css) go between the two lines. Do not touch other modules' anchors. -->
+  <!-- ed-module:knowledge -->
+  <script src="js/i18n/ed-knowledge.js"></script>
+  <link rel="stylesheet" href="css/ed-knowledge.css">
+  <script src="js/ed-knowledge.js"></script>
+  <script src="js/ed-knowledge-ui.js"></script>
+  <script src="js/ed-knowledge-graph.js"></script>
+  <!-- /ed-module:knowledge -->
+  <!-- ed-module:writing -->
+  <script src="js/i18n/ed-writing.js"></script>
+  <link rel="stylesheet" href="css/ed-writing.css">
+  <script src="js/ed-writing.js"></script>
+  <script src="js/ed-writing-find.js"></script>
+  <!-- /ed-module:writing -->
+  <!-- ed-module:versions -->
+  <script src="js/i18n/ed-versions.js"></script>
+  <link rel="stylesheet" href="css/ed-versions.css">
+  <script src="js/ed-versions-lib.js"></script>
+  <script src="js/ed-versions.js"></script>
+  <!-- /ed-module:versions -->
+  <!-- ed-module:io -->
+  <script src="js/i18n/ed-io.js"></script>
+  <script src="js/ed-io-zip.js"></script>
+  <script src="js/ed-io-common.js"></script>
+  <script src="js/ed-io-omml.js"></script>
+  <script src="js/ed-io-docx-styles.js"></script>
+  <script src="js/ed-io-docx-export.js"></script>
+  <script src="js/ed-io-docx-import.js"></script>
+  <script src="js/ed-io-html.js"></script>
+  <script src="js/ed-io.js"></script>
+  <!-- /ed-module:io -->
+  <!-- ed-module:layout -->
+  <script src="js/i18n/ed-layout.js"></script>
+  <link rel="stylesheet" href="css/ed-layout.css">
+  <script src="js/ed-layout.js"></script>
+  <!-- /ed-module:layout -->
+  <!-- ed-module:ux -->
+  <script src="js/i18n/ed-ux.js"></script>
+  <link rel="stylesheet" href="css/ed-ux.css">
+  <script src="js/ed-ux.js"></script>
+  <script src="js/ed-ux-palette.js"></script>
+  <script src="js/ed-ux-blocks.js"></script>
+  <!-- /ed-module:ux -->
+  <!-- ed-module:qa -->
+  <!-- /ed-module:qa -->
   <script src="js/app.js"></script>
   <script src="js/reminders.js"></script>
   <script src="js/desktop.js"></script>

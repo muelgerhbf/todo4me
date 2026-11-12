@@ -8,10 +8,10 @@
 <h1 align="center">Todo4Me</h1>
 
 **Todo4Me** is your personal productivity dashboard: tasks with priorities and due dates, weekly planning (also as a calendar with time blocks),
-weekly notes, reminders, and a document editor with PDF export. Everything runs **offline on your computer**, with no account and no cloud.
+weekly notes, reminders, and a document and knowledge workspace (wiki links, version history, Word import/export, PDF export). Everything runs **offline on your computer**, with no account and no cloud.
 There is a desktop app for Windows and Linux (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.7.0-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.8.0-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -24,9 +24,9 @@ There is a desktop app for Windows and Linux (Electron) and a browser version.
 
 ### Windows
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.7.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.7.0)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.7.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.7.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.8.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.8.0)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.8.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.8.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -38,10 +38,10 @@ From the same [release page](https://github.com/muelgerhbf/todo4me/releases/late
 
 | Distribution | File | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.7.0-amd64.deb` | `sudo apt install ./Todo4Me-2.7.0-amd64.deb` |
-| Fedora, RHEL, openSUSE | `Todo4Me-2.7.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.7.0-x86_64.rpm` |
-| Any distribution, self-updating | `Todo4Me-2.7.0-x86_64.AppImage` | `chmod +x Todo4Me-2.7.0-x86_64.AppImage && ./Todo4Me-2.7.0-x86_64.AppImage` |
-| Any distribution, no installation | `Todo4Me-2.7.0-x64.tar.gz` | `tar xzf Todo4Me-2.7.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
+| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.8.0-amd64.deb` | `sudo apt install ./Todo4Me-2.8.0-amd64.deb` |
+| Fedora, RHEL, openSUSE | `Todo4Me-2.8.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.8.0-x86_64.rpm` |
+| Any distribution, self-updating | `Todo4Me-2.8.0-x86_64.AppImage` | `chmod +x Todo4Me-2.8.0-x86_64.AppImage && ./Todo4Me-2.8.0-x86_64.AppImage` |
+| Any distribution, no installation | `Todo4Me-2.8.0-x64.tar.gz` | `tar xzf Todo4Me-2.8.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
 
 - **AppImage needs FUSE 2.** On Ubuntu 22.04 and newer install it with `sudo apt install libfuse2t64` (older: `libfuse2`), or start the AppImage with `--appimage-extract-and-run`.
 - **Sandbox on Ubuntu 23.10+:** Ubuntu restricts unprivileged user namespaces with AppArmor. The deb and rpm packages install an AppArmor profile and keep Chromium's sandbox, which is why they are recommended there.
@@ -72,7 +72,7 @@ You can also use Todo4Me in the browser without installing anything (see [Using 
 
    ![Weekly Planner, Calendar view](docs/screenshots/planner-calendar-light.png)
 
-6. **Notes and documents.** *Weekly Notes* keeps thoughts and ideas by week (not everything has to be a task). In the **Editor** you write proper documents (headings, tables, images, formulas, code) and export them as PDF or Markdown; the *Feature tour* template shows everything.
+6. **Notes and documents.** *Weekly Notes* keeps thoughts and ideas by week (not everything has to be a task). In the **Editor** you write proper documents (headings, tables, images, formulas, code), link them with `[[wiki links]]`, keep a version history and export them as PDF, Word or Markdown; the *Feature tour* template shows everything. See [Documents & knowledge workspace](#documents--knowledge-workspace).
 
    ![Document editor](docs/screenshots/editor-light.png)
 
@@ -124,6 +124,7 @@ The theme switches between **Light**, **Dark** and **System** under *Settings �
 | ![Dashboard, light](docs/screenshots/dashboard-light.png) | ![Dashboard, dark](docs/screenshots/dashboard-dark.png) |
 | ![Calendar view, light](docs/screenshots/planner-calendar-light.png) | ![Calendar view, dark](docs/screenshots/planner-calendar-dark.png) |
 | ![Editor, light](docs/screenshots/editor-light.png) | ![Editor, dark](docs/screenshots/editor-dark.png) |
+| ![Documents & knowledge workspace](docs/screenshots/editor-workspace-light.png) | ![Graph view](docs/screenshots/editor-graph.png) |
 
 ### More views
 
@@ -176,7 +177,7 @@ More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 - [Using it in the browser](#using-it-in-the-browser)
 - [Desktop app in detail](#desktop-app-in-detail): [Data](#where-is-the-data-stored) · [Bringing over browser data](#bringing-over-data-from-the-browser-version) · [Menu and shortcuts](#menu-and-keyboard-shortcuts-of-the-desktop-app) · [Tray, reminders, quick capture](#in-the-background-tray-reminders-quick-capture)
 - [Subscribing to calendars](#subscribing-to-calendars-outlook--google-read-only)
-- [Reference](#reference): [Quick-add](#quick-add-syntax) · [Keyboard shortcuts](#keyboard-shortcuts) · [Calendar view](#weekly-planner-calendar-view) · [ICS](#ics-support) · [Document editor](#document-editor)
+- [Reference](#reference): [Quick-add](#quick-add-syntax) · [Keyboard shortcuts](#keyboard-shortcuts) · [Calendar view](#weekly-planner-calendar-view) · [ICS](#ics-support) · [Documents & knowledge workspace](#documents--knowledge-workspace)
 - [Data: saving, backup, restore](#data-saving-backup-and-restore)
 - [For developers](#for-developers) (build, release, structure, data model, tests)
 - [Browser support](#browser-support)
@@ -195,7 +196,7 @@ More: [Changelog](CHANGELOG.md) · [Guide for AI agents](docs/AGENT-GUIDE.md)
 | **Calendar subscriptions** | Outlook/Google calendars **read-only** via ICS link (desktop app) or `.ics` import |
 | **Daily Plan** | Per day: main goal, top 3, tasks, notes and reflection, saved automatically |
 | **Weekly Notes** | Notes with title, text, tags and pinning, grouped by week, with search and filters |
-| **Editor** | Documents like in a word processor, with PDF and Markdown export |
+| **Editor** | Documents and notes like in a word processor, linked with `[[wiki links]]`, with backlinks, graph, version history, find & replace, focus mode, Word/PDF/Markdown export |
 | **Focus Mode** | Distraction-free view of one task with a Pomodoro timer (default 25/5), keeps running through a page reload |
 | **Statistics** | Completed today/this week/this month, completion rate, streak, weekly chart, 8-week trend, open tasks by priority, progress per category |
 | **Settings** | Name, theme light/dark/System, accent color, sorting, week start, Pomodoro, reminder time, calendars, categories, export/import, auto-backup, sample data, reset |
@@ -214,7 +215,7 @@ Without internet nothing disruptive happens: automatic checks fail silently, a m
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
 > **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
-> Install `Todo4Me-Setup-2.7.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> Install `Todo4Me-Setup-2.8.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
@@ -242,7 +243,7 @@ npx serve .                        # or, with Node.js
 - The desktop app writes **one JSON backup per day** to `%APPDATA%\Todo4Me\backups` (the last 14 days are kept).
   What counts is the state at the first start of the day, so a later mishap does not overwrite it.
   Restore with **Import JSON**. You can open the folder via *File → Open backups folder* or *Settings → Desktop app*.
-- The **editor documents** are stored in their own database (IndexedDB) in the same folder, separate from tasks and notes.
+- The **editor documents** are stored in their own database (IndexedDB, `todo4me-docs` version 2) in the same folder, separate from tasks and notes. Their version history stays in that database and is not part of the daily documents backup.
   They also get a daily backup: `backups\documents-YYYY-MM-DD.json` (including images, 14 days). Restore via *Settings → Documents → Import documents*.
 - When you close the window, Todo4Me keeps running in the tray by default (see [below](#in-the-background-tray-reminders-quick-capture)).
   When really quitting (tray → *Quit Todo4Me*, *File → Exit*, update restart, shutdown/sign-out), the editor saves open changes before the app ends.
@@ -380,7 +381,28 @@ In the Inbox, a token for date, priority, category or repeat automatically sorts
 | `Shift + ↑` / `↓` on a focused calendar block | Make the task 15 minutes shorter / longer |
 | `Esc` while dragging in the calendar | Cancel the drag |
 
-Editor shortcuts are listed in the [Document editor](#document-editor), desktop app shortcuts [above](#menu-and-keyboard-shortcuts-of-the-desktop-app).
+Shortcuts in the editor (`Cmd` instead of `Ctrl` on macOS; `Ctrl+/` shows the full list):
+
+| Key | Action |
+|---|---|
+| `Ctrl+B` / `I` / `U` / `K` / `M` | Bold / italic / underline / link / formula |
+| `Ctrl+S` / `Ctrl+P` | Save now / export PDF |
+| `Ctrl+Alt+N` | New document |
+| `Ctrl+F` / `Ctrl+H` | Find / find and replace |
+| `Ctrl+Shift+O` | Outline panel |
+| `Ctrl+Shift+B` | Backlinks panel |
+| `Ctrl+Shift+H` | Version history |
+| `Ctrl+Alt+S` | Save a named version |
+| `Ctrl+Alt+D` | Today's daily note |
+| `Ctrl+Shift+F` | Focus mode |
+| `Ctrl+Shift+P` | Command palette |
+| `Ctrl+/` | Keyboard shortcuts |
+| `Alt+F10` | Selection toolbar |
+| `Shift+F10` | Context menu |
+| `Alt+Shift+↑` / `↓` | Move the block up / down |
+| `Ctrl/Cmd+click` on a wiki link | Open the linked document |
+
+Editor shortcuts are listed in the [Documents & knowledge workspace](#documents--knowledge-workspace) and in the editor itself (`Ctrl+/`), desktop app shortcuts [above](#menu-and-keyboard-shortcuts-of-the-desktop-app).
 
 ### Weekly Planner: Calendar view
 
@@ -416,18 +438,23 @@ Series are expanded only for the visible days. Not supported (ignored): `RDATE`,
 the **local time** of this computer. Recurring events are expanded in their own zone, so an event at 10:00 Berlin stays at 10:00 Berlin even when daylight saving time changes;
 everything is displayed in this computer's local time. Single events that ended more than 180 days ago are not kept.
 
-### Document editor
+### Documents & knowledge workspace
 
-A separate **Editor** page in the navigation (section *Write*, shortcut `G` then `E`). Weekly Notes stay unchanged and independent of it.
+A separate **Editor** page in the navigation (section *Write*, shortcut `G` then `E`) that is both a word processor and a small, fully offline knowledge base. Weekly Notes stay unchanged and independent of it.
 
-**Layout:** on the left the document list (search in title and content, *All / Pinned / Trash*, "…" menu per document),
+![Documents & knowledge workspace: document with table of contents, checklist, callout, footnote, folders on the left, links panel on the right](docs/screenshots/editor-workspace-light.png)
+
+**Layout:** on the left the **Documents** list (search in title and content, *All / Pinned / Trash / Recent / Archive*, "…" menu per document) or the **Library** (folders and tags),
 at the top the title, save status, the **File** and **Insert** menus and the **Export PDF** button, below them the formatting toolbar,
-in the middle the page (paper view in the chosen format), at the bottom words/characters/pages and zoom (25–300 %, also with **Ctrl + mouse wheel**; the spot under the pointer stays in place).
+in the middle the page (paper view in the chosen format), on the right the optional panels (*Links*, *Outline*, *Statistics*, *Version history*),
+at the bottom words/characters/pages, reading time, writing goal and zoom (25–300 %, also with **Ctrl + mouse wheel**; the spot under the pointer stays in place).
 With no document open, the page shows templates (*Blank, Meeting notes, Report, Feature tour*) and the most recently edited documents.
+
+#### Basics
 
 | Area | Features |
 |---|---|
-| Documents | New, from template, open, rename, duplicate, pin, move to Trash (restorable for 30 days), delete permanently, search, import (`.md`, `.html`, `.txt`, Todo4Me `.json`) |
+| Documents | New, from template, open, rename, duplicate, pin, move to Trash (restorable for 30 days), delete permanently, search, import (`.docx`, `.md`, `.html`, `.txt`, Todo4Me `.json`) |
 | Saving | Automatically ~0.7 s after each change, immediately when switching page or document and when closing. `Ctrl+S` saves immediately. Status at the top: *Saved / Editing… / Not saved — retrying* |
 | Undo | `Ctrl+Z` / `Ctrl+Y` (also `Ctrl+Shift+Z`) for **all** changes, including tables, images, shapes, charts, formulas |
 | Text | Bold, italic, underline, strikethrough, highlighter, text and background color, font size (8–72 pt), font, superscript/subscript, inline code, clear formatting |
@@ -440,16 +467,96 @@ With no document open, the page shows templates (*Blank, Meeting notes, Report, 
 | Charts | Bar, line, pie · edit data in a table (double-click), multiple data series, colors, title, legend · vector graphics in the PDF |
 | Formulas | LaTeX formula editor (`Ctrl+M`) with live preview and symbol palette (fractions, roots, powers, subscripts, sums, integrals, limits, matrices, Greek letters, symbols) · inline or as its own block · rendered with KaTeX |
 | Code | Code blocks with syntax highlighting for JavaScript, Python, HTML, CSS, JSON, Java, C++, C, C#, SQL, Bash · Fira Code · selectable language · copy button · `Tab` indents, `Esc` leaves the block |
-| Markdown shortcuts | `# ` to `###### ` headings, `- ` list, `1. ` numbering, `> ` quote, `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `==highlighted==`, ```` ``` ```` + Enter code block, `---` + Enter rule, `$$` + Enter formula. `/` on an empty line opens the Insert menu. Pasted Markdown text is converted |
-| PDF | **Export PDF** (`Ctrl+P`): clean layout with sensible page breaks (headings stay with their text, table rows, images, formulas and code blocks are not split, table headers repeat), embedded fonts, vector graphics, bookmarks from the headings. **File → Page setup**: A4/Letter/A5/Legal, portrait/landscape, margins, header and footer (placeholders `{title}`, `{date}`), page numbers ("Page 1 of 3", "1 / 3", "1"), first page without header. The PDF matches the page in the editor (white paper, same margins, header/footer centered in the margin); dashed lines on the page show roughly where a new PDF page begins. Desktop app: Save dialog, browser: print dialog ("Save as PDF"). The document itself stays unchanged |
-| Export | Markdown (`.md`, Obsidian-compatible, images/charts embedded) and Todo4Me document (`.json`, lossless) · *Settings → Documents* exports/imports all documents |
+| Markdown shortcuts | `# ` to `###### ` headings, `- ` list, `1. ` numbering, `> ` quote, `[ ] ` checklist, `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `==highlighted==`, ```` ``` ```` + Enter code block, `---` + Enter rule, `$$` + Enter formula. `/` on an empty line opens the grouped, fuzzy-searchable Insert menu. Pasted Markdown text is converted |
+
+#### Knowledge: link, organize, find
+
+| Feature | How it works |
+|---|---|
+| Wiki links | Type `[[` and pick a document (autocomplete); `Ctrl/Cmd+click` opens the target. |
+| Backlinks | **Links** panel (`Ctrl+Shift+B`): *linked mentions* (documents that link here), *unlinked mentions* (documents that mention the title without a link) and outgoing links |
+| Tags and properties | Per document: tags, a folder and free properties (*Properties* bar above the page) |
+| Folders | **Library** panel: nested folders, drag & drop documents into folders, tag view |
+| Archive, Recent | Archive documents you no longer need without deleting them; *Recent* lists what you edited last |
+| Daily notes | `Ctrl+Alt+D` opens (or creates) today's note |
+| Graph view | All documents and their links as a graph; filter by tag or folder, "linked only", "around this document"; click a node to open it |
+| Search filters | In the document search: `tag:name`, `folder:name`, `is:archived`, `links:Title` |
+
+![Graph view of linked documents](docs/screenshots/editor-graph.png)
+
+#### Writing tools
+
+| Feature | How it works |
+|---|---|
+| Find & replace | `Ctrl+F` / `Ctrl+H`: case, whole word, regular expressions, replace one or all (one undo step) |
+| Outline | `Ctrl+Shift+O`: the headings as a navigable tree, with level filter |
+| Table of contents | Insert menu → *Table of contents*: updates live while you write |
+| Statistics | Words, characters, reading and speaking time, readability estimate (English and German) in the *Statistics* panel |
+| Writing goal | Set a word target; the status bar shows progress |
+| Focus mode | `Ctrl+Shift+F`: hides the surroundings; optional dimming of the other paragraphs, typewriter scrolling and full screen |
+
+#### Versions: history and recovery
+
+| Feature | How it works |
+|---|---|
+| Automatic versions | Todo4Me keeps snapshots while you write (old ones are thinned out) |
+| Named versions | `Ctrl+Alt+S` saves a version with a name that is never thinned out |
+| History panel | `Ctrl+Shift+H`: versions grouped by day with size; *Preview*, *Restore*, *Restore as copy*, *Rename*, *Delete* |
+| Restore | Replaces the content as **one undoable step**, so a wrong restore costs nothing |
+| Compare | Word-level compare with the current document or between two versions, side by side or inline, jump from change to change (`F3`) |
+| Crash recovery | If the app closed with unsaved changes, a banner offers *Recover*, *Compare* or *Discard* |
+
+Versions stay on this device: they are not part of document exports or the daily backup file.
+
+![Compare versions, word by word](docs/screenshots/editor-versions-compare.png)
+
+#### Layout and structure
+
+| Feature | How it works |
+|---|---|
+| Page setup | **File → Page setup**: A4, A3, Letter, A5, Legal or a **custom size in mm**, portrait/landscape, margins in mm, page colour |
+| Header and footer | Three slots each (left, center, right) with placeholders `{title}`, `{date}`, `{page}`, `{pages}`; page numbers ("Page 1 of 3", "1 / 3", "1"); first page without header |
+| Page preview | Shows where pages begin and how the header and footer look |
+| Checklists | `[ ] ` + space or the toolbar button; check items off; *Create task from item* turns a checklist item into a Todo4Me task |
+| Callouts | Note, tip, info, warning, danger (also Obsidian-style `> [!tip]` in Markdown) |
+| Footnotes | Insert at the cursor; numbered automatically; printed as **endnotes** |
+
+#### Interaction
+
+| Feature | How it works |
+|---|---|
+| Selection toolbar | Appears above selected text; `Alt+F10` focuses it |
+| Command palette | `Ctrl+Shift+P`: every command and every document, fuzzy search, shortcuts shown |
+| Context menu | Right-click in the desktop app, `Shift+F10` everywhere |
+| Slash menu | `/` on an empty line: grouped, fuzzy-searchable insert menu |
+| Moving blocks | Drag handle at the left of a block, or `Alt+Shift+↑/↓` |
+| Shortcut help | `Ctrl+/` lists all editor shortcuts |
+| Toolbar | Fully keyboard-navigable (arrow keys, `Tab` leaves it) |
+
+![Command palette](docs/screenshots/editor-palette.png)
+
+#### Export and import
+
+| Format | Details |
+|---|---|
+| **PDF** | **Export PDF** (`Ctrl+P`): clean layout with sensible page breaks (headings stay with their text, table rows, images, formulas and code blocks are not split, table headers repeat), embedded fonts, vector graphics, bookmarks from the headings. The PDF matches the page in the editor (white paper, same margins, header/footer centered in the margin); dashed lines on the page show roughly where a new PDF page begins. Desktop app: Save dialog, browser: print dialog ("Save as PDF"). The document itself stays unchanged |
+| **Word (.docx)** | Export and import: styles, lists, tables, images, real Word equations, footnotes, headers/footers and page setup. After an import a **conversion report** lists everything that could not be carried over, so nothing is dropped silently |
+| HTML, TXT, RTF | Export (*File → Export as…*) |
+| Markdown | `.md` import/export, Obsidian-compatible, images/charts embedded; checklists (`- [ ]`), Obsidian callouts and footnotes round-trip |
+| Todo4Me document | `.json`, lossless · *Settings → Documents* exports/imports all documents |
+
+![File menu with the Export as… submenu](docs/screenshots/editor-export-docx.png)
 
 **File format:** Documents are stored internally as sanitized HTML (only allowed elements, attributes and style properties) plus JSON metadata,
 not as PDF or Markdown, because Markdown cannot represent colors, fonts, alignment, shapes and charts without loss.
-Images, shapes, charts, formulas and code blocks are "widgets" that store only their source data (e.g. LaTeX text, chart values) and
-are redrawn when opened, so they always remain editable. Markdown is the exchange format for import and export.
+Images, shapes, charts, formulas, code blocks, wiki links and footnotes are "widgets" that store only their source data (e.g. LaTeX text, chart values) and
+are redrawn when opened, so they always remain editable. Markdown and Word are the exchange formats for import and export.
 Everything that enters a document (loading, pasting, import, undo) passes through `editor-sanitize.js`: scripts, event handlers,
 `javascript:` links, external resources and foreign style properties are removed.
+
+**Upgrading to 2.8.0:** the document database is upgraded to version 2 automatically; existing documents stay unchanged. Afterwards Todo4Me 2.7.0 or older cannot open it any more, so keep 2.8.0 or newer.
+
+**Known limits:** footnotes print as endnotes (no footnotes at the bottom of each page); no multi-column layout and no per-section page formats; no real-time collaboration or cloud (Todo4Me is offline by design); the table of contents in a PDF has no page numbers.
 
 **Offline:** KaTeX, Prism and the fonts are in `vendor/` and are only loaded when the editor is opened (so the rest of the app starts quickly).
 
@@ -532,8 +639,8 @@ Releases are built by the GitHub Actions workflow `.github/workflows/release.yml
 **For every update**
 
 1. Increase the version number in `package.json` (it must **always be greater** than the last one) and add the section to `CHANGELOG.md`. Merge to `main`.
-2. Push the tag: `git tag v2.7.0 && git push origin v2.7.0` (the tag must equal `v` + the `package.json` version).
-3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.7.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
+2. Push the tag: `git tag v2.8.0 && git push origin v2.8.0` (the tag must equal `v` + the `package.json` version).
+3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.8.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
 4. On GitHub under *todo4me → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
 
 Running the workflow manually (*Actions → Release → Run workflow*) only builds and attaches the files as artifacts; it creates no release.
@@ -606,7 +713,7 @@ todo4me/
 ├── scripts/              start.js, build.js, vendor.js, build-icons.mjs (icon generator)
 ├── build/                icon.ico (Windows), icons/ (Linux 16-1024 px), icon.png, brand/ (Tangram SVG sources)
 ├── assets/icons/         favicon.svg, icon.png (window icon), tray-16...64.png (tray icons)
-├── docs/                 AGENT-GUIDE.md, screenshots/, brand/ (logo lockups, social preview)
+├── docs/                 AGENT-GUIDE.md, EDITOR-EXTENSIONS.md (editor module API), screenshots/, brand/ (logo lockups, social preview)
 ├── vendor/               Offline files for the editor (MIT / SIL OFL, licenses included)
 │   ├── katex/            Formula rendering + fonts
 │   ├── prism/prism.js    Syntax highlighting (11 languages)
@@ -615,9 +722,11 @@ todo4me/
 │                         ICS parser tests (test-ics.mjs) with fixtures (fixtures/ics/)
 ├── css/
 │   ├── styles.css        Design tokens (light/dark), components, views, responsive rules
-│   └── editor.css        Editor page, document typography, widgets, print/PDF rules
+│   ├── editor.css        Editor page, document typography, widgets, print/PDF rules
+│   └── ed-*.css          Styles of the editor modules (knowledge, writing, versions, layout, ux)
 └── js/
     ├── i18n/mode.js      Texts of the mode feature (EN/DE/ES/TR)
+    ├── i18n/ed-*.js      Texts of the editor modules (EN/DE/ES/TR)
     ├── utils.js          Date helpers (local YYYY-MM-DD), HTML escaping, DOM helpers
     ├── mode.js           Simple/Advanced interface mode: settings.uiMode, body class, first-run chooser, `T4.mode`
     ├── storage.js        Schema defaults, validation/sanitizing, storage adapter, backup, import/export/merge
@@ -633,12 +742,19 @@ todo4me/
     ├── focus.js          Focus Mode and Pomodoro timer
     ├── stats.js          Statistics and charts
     ├── settings.js       Settings, theme, calendar card, categories, export/import, sample data
+    ├── editor-registry.js  Editor: extension registry `T4.edx` (widgets, commands, menus, panels, importers/exporters, search, DB)
     ├── editor-sanitize.js  Editor: HTML allowlist sanitizer (paste, import, storage, undo)
     ├── docstore.js       Editor: IndexedDB storage for documents and images, export/import
     ├── editor-widgets.js Editor: images, drawings/shapes, charts, formulas, code blocks, dialogs
     ├── editor-markdown.js Editor: Markdown import/export
     ├── editor-core.js    Editor: editing engine (selection, undo/redo, formatting, tables, links, paste)
     ├── editor.js         Editor: page, document list, toolbar, menus, autosave, PDF export
+    ├── ed-knowledge*.js  Module knowledge: wiki links, backlinks, tags/folders (Library), daily notes, graph, search filters
+    ├── ed-writing*.js    Module writing: find & replace, outline, table of contents, statistics, goal, focus mode
+    ├── ed-versions*.js   Module versions: automatic/named versions, history panel, compare, crash recovery
+    ├── ed-io*.js         Module import/export: Word .docx (zip, OMML), HTML, TXT, RTF
+    ├── ed-layout.js      Module layout: page size/margins/header/footer, checklists, callouts, footnotes, page preview
+    ├── ed-ux*.js         Module interaction: selection toolbar, command palette, context menu, shortcuts dialog, block moving
     ├── app.js            Router (hash), navigation, event delegation, shortcuts, startup
     ├── reminders.js      Reminder scheduler (fire once, snooze, summary message) + notifications
     └── desktop.js        Desktop-only additions (inactive in the browser)
@@ -647,6 +763,7 @@ todo4me/
 - **Plain JavaScript (ES2020), no build.** Classic scripts with a shared namespace `window.T4` instead of ES modules, so the app also runs directly from disk (`file://`), where browsers block module imports.
 - **One-way data flow.** Views are functions `render(params) → HTML string`. Every change goes through `T4.store.commit()`, which saves and notifies the app, which re-renders the current view. Focus and half-typed quick-add text are preserved.
 - **Event delegation.** Interactive elements declare `data-action="name"` (clicks), `data-form` (submits), `data-input` / `data-change` (inputs). Modules register handlers with `T4.ui.on(name, fn)`.
+- **Editor modules (`T4.edx`).** The editor core (`editor-core.js`, `editor.js`, `docstore.js`, …) stays small; features are modules (`js/ed-*.js`) that only *register* what they add (widgets, commands, shortcuts, menus, toolbar items, panels, slash items, importers/exporters, search providers, document metadata fields) in `T4.edx` (`js/editor-registry.js`) and never edit core files. Every module owns its code, texts (`js/i18n/ed-<module>.js`, four languages), styles (`css/ed-<module>.css`) and test suite (`tests/editor-<module>.mjs`). All DOM changes inside a document go through `edx.editor.run()` (undo, autosave, events); all HTML entering a document passes the sanitizer. Contract, rules and full API: [docs/EDITOR-EXTENSIONS.md](docs/EDITOR-EXTENSIONS.md).
 - **All user content is HTML-escaped before rendering.**
 - **Backend-ready.** Persistence lives in `storage.js` behind an adapter with `load(key)` / `save(key, value)` / `remove(key)`. For a server, replace these and call `T4.storage.setAdapter(adapter)`. Every entity already has a stable string `id` and `createdAt`/`updatedAt`, and `storage.merge()` already does last-write-wins reconciliation.
 
@@ -814,7 +931,7 @@ No task or settings fields were added for the calendar: a block's position follo
 The desktop app keeps its machine settings outside LocalStorage, in `<userData>/desktop-settings.json`:
 `{ "closeToTray": true, "openAtLogin": false, "hotkeyEnabled": true, "hotkey": "Control+Alt+Space", "trayHintShown": false }`.
 
-### Documents (Editor) — IndexedDB `todo4me-docs`
+### Documents (Editor) — IndexedDB `todo4me-docs` (version 2)
 
 Editor documents are **not** stored in `todo4me.data.v1`, but in their own IndexedDB database, so large documents and images never displace tasks and notes
 (LocalStorage holds only a few MB).
@@ -824,6 +941,12 @@ Editor documents are **not** stored in `todo4me.data.v1`, but in their own Index
 | `docs` | `{ id, format: 1, title, text, words, page, pinned, createdAt, updatedAt, openedAt, deletedAt }`; `text` is a plain-text copy for search, `deletedAt` ≠ null means *in Trash* (deleted after 30 days) |
 | `bodies` | `{ id, html }`: the document content (sanitized HTML, see below) |
 | `assets` | `{ id, blob, type, size, createdAt }`: images, referenced by the content; unreferenced images are cleaned up after one day |
+| `versions` | *(new in v2)* `{ id, docId, createdAt, title, words, html, reason }` (`reason`: `auto`, `manual`, …); indexes `docId`, `createdAt`. **Not part of the export bundle or the daily backup**; deleted together with their document; images referenced by a version are not cleaned up |
+| `kv` | *(new in v2)* small module state by key (e.g. version names), JSON values |
+
+Version 1 databases are upgraded to version 2 automatically and without changing documents (`MIGRATIONS` in `docstore.js`). The upgrade is one-way: 2.7.0 and older cannot open a version 2 database.
+
+Modules add validated metadata fields to `docs` (registered with `edx.meta.extend`, so they survive duplicate and export/import): `kn_tags` (array), `kn_folder` (path string), `kn_props` (object), `kn_archived` (ISO date or null), `kn_links` (ids of linked documents, derived from the wiki links on save), and `wr_goal` (writing goal in words).
 
 ```jsonc
 // page (page setup, per document)
@@ -840,6 +963,8 @@ Content HTML uses `p, h1–h6, blockquote, ul/ol/li, table, hr`, inline formatti
 <figure class="t4-w" data-w="math"  data-p='{"tex":"\\frac{a}{b}"}'></figure>   <!-- <span …> = inline formula -->
 <figure class="t4-w" data-w="code"  data-p='{"lang":"python"}'><pre><code>print("hi")</code></pre></figure>
 <figure class="t4-w" data-w="pagebreak" data-p="{}"></figure>
+<span class="t4-w" data-w="wikilink" data-p='{"d":"doc_…","t":"Title at link time"}'></span>   <!-- inline; footnotes are inline widgets too -->
+<ul class="t4-check"><li data-x-check="1">done</li></ul>   <!-- checklist;  <blockquote class="t4-callout t4-callout--tip"> = callout -->
 ```
 
 Shape types `t`: `rect, round, ellipse, tri, diamond, line, arrow`. A document export (`*.todo4me-doc.json`, *Settings → Documents*, daily desktop backup)
@@ -856,11 +981,12 @@ All suites are dependency-free (Chrome or Electron via the DevTools protocol, IC
 ```bash
 node tests/cdp.mjs tests/test-functional.mjs           # 251 checks: all features + reminders + calendar view and .ics calendars (Chrome)
 node tests/cdp.mjs tests/functional-modes.mjs          # 78 checks: Simple/Advanced mode (chooser, migration, navigation, forms, planner, switching)
-node tests/cdp.mjs tests/test-editor.mjs               # 157 checks: editor, PDF, persistence, Markdown, security (Chrome)
+node tests/cdp.mjs tests/test-editor.mjs               # editor core + ALL module suites (foundation, knowledge, writing, versions, io, layout, ux, qa); takes several minutes (Chrome)
 node tests/cdp-electron.mjs tests/test-functional.mjs  # the same 251 checks in the desktop app
 node tests/cdp-electron.mjs tests/test-electron.mjs    # 108 checks: security, menu, restart, backups, PDF export, saving on close, updates,
                                                        #   tray, closing to the tray vs. quitting, hotkey, autostart, notifications, summary message,
                                                        #   fetchCalendar against a local HTTPS server, calendar subscription end to end
+# a single module suite (own port so it can run next to others): CDP_PORT=9341 node tests/cdp.mjs tests/editor-<module>.mjs
 node tests/test-ics.mjs                                # 62 checks: ICS parser unit tests (plain Node, fixtures in tests/fixtures/ics)
 ```
 
