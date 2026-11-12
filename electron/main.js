@@ -244,16 +244,29 @@ function openExternalSafely(url) {
 function hardenSession() {
   const ses = session.defaultSession;
   // The app needs no camera, microphone, notifications, geolocation, …
-  ses.setPermissionRequestHandler((_wc, _perm, callback) => callback(false));
-  ses.setPermissionCheckHandler(() => false);
+  // The only exception: 'fullscreen' (the editor's full-screen writing mode), and only for the app's own page (file://…/index.html).
+  const appUrl = INDEX_URL;
+  const isOwnPage = (url) => typeof url === 'string' && url.split('#')[0].split('?')[0] === appUrl;
+  ses.setPermissionRequestHandler((wc, perm, callback, details) => callback(perm === 'fullscreen' && isOwnPage((details && details.requestingUrl) || (wc && wc.getURL && wc.getURL()))));
+  ses.setPermissionCheckHandler((wc, perm, origin, details) => perm === 'fullscreen' && isOwnPage((details && details.requestingUrl) || (wc && wc.getURL && wc.getURL())));
 
-  // "Export JSON" / "Export Markdown" create a download → show a normal Save dialog in Documents.
+  // Exports (JSON, Markdown, and the editor's Word / HTML / text exports) create a download → show a normal Save dialog in Documents.
+  // Strict allowlist: only these extensions get a typed filter; anything else gets "All files" (the extension list is never built from the file name).
+  const DOWNLOAD_TYPES = {
+    json: { title: 'dlg.saveBackup', name: () => 'JSON' },
+    md: { title: 'dlg.saveMarkdown', name: () => 'Markdown' },
+    docx: { title: 'dlg.saveWord', name: () => T('flt.word') },
+    html: { title: 'dlg.saveHtml', name: () => 'HTML' },
+    txt: { title: 'dlg.saveText', name: () => T('flt.text') },
+    rtf: { title: 'dlg.saveRtf', name: () => T('flt.rtf') },
+  };
   ses.on('will-download', (_event, item) => {
     const ext = path.extname(item.getFilename()).slice(1).toLowerCase();
+    const type = Object.prototype.hasOwnProperty.call(DOWNLOAD_TYPES, ext) ? DOWNLOAD_TYPES[ext] : null;
     item.setSaveDialogOptions({
-      title: ext === 'md' ? T('dlg.saveMarkdown') : T('dlg.saveBackup'),
+      title: type ? T(type.title) : T('dlg.saveFile'),
       defaultPath: path.join(app.getPath('documents'), item.getFilename()),
-      filters: ext === 'md' ? [{ name: 'Markdown', extensions: ['md'] }] : [{ name: 'JSON', extensions: ['json'] }],
+      filters: type ? [{ name: type.name(), extensions: [ext] }] : [{ name: T('flt.all'), extensions: ['*'] }],
     });
   });
 }

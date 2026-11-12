@@ -681,3 +681,32 @@ Not verified: rpm install on a real rpm distribution (argv unit checks only), Wi
 - "Daily plan" button on Today in Simple mode.
 - The quick-add example uses English date tokens and `!2`; the parser only knows English date words.
 
+
+### Step 33: Documents & knowledge workspace (2.8.0)
+
+**Goal**: turn the document editor into a document and knowledge workspace (linking, organizing, writing tools, version history, Word import/export, layout, interaction), fully offline, without destabilizing the existing editor.
+
+**Process (multi-agent)**
+
+- **Wave 1, analysis:** researchers examined the existing editor (core, storage, sanitizer, widgets, Markdown) and the requirements per area; result: the core must not become one huge file, so features become modules.
+- **Foundation:** one coder built the extension registry `T4.edx` (`js/editor-registry.js`): widgets, commands and shortcuts, slash and menus, toolbar, panels, document list views, events, document metadata fields, database access (IndexedDB v2 with `versions` and `kv`), importers/exporters, search providers, print hooks and an editor facade. Contract and rules are written down in `docs/EDITOR-EXTENSIONS.md`; `tests/editor-foundation.mjs` exercises every registry through the real UI.
+- **Six modules in parallel** (knowledge, writing, versions, io, layout, ux), each with its own code, texts (4 languages), styles, test suite and its own `index.html` / `tests/test-editor.mjs` anchor pair, so the coders never touched the same lines. Each coder used its own CDP port.
+- **Integration:** the Main Agent reviewed the full diff, wired the anchors, resolved overlaps (toolbar groups, shortcut conflicts, panel slots) and ran all suites together.
+- **QA:** a separate QA suite (`tests/editor-qa.mjs`, `tests/editor-qa-lib.mjs`) with cross-module scenarios found **3 bugs**, which were fixed and covered by tests.
+- **Usage-limit pauses:** the work was interrupted by usage limits several times; each time it continued from the documented state (plan, anchors and test suites made this possible without rework).
+- **Tests (final lead run, port 9333):** editor 1628/0, functional 707/0, modes 78/0, ICS 62/0, electron 181/0, page errors 0. Known flaky: the ux suite drag test (synthetic pointer timing); a first run had 4 failures there, standalone ux 114/0 and the full editor rerun 1628/0 passed.
+
+**Architecture decisions**
+
+- Modules only register; they never edit core files. All document DOM changes go through `edx.editor.run()` (one undo step, autosave, events). The sanitizer stays the single security boundary; new markup (wiki links, footnotes, checklists, callouts) is added to the allowlist with strict validation.
+- Metadata fields are module-prefixed and validated (`kn_*`, `wr_goal`), so duplicate and export/import handle them.
+- IndexedDB `todo4me-docs` goes to **version 2** (new stores `versions`, `kv`) with an automatic, one-way migration; versions are not part of the export bundle or the daily backup.
+- Word `.docx` is written and read by our own zip and XML code (no dependency; CSP forbids workers and `fetch(blob:)`, so everything runs on the main thread in chunks). Imports produce a conversion report; nothing is dropped silently.
+- Markdown round-trips checklists, Obsidian callouts and footnotes.
+
+**Known limitations**
+
+- Footnotes print as endnotes (no footnotes at the page bottom); no multi-column layout, no per-section page formats; no real-time collaboration or cloud (offline by design); the table of contents in a PDF has no page numbers.
+- Downgrading to 2.7.0 after the upgrade makes the old app unable to open the document database.
+
+**Docs and release material**: README section "Documents & knowledge workspace" with new screenshots (taken from the running app with sample data), CHANGELOG 2.8.0, website editor card and gallery, version 2.8.0.

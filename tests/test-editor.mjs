@@ -3,23 +3,32 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { PRELUDE, makeContext, resetEditor } from './editor-helpers.mjs';
+// Module suites: each module owns ONE import pair and ONE run pair below (see docs/EDITOR-EXTENSIONS.md). Order = the order in MODULE_TESTS.
+import { test as foundationTest } from './editor-foundation.mjs';
+// ed-tests-import:knowledge
+import { test as knowledgeTest } from './editor-knowledge.mjs';
+// /ed-tests-import:knowledge
+// ed-tests-import:writing
+import { test as writingTest } from './editor-writing.mjs';
+// /ed-tests-import:writing
+// ed-tests-import:versions
+import { test as versionsTest } from './editor-versions.mjs';
+// /ed-tests-import:versions
+// ed-tests-import:io
+import { test as ioTest } from './editor-io.mjs';
+// /ed-tests-import:io
+// ed-tests-import:layout
+import { test as layoutTest } from './editor-layout.mjs';
+// /ed-tests-import:layout
+// ed-tests-import:ux
+import { test as uxTest } from './editor-ux.mjs';
+// /ed-tests-import:ux
+// ed-tests-import:qa
+import { test as qaTest } from './editor-qa.mjs';
+// /ed-tests-import:qa
 
-const PRELUDE = `
-  window.__r = window.__r || [];
-  var $ = (s, r) => (r || document).querySelector(s);
-  var $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-  var wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  var ok = (c, msg) => { window.__r.push((c ? 'PASS ' : 'FAIL ') + msg); };
-  var D = () => document.getElementById('ed-doc');
-  var C = () => T4.edcore;
-  var W = () => T4.edw;
-  var caretEnd = () => { const d = D(); d.focus(); const r = document.createRange(); r.selectNodeContents(d.lastElementChild || d); r.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(r); };
-  var selectNode = (el) => { D().focus(); const r = document.createRange(); r.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(r); };
-  var tb = (cmd) => { const b = $('#ed-toolbar [data-cmd="' + cmd + '"]') || $('.ed-bar [data-cmd="' + cmd + '"]'); if (!b) throw new Error('no toolbar button ' + cmd); b.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); b.click(); };
-  var menuItem = (label) => { const b = $$('.ed-menu [data-mi]').find((x) => x.textContent.trim().startsWith(label)); if (!b) throw new Error('no menu item ' + label); b.click(); };
-  var stored = async () => { await T4.editor.flush(); const d = await T4.docstore.get(T4.editor.current.id); return d; };
-  var newDoc = async (tpl) => { await T4.editor.newDocument(tpl); for (let i = 0; i < 60 && !(T4.editor.current && location.hash.includes(T4.editor.current.id)); i++) await wait(50); await wait(150); };
-`;
+// PRELUDE (page helpers) lives in editor-helpers.mjs, shared with the module suites.
 
 export default async function (b) {
   const out = [];
@@ -594,6 +603,37 @@ export default async function (b) {
   const afterData = await b.evaluate(`localStorage.getItem('todo4me.data.v1')`);
   const strip = (s) => { const j = JSON.parse(s); delete j.meta; j.tasks = j.tasks.filter((t) => t.title !== 'Task added while editor is open'); return JSON.stringify(j); };
   out.push((strip(beforeData) === strip(afterData) ? 'PASS ' : 'FAIL ') + 'existing tasks/notes/settings data unchanged by the editor (todo4me.data.v1)');
+
+  /* ---------- Module suites (fixed order; each starts from the editor start page) ---------- */
+  const MODULE_TESTS = [
+    ['foundation', foundationTest],
+    // ed-tests-run:knowledge
+    ['knowledge', knowledgeTest],
+    // /ed-tests-run:knowledge
+    // ed-tests-run:writing
+    ['writing', writingTest],
+    // /ed-tests-run:writing
+    // ed-tests-run:versions
+    ['versions', versionsTest],
+    // /ed-tests-run:versions
+    // ed-tests-run:io
+    ['io', ioTest],
+    // /ed-tests-run:io
+    // ed-tests-run:layout
+    ['layout', layoutTest],
+    // /ed-tests-run:layout
+    // ed-tests-run:ux
+    ['ux', uxTest],
+    // /ed-tests-run:ux
+    // ed-tests-run:qa
+    ['qa', qaTest],
+    // /ed-tests-run:qa
+  ];
+  for (const [name, fn] of MODULE_TESTS) {
+    await resetEditor(b);
+    await b.viewport(1440, 900);
+    try { await fn(makeContext(b, out)); } catch (e) { out.push('FAIL module suite "' + name + '" threw: ' + e.message.split('\n')[0]); }
+  }
 
   out.forEach((r) => console.log(r));
   console.log('\n' + out.filter((r) => r.startsWith('PASS')).length + ' passed, ' + out.filter((r) => r.startsWith('FAIL')).length + ' failed');

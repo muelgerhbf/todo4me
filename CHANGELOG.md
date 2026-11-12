@@ -4,6 +4,27 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.8.0] - 2026-11-12
+
+### Added
+- **The document editor is now a document and knowledge workspace.** Everything below works offline in the browser and in the desktop app.
+- **Knowledge:** `[[wiki links]]` with autocomplete (`Ctrl/Cmd+click` opens the target), a **backlinks panel** with linked and unlinked mentions (`Ctrl+Shift+B`), tags and properties per document, nested **folders** with drag and drop in the new **Library** panel, archive and recent views, **daily notes** (`Ctrl+Alt+D`), a **graph view** of all documents and links, and search filters `tag:`, `folder:`, `is:archived`, `links:`.
+- **Writing:** find and replace (`Ctrl+F` / `Ctrl+H`; case, whole word, regular expressions), an **outline panel** (`Ctrl+Shift+O`), a live **table of contents**, **statistics** (words, characters, reading and speaking time, readability estimate for English and German), a writing goal and **focus mode** (`Ctrl+Shift+F`) with dimming, typewriter scrolling and full screen.
+- **Versions:** automatic and named versions (`Ctrl+Alt+S`), a **history panel** (`Ctrl+Shift+H`) with preview, **restore** (undoable), **restore as copy**, a **word-level compare** (side by side or inline), and **crash recovery** of unsaved changes.
+- **Import and export:** **Word `.docx` export and import** (styles, lists, tables, images, real Word equations, footnotes, headers and footers, page setup) with a **conversion report** (nothing is dropped silently), plus HTML, TXT and RTF export. Markdown now round-trips checklists, Obsidian callouts and footnotes.
+- **Layout:** A3 and custom page sizes and margins in mm, header and footer with left, center and right slots, page colour and a page preview, **checklists** (`[ ]` shortcut, *Create task from item*), **callouts** (note, tip, info, warning, danger) and **footnotes** (printed as endnotes).
+- **Interaction:** floating selection toolbar (`Alt+F10`), **command palette** (`Ctrl+Shift+P`), context menu (right-click in the desktop app, `Shift+F10`), grouped fuzzy slash menu, block drag handle and `Alt+Shift+Up/Down` to move blocks, a keyboard shortcuts dialog (`Ctrl+/`) and a keyboard-navigable toolbar.
+- Developer: editor extension API `T4.edx` (`js/editor-registry.js`) and feature modules `js/ed-*.js`, documented in `docs/EDITOR-EXTENSIONS.md`; one test suite per module (`tests/editor-*.mjs`), all run by `tests/test-editor.mjs`.
+
+### Changed
+- README: new section "Documents & knowledge workspace" with new screenshots; refreshed editor screenshots.
+- The editor test suite (`tests/test-editor.mjs`) now runs all module suites including the QA suite and takes noticeably longer.
+
+### Notes
+- **The document database is upgraded to version 2 automatically** on first start (new stores for versions and small module state). Existing documents stay unchanged. Versions stay on this device and are not part of document exports or the daily backup.
+- **Downgrading:** after the upgrade, Todo4Me 2.7.0 or older cannot open the document database any more (it falls back to a temporary in-memory mode). Keep 2.8.0 or newer. Tasks and notes are not affected.
+- **Known limits:** footnotes print as endnotes (no footnotes at the bottom of each page), no multi-column layout and no per-section page formats, no real-time collaboration or cloud sync (Todo4Me is offline by design), and the table of contents in a PDF has no page numbers.
+
 ## [2.7.0] - 2026-11-11
 
 ### Added
@@ -148,6 +169,7 @@ Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `win
 - Light/dark mode, accent colors, responsive layout, keyboard shortcuts.
 - Data safety: check on load, daily backup (14 days), damaged data is isolated and restored from the backup; data is stored at a fixed location in `%APPDATA%\Todo4Me`.
 
+[2.8.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.8.0
 [2.7.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.7.0
 [2.6.1]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.1
 [2.6.0]: https://github.com/muelgerhbf/todo4me/releases/tag/v2.6.0

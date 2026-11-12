@@ -16,7 +16,7 @@ T4.edcore = (function () {
   const COUNT_BLOCKS = /^(P|H[1-6]|LI|BLOCKQUOTE|TD|TH|UL|OL|TABLE|TR|THEAD|TBODY)$/;
   const isWidget = (n) => n && n.nodeType === 1 && n.classList.contains('t4-w');
   const isAtom = (n) => n.nodeType === 1 && (n.tagName === 'BR' || n.tagName === 'HR' || n.classList.contains('t4-w'));
-  const isTopBlock = (n) => n && n.nodeType === 1 && (/^(P|H[1-6]|UL|OL|BLOCKQUOTE|TABLE|HR)$/.test(n.tagName) || (n.tagName === 'FIGURE' && isWidget(n)));
+  const isTopBlock = (n) => n && n.nodeType === 1 && (/^(P|H[1-6]|UL|OL|BLOCKQUOTE|TABLE|HR)$/.test(n.tagName) || (n.tagName === 'FIGURE' && isWidget(n)) || T4.edx.sanitizer.isContainer(n) || T4.edx.sanitizer.tagKind(n.tagName) === 'block');
   const inField = (t) => t && t.nodeType === 1 && !!t.closest('textarea, input, select, .cw-head');
   const idx = (n) => Array.prototype.indexOf.call(n.parentNode.childNodes, n);
 
@@ -165,6 +165,7 @@ T4.edcore = (function () {
         else if (w === 'chart') out += '\n' + (p.title || '') + ' ' + (p.labels || []).join(' ') + '\n';
         else if (w === 'img') out += '\n' + (p.cap || '') + '\n';
         else if (w === 'draw') out += '\n' + (p.shapes || []).map((s) => s.text || '').join(' ') + '\n';
+        else { const x = T4.edx.widgets.textOf(w, p, n); if (x) out += (n.tagName === 'SPAN' ? ' ' + x + ' ' : '\n' + x + '\n'); }
         return;
       }
       if (n.tagName === 'BR') { out += '\n'; return; }
@@ -294,12 +295,25 @@ T4.edcore = (function () {
       f.replaceWith(span);
     });
     root.querySelectorAll('span:not(.t4-w):not([style]), span:not(.t4-w)[style=""]').forEach((s) => {
-      if (s.closest('.t4-w')) return;
+      if (s.closest('.t4-w') || s.attributes.length > (s.hasAttribute('style') ? 1 : 0)) return; // spans carrying registered attributes stay
       while (s.firstChild) s.parentNode.insertBefore(s.firstChild, s);
       s.remove();
     });
+    // insertUnorderedList/OrderedList can leave a list inside its paragraph (<p><ul>…</ul></p>): the list belongs next to it.
+    root.querySelectorAll(':scope > p > ul, :scope > p > ol').forEach((l) => {
+      const p = l.parentNode;
+      const only = Array.from(p.childNodes).every((n) => n === l || (n.nodeType === 3 && !n.nodeValue.trim()) || (n.nodeType === 1 && n.tagName === 'BR'));
+      const sel = window.getSelection();
+      const had = sel.rangeCount && p.contains(sel.anchorNode);
+      if (only) p.replaceWith(l); else p.after(l);
+      if (had) { // the selection pointed into the removed paragraph: select the list items instead
+        const lis = l.querySelectorAll(':scope > li');
+        if (lis.length) { const r = document.createRange(); r.setStart(lis[0], 0); r.setEnd(lis[lis.length - 1], lis[lis.length - 1].childNodes.length); sel.removeAllRanges(); sel.addRange(r); }
+      }
+    });
     // Chrome sometimes wraps pasted/indented blocks in <div>s.
     root.querySelectorAll(':scope > div:not(.t4-w)').forEach((d) => {
+      if (T4.edx.sanitizer.isContainer(d)) return;
       const p = document.createElement('p');
       while (d.firstChild) p.appendChild(d.firstChild);
       d.replaceWith(p);
@@ -980,6 +994,10 @@ T4.edcore = (function () {
       if (e.key.length === 1 && !mod) { clearWidget(); caretAfter(w); return; } // typing continues after the widget
       if (!mod) { e.preventDefault(); return; }
     }
+
+    // Shortcuts registered by feature modules (edx.shortcuts.add). Checked before the switch below because hooks.shortcut('mod-' + key)
+    // ignores Shift (Ctrl+Shift+P would otherwise count as Ctrl+P). Registered combos can never equal a built-in one (reserved).
+    if (T4.edx.shortcuts.dispatch(e)) return;
 
     if (mod && !e.altKey) {
       switch (k) {
