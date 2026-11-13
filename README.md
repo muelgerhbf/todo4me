@@ -11,7 +11,7 @@
 weekly notes, reminders, and a document and knowledge workspace (wiki links, version history, Word import/export, PDF export). Everything runs **offline on your computer**, with no account and no cloud.
 There is a desktop app for Windows and Linux (Electron) and a browser version.
 
-![Version](https://img.shields.io/badge/Version-2.8.0-5b5bd6)
+![Version](https://img.shields.io/badge/Version-2.9.0-5b5bd6)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078d4)
 ![Offline](https://img.shields.io/badge/runs-offline-2e9e5b)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
@@ -24,9 +24,9 @@ There is a desktop app for Windows and Linux (Electron) and a browser version.
 
 ### Windows
 
-1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.8.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.8.0)), download one of these files under *Assets*:
-   - **`Todo4Me-Setup-2.8.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
-   - **`Todo4Me-2.8.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
+1. On the **[latest release](https://github.com/muelgerhbf/todo4me/releases/latest)** page (currently [2.9.0](https://github.com/muelgerhbf/todo4me/releases/tag/v2.9.0)), download one of these files under *Assets*:
+   - **`Todo4Me-Setup-2.9.0.exe`**: the installer (recommended). Double-click it and follow the steps. No admin rights needed; it creates a desktop shortcut and a Start menu entry. The installed version **updates itself automatically**.
+   - **`Todo4Me-2.9.0-portable.exe`**: runs without installation, e.g. from a USB stick. It does **not** update itself.
 2. **Windows SmartScreen:** The files are not digitally signed (a code-signing certificate costs money). If you see "Windows protected your PC",
    choose **More info → Run anyway**.
 3. **Your data** is stored on your computer in the folder `%APPDATA%\Todo4Me` (e.g. `C:\Users\<Name>\AppData\Roaming\Todo4Me`); the installed and portable versions share it.
@@ -38,10 +38,10 @@ From the same [release page](https://github.com/muelgerhbf/todo4me/releases/late
 
 | Distribution | File | Install |
 |---|---|---|
-| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.8.0-amd64.deb` | `sudo apt install ./Todo4Me-2.8.0-amd64.deb` |
-| Fedora, RHEL, openSUSE | `Todo4Me-2.8.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.8.0-x86_64.rpm` |
-| Any distribution, self-updating | `Todo4Me-2.8.0-x86_64.AppImage` | `chmod +x Todo4Me-2.8.0-x86_64.AppImage && ./Todo4Me-2.8.0-x86_64.AppImage` |
-| Any distribution, no installation | `Todo4Me-2.8.0-x64.tar.gz` | `tar xzf Todo4Me-2.8.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
+| Ubuntu, Debian, Mint (recommended on Ubuntu) | `Todo4Me-2.9.0-amd64.deb` | `sudo apt install ./Todo4Me-2.9.0-amd64.deb` |
+| Fedora, RHEL, openSUSE | `Todo4Me-2.9.0-x86_64.rpm` | `sudo dnf install ./Todo4Me-2.9.0-x86_64.rpm` |
+| Any distribution, self-updating | `Todo4Me-2.9.0-x86_64.AppImage` | `chmod +x Todo4Me-2.9.0-x86_64.AppImage && ./Todo4Me-2.9.0-x86_64.AppImage` |
+| Any distribution, no installation | `Todo4Me-2.9.0-x64.tar.gz` | `tar xzf Todo4Me-2.9.0-x64.tar.gz`, then run `todo4me` from the extracted folder |
 
 - **AppImage needs FUSE 2.** On Ubuntu 22.04 and newer install it with `sudo apt install libfuse2t64` (older: `libfuse2`), or start the AppImage with `--appimage-extract-and-run`.
 - **Sandbox on Ubuntu 23.10+:** Ubuntu restricts unprivileged user namespaces with AppArmor. The deb and rpm packages install an AppArmor profile and keep Chromium's sandbox, which is why they are recommended there.
@@ -215,7 +215,7 @@ Without internet nothing disruptive happens: automatic checks fail silently, a m
 The portable `.exe` and the developer version (`npm start`) do not update themselves and say so in the settings.
 
 > **One-time step for existing users of versions 1.0.0–2.1.1:** 1.0.0 had no update feature, and 2.0.0–2.1.1 looked for updates in a former repository.
-> Install `Todo4Me-Setup-2.8.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
+> Install `Todo4Me-Setup-2.9.0.exe` **once** over the old version (your data is kept). From then on, all further versions arrive automatically.
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
@@ -396,6 +396,7 @@ Shortcuts in the editor (`Cmd` instead of `Ctrl` on macOS; `Ctrl+/` shows the fu
 | `Ctrl+Alt+D` | Today's daily note |
 | `Ctrl+Shift+F` | Focus mode |
 | `Ctrl+Shift+P` | Command palette |
+| `Ctrl+Alt+Shift+P` | Pen mode on/off (document editor) |
 | `Ctrl+/` | Keyboard shortcuts |
 | `Alt+F10` | Selection toolbar |
 | `Shift+F10` | Context menu |
@@ -535,6 +536,26 @@ Versions stay on this device: they are not part of document exports or the daily
 
 ![Command palette](docs/screenshots/editor-palette.png)
 
+#### Pen and handwriting
+
+Draw and write by hand directly in a document with a mouse, touch or a pen. Turn **pen mode** on with the pen button in the toolbar or `Ctrl+Alt+Shift+P`; a floating **pen bar** (move it, customise it) holds the tools, colours, undo/redo and settings.
+
+![Handwriting canvas with pen, highlighter and shapes, pen bar at the bottom](docs/screenshots/editor-ink-light.png)
+
+| Feature | How it works |
+|---|---|
+| Pen, highlighter | Sizes, colours, opacity; pressure-sensitive with an active pen; saved **pen profiles** |
+| Eraser | Whole stroke or only the brushed part, adjustable size; the eraser end of a pen works too |
+| Lasso | Select strokes, then move, scale, copy/cut/paste, duplicate, delete or change colour and size |
+| Shapes | Line, arrow, rectangle, ellipse, triangle (`Shift` constrains); optional **shape recognition** snaps hand-drawn lines, arrows, rectangles, circles and triangles |
+| Handwriting canvas | Insert one anywhere in the text: resizable, grows as you write, transparent or dots/lines/grid background, zoom and pan, up to 8 **layers** (hide, lock, reorder) |
+| Annotate | In pen mode you can also draw directly over text and formulas; the ink stays anchored to its paragraph |
+| Input | Mouse, touch and pen with palm rejection |
+| Saving | Strokes are stored as vector data in the document, so every stroke stays editable after reopening; undo/redo uses the editor history. Existing documents are unchanged |
+| Export | Vector ink in the PDF; a drawing or a selection as **SVG** or **PNG**; ink is included in Word, HTML, TXT and RTF export |
+
+**Known limits:** no handwriting-to-LaTeX recognition and no recognition of hand-drawn electrical symbols (there is no offline recogniser that fits the app's security policy; the original ink is kept so this can be added later). Overlay annotations are exported to Word and HTML as a separate image at their position, not over the text. An overlay that spans a page break in the PDF is not split. Shapes smaller than about 7 % of the text width are not auto-recognised. Real pen hardware (pressure, barrel button, palm rejection) was tested only with synthetic events. A canvas holds up to 5000 items or about 2 MB. Developer notes: `docs/INK-CONTRACT.md`.
+
 #### Export and import
 
 | Format | Details |
@@ -639,8 +660,8 @@ Releases are built by the GitHub Actions workflow `.github/workflows/release.yml
 **For every update**
 
 1. Increase the version number in `package.json` (it must **always be greater** than the last one) and add the section to `CHANGELOG.md`. Merge to `main`.
-2. Push the tag: `git tag v2.8.0 && git push origin v2.8.0` (the tag must equal `v` + the `package.json` version).
-3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.8.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
+2. Push the tag: `git tag v2.9.0 && git push origin v2.9.0` (the tag must equal `v` + the `package.json` version).
+3. The workflow builds all files and creates a **draft** release named *Todo4Me 2.9.0* with the CHANGELOG section as notes. It contains both `latest.yml` (Windows) and `latest-linux.yml` (Linux AppImage).
 4. On GitHub under *todo4me → Releases*, check the draft and click **Publish release**. From now on everyone gets the update.
 
 Running the workflow manually (*Actions → Release → Run workflow*) only builds and attaches the files as artifacts; it creates no release.

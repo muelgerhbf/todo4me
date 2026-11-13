@@ -69,8 +69,9 @@
         try { url = await window.T4.docstore.assetDataURL(p.a); } catch (e) { url = null; }
         if (url) repl = fromHtml('<figure class="t4-img" data-al="' + he(p.al || 'center') + '"><div class="t4-box" style="width:' + (+p.w || 100) + '%"><img src="' + he(url) + '" alt="' + he(p.alt || p.cap || '') + '"></div>' + (p.cap ? '<figcaption>' + he(p.cap) + '</figcaption>' : '') + '</figure>');
         else { rep.note('img', 'warn', t('r.image', 'An image could not be read and was replaced by its description.')); repl = fromHtml('<p><em>[' + he(p.alt || p.cap || 'image') + ']</em></p>'); }
-      } else if (type === 'chart' || type === 'draw') {
+      } else if (type === 'chart' || type === 'draw' || type === 'ink') {
         const sv = C.widgetSVG(type, p);
+        if (sv && sv.overlay) rep.note('inkov', 'info', t('r.inkoverlay', 'An annotation layer over the text was exported as a separate image at its position.'));
         if (sv) repl = fromHtml('<figure class="t4-svg" data-al="' + he(p.al || 'center') + '"><div class="t4-box" style="width:' + sv.widthPct + '%">' + sv.svg.replace(/ data-sid="[^"]*"/g, '') + '</div></figure>');
       } else if (type === 'math') {
         const ml = C.texMathML(p.tex, w.tagName !== 'SPAN');
@@ -168,7 +169,7 @@
           if (type === 'code') (c.querySelector('pre') || c).textContent.replace(/\n$/, '').split('\n').forEach((l) => lines.push('    ' + l));
           else if (type === 'math') lines.push('    ' + (p.tex || ''));
           else if (type === 'img') { rep.note('img', 'info', t('r.txtimg', 'Images and drawings are replaced by a short description in plain text.')); lines.push('[' + t('image', 'Image') + ': ' + (p.alt || p.cap || '') + ']'); if (p.cap && p.alt) lines.push(p.cap); }
-          else if (type === 'chart' || type === 'draw') {
+          else if (type === 'chart' || type === 'draw' || type === 'ink') {
             rep.note('img', 'info', t('r.txtimg', 'Images and drawings are replaced by a short description in plain text.'));
             if (type === 'chart') { lines.push('[' + t('chart', 'Chart') + (p.title ? ': ' + p.title : '') + ']'); (p.labels || []).forEach((lb, i) => lines.push('  ' + lb + ': ' + (p.series || []).map((s) => s.values && s.values[i]).join(', '))); }
             else lines.push('[' + t('drawing', 'Drawing') + ']');
@@ -299,7 +300,7 @@
           if (type === 'code') (c.querySelector('pre') || c).textContent.replace(/\n$/, '').split('\n').forEach((l) => { s += P('{\\f1\\fs20 ' + rtfEsc(l) + '}', { sa: 0, li: 120 }); });
           else if (type === 'math') { rep.note('math', 'info', t('r.mathsrc', 'A formula was exported as LaTeX source text.')); s += P('{\\f1 ' + rtfEsc(p.tex || '') + '}', { jc: 'c' }); }
           else if (type === 'pagebreak') s += '\\page\n';
-          else if (type === 'img' || type === 'chart' || type === 'draw') { rep.note('img', 'warn', t('r.rtfimg', 'RTF export does not contain images; they are replaced by a short description.')); s += P('{\\i [' + rtfEsc(p.alt || p.cap || p.title || type) + ']}', {}); }
+          else if (type === 'img' || type === 'chart' || type === 'draw' || type === 'ink') { rep.note('img', 'warn', t('r.rtfimg', 'RTF export does not contain images; they are replaced by a short description.')); s += P('{\\i [' + rtfEsc(p.alt || p.cap || p.title || type) + ']}', {}); }
           else if (type === 'toc') { const lv = Math.max(1, Math.min(6, +p.levels || 3)); Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6')).filter((h) => +h.tagName[1] <= lv).forEach((h) => { s += P(rtfEsc(h.textContent.trim()), { li: (+h.tagName[1] - 1) * 360, sa: 40 }); }); }
           else { rep.note('w:' + type, 'warn', t('r.widget', 'The element “{name}” cannot be represented and was exported as plain text.', { name: type })); s += P(rtfEsc(X().widgets.has(type) ? X().widgets.textOf(type, p, c) : ''), {}); }
           return;
