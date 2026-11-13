@@ -24,6 +24,11 @@ import { test as layoutTest } from './editor-layout.mjs';
 // ed-tests-import:ux
 import { test as uxTest } from './editor-ux.mjs';
 // /ed-tests-import:ux
+// ed-tests-import:ink
+import { test as inkModelTest } from './editor-ink-model.mjs';
+import { test as inkTest } from './editor-ink.mjs';
+import { test as inkUiTest } from './editor-ink-ui.mjs';
+// /ed-tests-import:ink
 // ed-tests-import:qa
 import { test as qaTest } from './editor-qa.mjs';
 // /ed-tests-import:qa
@@ -625,6 +630,11 @@ export default async function (b) {
     // ed-tests-run:ux
     ['ux', uxTest],
     // /ed-tests-run:ux
+    // ed-tests-run:ink
+    ['ink-model', inkModelTest],
+    ['ink', inkTest],
+    ['ink-ui', inkUiTest],
+    // /ed-tests-run:ink
     // ed-tests-run:qa
     ['qa', qaTest],
     // /ed-tests-run:qa

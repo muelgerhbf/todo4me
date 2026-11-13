@@ -349,12 +349,14 @@
         if (/^float-/.test(p.al || '')) rep.note('float', 'info', t('r.float', 'Images with text wrapping are placed as ordinary block images.'));
         return imageBlock(info, p.w || 100, p.alt || p.cap, p.cap, jcOf(p.al), ctx, p.alt);
       }
-      if (type === 'chart' || type === 'draw') {
+      if (type === 'chart' || type === 'draw' || type === 'ink') {
         const sv = C.widgetSVG(type, p);
         if (!sv) return '';
+        if (sv.overlay) rep.note('inkov', 'info', t('r.inkoverlay', 'An annotation layer over the text was exported as a separate image at its position.'));
         try {
-          const bytes = await C.svgToPng(sv.svg, sv.w, sv.h, 2);
-          const info = { bytes, ext: 'png', w: sv.w * 2, h: sv.h * 2, key: 'svg' + S.mediaFiles.length + ':' + type };
+          const sc = sv.scale || 2;
+          const bytes = await C.svgToPng(sv.svg, sv.w, sv.h, sc);
+          const info = { bytes, ext: 'png', w: sv.w * sc, h: sv.h * sc, key: 'svg' + S.mediaFiles.length + ':' + type };
           info.w = sv.w; info.h = sv.h; // display ratio; natural width = css px
           return imageBlock(info, sv.widthPct, sv.title, '', jcOf(p.al), ctx, sv.title);
         } catch (e) {

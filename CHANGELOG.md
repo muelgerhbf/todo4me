@@ -4,6 +4,22 @@ All notable changes to Todo4Me (Windows and Linux desktop apps and web app) are 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 Release tags use the prefix `v` (versions up to 2.3.0 use the former prefix `windows-v`).
 
+## [2.9.0] - 2026-11-13
+
+### Added
+- **Pen and handwriting in the document editor.** Turn pen mode on with the toolbar button or `Ctrl+Alt+Shift+P`; works with mouse, touch and pen (palm rejection, pen eraser end).
+- **Tools:** pen with pressure (active pens), sizes, colours and opacity; highlighter; eraser (whole stroke or only the brushed part, adjustable size); lasso selection with move, scale, copy/cut/paste, duplicate, delete and restyle; shapes (line, arrow, rectangle, ellipse, triangle; `Shift` constrains); optional **shape recognition** for hand-drawn lines, arrows, rectangles, circles and triangles with snapping.
+- **Handwriting canvases** inside the document: resizable, auto-growing, transparent or dots/lines/grid background, zoom and pan, up to 8 layers (hide, lock, reorder). **Annotations** can also be drawn directly over text and formulas in pen mode; they stay anchored to the paragraph.
+- **Pen bar:** saved pen profiles and a customisable floating bar; texts in four languages.
+- **Saving and export:** strokes are stored as vector data in the document, so each stroke stays editable after reopening; undo/redo through the editor history; vector output in the PDF export; export of a drawing or selection as **SVG** and **PNG**; ink is carried into Word, HTML, TXT and RTF export.
+- Developer: new editor module `ink` on the `T4.edx` registry (`js/ed-ink-model.js`, `js/ed-ink.js`, `js/ed-ink-input.js`, `js/ed-ink-ui.js`, `css/ed-ink.css`, `js/i18n/ed-ink.js`), no core editor file changed; three test suites (`tests/editor-ink-model.mjs`, `tests/editor-ink.mjs`, `tests/editor-ink-ui.mjs`); contract in `docs/INK-CONTRACT.md`; screenshot script `tests/test-ink-shots.mjs`.
+
+### Changed
+- README: new section "Pen and handwriting" with a screenshot; `Ctrl+Alt+Shift+P` added to the shortcuts. Existing documents are unchanged.
+
+### Notes
+- **Known limits:** no handwriting-to-LaTeX recognition and no recognition of hand-drawn electrical symbols (no offline recogniser fits the app's content security policy; the original ink is kept so it can be added later). Overlay annotations are exported to Word and HTML as a separate image at their position, not over the text. An overlay that spans a page break in the PDF is not split. Shapes smaller than about 7 % of the text width are not auto-recognised. Real pen hardware (pressure, barrel button, palm rejection) was tested only with synthetic events. A canvas holds up to 5000 items or about 2 MB; with 2000 strokes on one canvas adding a stroke takes about 18 ms.
+
 ## [2.8.0] - 2026-11-12
 
 ### Added

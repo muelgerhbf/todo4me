@@ -259,6 +259,8 @@ function hardenSession() {
     html: { title: 'dlg.saveHtml', name: () => 'HTML' },
     txt: { title: 'dlg.saveText', name: () => T('flt.text') },
     rtf: { title: 'dlg.saveRtf', name: () => T('flt.rtf') },
+    svg: { title: 'dlg.saveSvg', name: () => T('flt.svg') },
+    png: { title: 'dlg.savePng', name: () => T('flt.png') },
   };
   ses.on('will-download', (_event, item) => {
     const ext = path.extname(item.getFilename()).slice(1).toLowerCase();

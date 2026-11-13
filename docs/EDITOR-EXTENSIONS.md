@@ -12,6 +12,7 @@ Every module owns exactly these files and anchors, so parallel work never touche
 |---|---|---|---|---|---|---|
 | knowledge | `js/ed-knowledge.js` | `js/i18n/ed-knowledge.js` | `css/ed-knowledge.css` | `tests/editor-knowledge.mjs` | `<!-- ed-module:knowledge -->` … `<!-- /ed-module:knowledge -->` | `// ed-tests-import:knowledge` pair, `// ed-tests-run:knowledge` pair |
 | writing, versions, io, layout, ux, qa | same pattern with the module name | | | | | |
+| ink (pen and handwriting) | `js/ed-ink-model.js`, `js/ed-ink.js`, `js/ed-ink-input.js`, `js/ed-ink-ui.js` | `js/i18n/ed-ink.js` | `css/ed-ink.css` | **three suites:** `tests/editor-ink-model.mjs`, `tests/editor-ink.mjs`, `tests/editor-ink-ui.mjs` | `<!-- ed-module:ink -->` pair | `// ed-tests-import:ink` and `// ed-tests-run:ink` pairs (three imports, three runs). Contract: `docs/INK-CONTRACT.md` |
 
 * **index.html**: between your anchor pair (they sit after `js/editor.js`, before `js/app.js`) add, in this order: the i18n script, the stylesheet `<link rel="stylesheet" href="css/ed-<module>.css">`, your scripts. A `<link>` in the body is fine; CSP `style-src 'self'` allows it.
 * **Load order**: `js/editor-registry.js` loads first of all editor files (right before `editor-sanitize.js`; it needs only `T4.util` and `T4.i18n`). Module scripts load after `editor.js`, before `app.js`, so `T4.edx.editor` is bound and the editor shell does not exist yet. Register at load time; do not touch the DOM of the editor shell directly (it is rebuilt on language change).
@@ -23,7 +24,7 @@ Every module owns exactly these files and anchors, so parallel work never touche
   }
   export default standalone(test);           // CDP_PORT=9341 node tests/cdp.mjs tests/editor-<module>.mjs
   ```
-  In `tests/test-editor.mjs` add `import { test as knowledgeTest } from './editor-knowledge.mjs';` between `// ed-tests-import:knowledge` lines and `['knowledge', knowledgeTest],` between the `// ed-tests-run:knowledge` lines. The suites run in the fixed order foundation, knowledge, writing, versions, io, layout, ux, qa, each starting from the editor start page. Page helpers in bodies: `$`, `$$`, `wait`, `ok(cond, msg)`, `D()` (document element), `C()` (`T4.edcore`), `W()`, `caretEnd()`, `selectNode(el)`, `tb(cmd)`, `menuItem(label)`, `stored()`, `newDoc(tpl)`. Registrations from a suite live until the page reloads; unregister (`remove`) or reload at the end. Use only `CDP_PORT=9341` (never 9333).
+  In `tests/test-editor.mjs` add `import { test as knowledgeTest } from './editor-knowledge.mjs';` between `// ed-tests-import:knowledge` lines and `['knowledge', knowledgeTest],` between the `// ed-tests-run:knowledge` lines. The suites run in the fixed order foundation, knowledge, writing, versions, io, layout, ux, ink (model, engine, ui), qa, each starting from the editor start page. Page helpers in bodies: `$`, `$$`, `wait`, `ok(cond, msg)`, `D()` (document element), `C()` (`T4.edcore`), `W()`, `caretEnd()`, `selectNode(el)`, `tb(cmd)`, `menuItem(label)`, `stored()`, `newDoc(tpl)`. Registrations from a suite live until the page reloads; unregister (`remove`) or reload at the end. Use only `CDP_PORT=9341` (never 9333).
 
 ## 2. Rules
 

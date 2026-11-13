@@ -710,3 +710,26 @@ Not verified: rpm install on a real rpm distribution (argv unit checks only), Wi
 - Downgrading to 2.7.0 after the upgrade makes the old app unable to open the document database.
 
 **Docs and release material**: README section "Documents & knowledge workspace" with new screenshots (taken from the running app with sample data), CHANGELOG 2.8.0, website editor card and gallery, version 2.8.0.
+
+
+### Step 34: Pen and handwriting in the document editor (2.9.0)
+
+**Goal**: draw and write by hand inside documents (pen, highlighter, eraser, lasso, shapes, layers, annotations over text), stored as editable vector data, without touching the core editor.
+
+**Process (multi-agent)**
+
+- **Analysis and contract:** the lead analysed the editor and wrote `docs/INK-CONTRACT.md` (data model, widget, API, events, i18n keys).
+- **Three coders in parallel** on disjoint files with their own CDP ports: model (`js/ed-ink-model.js`, port 9341), engine (`js/ed-ink.js`, `js/ed-ink-input.js`, port 9342), ui (`js/ed-ink-ui.js`, `css/ed-ink.css`, `js/i18n/ed-ink.js`, port 9343), each with its own suite.
+- **Integration by the lead:** script wiring, the shortcut conflict `Ctrl+Shift+H` with the version history (pen mode now `Ctrl+Alt+Shift+P`), an empty-canvas hint, two missing texts. Small changes in `js/ed-io-common.js`, `js/ed-io-docx-export.js`, `js/ed-io-html.js`, `js/i18n/ed-io.js` (ink in Word/HTML/text/RTF export) and `electron/main.js`, `electron/i18n.js` (SVG/PNG save-dialog filters).
+- **Tests (final lead run, Linux, sequential, port 9333):** editor 2257/0 (`PDFTEXT=tests/pdftext.mjs`; ink suites: model 196, engine 219, ui 214), functional 707/0, ICS 62/0, modes 78/0, electron 181/0, page errors 0. The first full editor run stalled in the existing ux block-drag test and the second had 4 failures there (documented as timing-dependent in Step 33); standalone ux 114/0 and the final full run 2257/0.
+
+**Architecture decisions**
+
+- Built only on the `T4.edx` registry: widget `ink`, commands, toolbar button, panels; the editor core is unchanged. Strokes are stored as validated vector data in the widget, redrawn on open, and pass through the sanitizer like every widget; all changes go through `edx.editor.run()` (one undo step).
+- Pointer Events input with palm rejection; ink in the PDF is vector, Word/HTML/TXT/RTF get a rendered image or text placeholder.
+
+**Known limitations**
+
+- No handwriting-to-LaTeX and no electrical-symbol recognition (no offline recogniser fits the CSP; original ink is kept). Overlay annotations export to Word/HTML as a separate image, an overlay across a PDF page break is not split, shapes below about 70 units (7 % of the text width) are not auto-recognised, real pen hardware was tested only with synthetic events, a canvas holds up to 5000 items / about 2 MB; with 2000 strokes adding a stroke takes about 18 ms (about 13 ms is the editor's undo snapshot).
+
+**Docs and release material**: README section "Pen and handwriting" with a screenshot from the running app (`tests/test-ink-shots.mjs`, `docs/screenshots/editor-ink-light.png`), CHANGELOG 2.9.0, `docs/EDITOR-EXTENSIONS.md` module table, version 2.9.0.

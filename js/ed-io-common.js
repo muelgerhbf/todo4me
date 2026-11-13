@@ -103,11 +103,22 @@
   }
   /** SVG markup + intrinsic size for chart / draw widgets. */
   function widgetSVG(type, p) {
+    if (type === 'ink') return inkSVG(p);
     const W = window.T4.edw;
     const v = W.validate(type, p);
     if (!v) return null;
     if (type === 'chart') return { svg: W.chartSVG(v), w: 640, h: 360, widthPct: v.w, title: v.title || t('chart', 'Chart') };
     return { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W.DRAW_W + ' ' + v.h + '">' + v.shapes.map(W.shapeSVG).join('') + '</svg>', w: W.DRAW_W, h: v.h, widthPct: 100, title: t('drawing', 'Drawing') };
+  }
+
+  /** Handwriting canvas (T4.ink): same shape as the drawing result; null when the ink module is absent or the canvas is blank. */
+  function inkSVG(p) {
+    const M = window.T4.ink && window.T4.ink.model;
+    if (!M) return null;
+    const v = M.validate(p);
+    if (!v || (!v.items.length && v.bg === 'none')) return null;
+    const w = 640, h = Math.max(1, Math.round((w * v.h) / v.w));
+    return { svg: M.toSVG(v, { background: true, sized: false }), w, h, widthPct: v.w / 10, scale: Math.min(2, 8000 / h), title: t('drawing', 'Drawing'), overlay: v.overlay };
   }
 
   /* ---------- images ---------- */
